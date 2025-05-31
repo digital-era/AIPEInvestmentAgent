@@ -65,7 +65,7 @@ function getTopNUniqueStocks(jsonData, count) {
 
 
 async function loadAndProcessExcelData() {
-    const excelFilePath = '../data/AIPEFinanceData.xlsx'; // Path relative to potfunddatarender.js
+    const excelFilePath = 'data/AIPEFinanceData.xlsx'; // Path relative to potfunddatarender.js
     try {
         const response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch Excel file: ${response.statusText} (URL: ${excelFilePath})`);
