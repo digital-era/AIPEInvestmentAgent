@@ -110,7 +110,7 @@ const endpointModelMap = {
         { value: "deepseek-chat", labelKey: "modelDeepSeekV3" }
     ],
     "https://generativelanguage.googleapis.com": [
-        { value: "gemini-1.5-flash-preview-0514", labelKey: "modelGeminiFlash" }
+        { value: "gemini-2.5-flash-preview-05-20", labelKey: "modelGeminiFlash" }
     ],
     "https://api.openai.com": [
         { value: "gpt-4o-mini", labelKey: "modelGpt4oMini" }
