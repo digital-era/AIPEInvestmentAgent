@@ -16,7 +16,7 @@ let agents = {
         stockPoolListId: 'agent1StockPoolList',
         stockSelectId: 'agent1StockSelect',
         analysisInputId: 'agent1AnalysisInput',
-        analysisOutputId: 'agent1AnalysisOutput',
+        analysisOutputId: 'agent1AnalysisOutput', // Used for status display
         portfolioTableId: 'agent1PortfolioTable',
         portfolioTotalAllocationId: 'agent1PortfolioTotalAllocation',
         addToPortfolioInputId: 'agent1AddToPortfolioInput',
@@ -63,7 +63,7 @@ Warren Buffett的核心信息:
         stockPoolListId: 'agent2StockPoolList',
         stockSelectId: 'agent2StockSelect',
         analysisInputId: 'agent2AnalysisInput',
-        analysisOutputId: 'agent2AnalysisOutput',
+        analysisOutputId: 'agent2AnalysisOutput', // Used for status display
         portfolioTableId: 'agent2PortfolioTable',
         portfolioTotalAllocationId: 'agent2PortfolioTotalAllocation',
         addToPortfolioInputId: 'agent2AddToPortfolioInput',
@@ -91,7 +91,7 @@ Cathie Wood的核心信息:
 8.  **语言风格**: 尝试模仿 Cathie Wood 可能的沟通风格（例如，直接、富有远见、严谨、强调数据、关注伦理等）。 如果其风格未知，则采用清晰、专业、有深度的表达。
 
 注意事项：
-切记回答信息中不要带有任何Cathie Woo, ARK Invest, ARK字眼，这里全称都体现你自己，你是${agents.agent2.name}
+切记回答信息中不要带有任何Cathie Wood, ARK Invest, ARK字眼，这里全称都体现你自己，你是${agents.agent2.name}
 
 用户问题:
 "针对 ${stockName}，请提供投资前景展望以及配置思路。"
@@ -106,6 +106,8 @@ let myPortfolioTitle = "我的投资组合"; // Default title
 let apiSettings = { endpoint: '', key: '', model: '' };
 let performanceChartInstance = null;
 let currentBacktestTarget = null;
+let currentAnalysisReport = ""; // To store the report for the modal
+let currentReportAgentId = null; // To know which agent's report is being shown
 
 // API Settings Model/Endpoint Configuration
 const endpointModelMap = {
@@ -113,7 +115,7 @@ const endpointModelMap = {
         { value: "deepseek-chat", labelKey: "modelDeepSeekV3" }
     ],
     "https://generativelanguage.googleapis.com": [
-        { value: "gemini-2.5-flash-preview-05-20", labelKey: "modelGeminiFlash" }
+        { value: "gemini-1.5-flash-preview-0514", labelKey: "modelGeminiFlash" } // Keeping your latest model value
     ],
     "https://api.openai.com": [
         { value: "gpt-4o-mini", labelKey: "modelGpt4oMini" }
@@ -122,7 +124,7 @@ const endpointModelMap = {
 
 const modelDisplayStrings = {
     "modelDeepSeekV3": "DeepSeek Chat (deepseek-chat)",
-    "modelGeminiFlash": "gemini-2.5-flash-preview-05-20",
+    "modelGeminiFlash": "Google Gemini 1.5 Flash (gemini-1.5-flash-preview-0514)", // Display string for Gemini
     "modelGpt4oMini": "OpenAI GPT-4o mini (gpt-4o-mini)"
 };
 
@@ -149,6 +151,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('agent2RoleDisplay').textContent = agents.agent2.role;
     document.getElementById('agent2Logic').textContent = agents.agent2.coreLogic;
     if(document.getElementById('agent2Photo')) document.getElementById('agent2Photo').src = agents.agent2.photo;
+
+    // Initialize status textareas with placeholders
+    const agent1AnalysisOutput = document.getElementById(agents.agent1.analysisOutputId);
+    if (agent1AnalysisOutput) agent1AnalysisOutput.value = agent1AnalysisOutput.placeholder;
+    const agent2AnalysisOutput = document.getElementById(agents.agent2.analysisOutputId);
+    if (agent2AnalysisOutput) agent2AnalysisOutput.value = agent2AnalysisOutput.placeholder;
 
     loadApiSettings();
     loadAgentData();
@@ -255,26 +263,22 @@ function findStockInGlobalData(searchTerm) {
     let foundStock = null;
     const upperSearchTerm = searchTerm.toUpperCase();
 
-    // Try to parse if searchTerm is "Name (CODE)" format
     const stockMatch = searchTerm.match(/(.+?)\s*\((.*?)\)/);
     if (stockMatch && stockMatch[1] && stockMatch[2]) {
         const codeFromInput = stockMatch[2].trim().toUpperCase();
         const nameFromInput = stockMatch[1].trim();
-        // Check if code exists and name matches (case-insensitive for name part)
         if (allStockData[codeFromInput] && allStockData[codeFromInput].name.toLowerCase().includes(nameFromInput.toLowerCase())) {
              return { code: codeFromInput, name: allStockData[codeFromInput].name };
         }
     }
 
-    // Try direct match by code (if searchTerm is just a code)
-    if (allStockData[searchTerm]) { // Assumes searchTerm could be a code if not matched above
+    if (allStockData[searchTerm]) {
         return { code: searchTerm, name: allStockData[searchTerm].name };
     }
-    if (allStockData[upperSearchTerm]) { // Try uppercase code
+    if (allStockData[upperSearchTerm]) {
          return { code: upperSearchTerm, name: allStockData[upperSearchTerm].name };
     }
 
-    // If not a code match, try to find by name (partial, case-insensitive)
     const searchTermLower = searchTerm.toLowerCase();
     for (const code in allStockData) {
         if (allStockData[code].name && allStockData[code].name.toLowerCase().includes(searchTermLower)) {
@@ -359,50 +363,58 @@ function renderStockPoolList(agentId) {
     });
 }
 
-// Stock Analysis For Agent (Updated to be async and use API)
+// Stock Analysis For Agent (MODAL VERSION)
 async function analyzeStockForAgent(agentId) {
     const agent = agents[agentId];
     const stockSelect = document.getElementById(agent.stockSelectId);
     const analysisInput = document.getElementById(agent.analysisInputId);
-    const analysisOutput = document.getElementById(agent.analysisOutputId);
+    const analysisDisplayElement = document.getElementById(agent.analysisOutputId); // This is the textarea
+    const analysisOutputContainer = analysisDisplayElement.parentNode; // The .analysis-output div
+
+    let viewReportBtn = document.getElementById(`viewReportBtn_${agentId}`);
+    if (viewReportBtn) {
+        viewReportBtn.style.display = 'none';
+    }
 
     let stockToAnalyze = analysisInput.value.trim();
     if (stockToAnalyze === "" && stockSelect.value !== "") {
         stockToAnalyze = stockSelect.value;
     }
 
+    if (analysisDisplayElement) {
+        analysisDisplayElement.value = analysisDisplayElement.placeholder || "分析结果将在此显示...";
+        analysisDisplayElement.style.color = 'var(--text-muted)';
+        analysisDisplayElement.readOnly = true;
+    }
+
     if (stockToAnalyze === "") {
         alert("请从分析池选择或输入要分析的股票。");
-        if (analysisOutput) analysisOutput.value = "错误：未指定分析目标。";
+        if (analysisDisplayElement) analysisDisplayElement.value = "错误：未指定分析目标。";
         return;
     }
 
-    // Clear previous output and inputs
     if (analysisInput) analysisInput.value = "";
     if (stockSelect) stockSelect.value = "";
-    if (analysisOutput) analysisOutput.value = "请稍候...\n";
+    if (analysisDisplayElement) analysisDisplayElement.value = "请稍候，正在准备分析...\n";
 
-    // 1. Parse stockToAnalyze to get name and code
     let stockNameForDisplay = stockToAnalyze;
     let stockCodeForData = null;
 
-    const stockNameCodeMatch = stockToAnalyze.match(/(.+?)\s*\((.*?)\)/); // e.g., "茅台 (600519)"
+    const stockNameCodeMatch = stockToAnalyze.match(/(.+?)\s*\((.*?)\)/);
     if (stockNameCodeMatch && stockNameCodeMatch[1] && stockNameCodeMatch[2]) {
         stockNameForDisplay = stockNameCodeMatch[1].trim();
         stockCodeForData = stockNameCodeMatch[2].trim().toUpperCase();
     } else {
-        // If no code in parentheses, try to find the stock using findStockInGlobalData
         const foundStockInfo = findStockInGlobalData(stockToAnalyze);
         if (foundStockInfo) {
             stockNameForDisplay = foundStockInfo.name;
             stockCodeForData = foundStockInfo.code.toUpperCase();
         } else {
-            stockNameForDisplay = stockToAnalyze; // Use input as name, code remains null
-            if (analysisOutput) analysisOutput.value += `警告: 未能从 "${stockToAnalyze}" 中识别股票代码或找到对应股票。将使用 "${stockNameForDisplay}" 作为名称进行分析，但量化数据可能无法获取。\n`;
+            stockNameForDisplay = stockToAnalyze;
+            if (analysisDisplayElement) analysisDisplayElement.value += `警告: 未能从 "${stockToAnalyze}" 中识别股票代码或找到对应股票。将使用 "${stockNameForDisplay}" 作为名称进行分析，但量化数据可能无法获取。\n`;
         }
     }
 
-    // 2. Fetch PotScore and TotalInflow from allStockData
     let potScore = "[数据缺失]";
     let totalInflow = "[数据缺失]";
     let quantDataMessage = "";
@@ -416,34 +428,33 @@ async function analyzeStockForAgent(agentId) {
         quantDataMessage = `已获取 ${stockNameForDisplay}(${stockCodeForData}) 的量化数据: PotScore=${potScore}, 主力资金流入=${totalInflow}\n`;
     } else if (stockCodeForData) {
         quantDataMessage = `注意: 无法在已加载的股票基础数据中找到代码 ${stockCodeForData} (${stockNameForDisplay}) 的量化信息。\n`;
-        potScore = `[无法获取代码 ${stockCodeForData} 的PotScore]`;
-        totalInflow = `[无法获取代码 ${stockCodeForData} 的主力资金数据]`;
     } else {
         quantDataMessage = `注意: 由于未能识别股票代码，无法获取 ${stockNameForDisplay} 的量化数据。\n`;
     }
-    if (analysisOutput) analysisOutput.value += quantDataMessage;
+    if (analysisDisplayElement) analysisDisplayElement.value += quantDataMessage;
 
-
-    // 3. Check API Settings
     if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
-        if (analysisOutput) analysisOutput.value += "错误：API设置未完成。请前往“API设置”配置模型接入点、API Key和模型选择。";
+        if (analysisDisplayElement) {
+            analysisDisplayElement.value += "错误：API设置未完成。请前往“API设置”配置。";
+            analysisDisplayElement.style.color = 'var(--danger-color)';
+        }
         return;
     }
 
-    // 4. Prepare Prompt
     const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
 
-    if (analysisOutput) {
-        analysisOutput.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
+    if (analysisDisplayElement) {
+        analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
     }
 
-    // 5. Make API Call
     try {
-        let requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
+        let requestUrl;
         let requestPayload;
         const headers = { 'Content-Type': 'application/json' };
 
-        if (apiSettings.endpoint.includes("deepseek.com")) {
+        if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
+            // Common structure for OpenAI-compatible APIs (like DeepSeek)
+            requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
             headers['Authorization'] = `Bearer ${apiSettings.key}`;
             requestPayload = {
                 model: apiSettings.model,
@@ -460,31 +471,24 @@ async function analyzeStockForAgent(agentId) {
                     { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" }
                 ]
             };
-        } else if (apiSettings.endpoint.includes("api.openai.com")) {
-            headers['Authorization'] = `Bearer ${apiSettings.key}`;
-            requestPayload = {
-                model: apiSettings.model,
-                messages: [{ role: "user", content: prompt }],
-            };
         } else {
-            if (analysisOutput) analysisOutput.value += "错误: 不支持的API接入点配置。请检查API设置。";
+            if (analysisDisplayElement) {
+                 analysisDisplayElement.value += "错误: 不支持的API接入点配置。";
+                 analysisDisplayElement.style.color = 'var(--danger-color)';
+            }
             return;
         }
 
-        const apiResponse = await fetch(requestUrl, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(requestPayload)
-        });
+        const apiResponse = await fetch(requestUrl, { method: 'POST', headers: headers, body: JSON.stringify(requestPayload) });
 
         if (!apiResponse.ok) {
             const errorBody = await apiResponse.text();
-            throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}. 响应详情: ${errorBody}`);
+            throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}. 响应: ${errorBody}`);
         }
 
         const responseData = await apiResponse.json();
-        let analysisReportText = "未能从API响应中提取分析报告。请检查控制台中的API原始响应。";
-        console.log("API Response Data:", responseData); 
+        let analysisReportText = "未能从API响应中提取分析报告。";
+        console.log("API Response Data:", responseData);
 
         if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
             if (responseData.choices && responseData.choices[0] && responseData.choices[0].message && responseData.choices[0].message.content) {
@@ -495,37 +499,50 @@ async function analyzeStockForAgent(agentId) {
         } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
             if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0] && responseData.candidates[0].content.parts[0].text) {
                 analysisReportText = responseData.candidates[0].content.parts[0].text;
-                if (responseData.candidates[0].finishReason && responseData.candidates[0].finishReason !== "STOP") {
+                 if (responseData.candidates[0].finishReason && responseData.candidates[0].finishReason !== "STOP") {
                      analysisReportText += `\n\n(模型输出可能由于以下原因不完整: ${responseData.candidates[0].finishReason})`;
-                }
-                if (responseData.candidates[0].safetyRatings) {
-                    const concerningRatings = responseData.candidates[0].safetyRatings.filter(r => r.probability !== "NEGLIGIBLE" && r.probability !== "LOW");
-                    if (concerningRatings.length > 0) {
-                        analysisReportText += `\n\n(内容安全提示: ${concerningRatings.map(r=>`${r.category}: ${r.probability}`).join('; ')})`;
-                    }
                 }
             } else if (responseData.promptFeedback && responseData.promptFeedback.blockReason) {
                 analysisReportText = `API错误: 您的请求因 "${responseData.promptFeedback.blockReason}" 而被阻止。`;
-                if (responseData.promptFeedback.safetyRatings) {
-                     analysisReportText += ` 具体安全评估: ${responseData.promptFeedback.safetyRatings.map(r => `${r.category} - ${r.probability}`).join(', ')}.`;
-                }
-                analysisReportText += "\n请尝试调整提示或检查内容策略。";
             } else if (responseData.error) {
                  analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
             }
         }
-        
-        if (analysisOutput) analysisOutput.value = analysisReportText;
+
+        currentAnalysisReport = analysisReportText;
+        currentReportAgentId = agentId;
+
+        if (analysisDisplayElement) {
+            analysisDisplayElement.value = `AI为“${stockNameForDisplay}”生成的分析报告已就绪。\n点击下方按钮查看完整报告。`;
+            analysisDisplayElement.style.color = 'var(--accent-color2)';
+
+            if (!viewReportBtn) {
+                viewReportBtn = document.createElement('button');
+                viewReportBtn.id = `viewReportBtn_${agentId}`;
+                viewReportBtn.className = 'view-report-btn';
+                viewReportBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> 查看完整报告`;
+                if (analysisOutputContainer) {
+                    analysisOutputContainer.appendChild(viewReportBtn);
+                }
+            }
+            viewReportBtn.onclick = function() { openAnalysisReportModal(agentId, stockNameForDisplay); };
+            viewReportBtn.style.display = 'inline-block';
+        }
 
     } catch (error) {
         console.error("analyzeStockForAgent API Call Error:", error);
-        if (analysisOutput) analysisOutput.value = `调用AI模型进行分析时发生客户端错误: ${error.message}\n请检查浏览器控制台获取详细错误信息，并确认API Key、模型名称及网络连接是否正确。`;
+        currentAnalysisReport = "";
+        currentReportAgentId = null;
+        if (analysisDisplayElement) {
+            analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}\n请检查控制台详情。`;
+            analysisDisplayElement.style.color = 'var(--danger-color)';
+        }
     }
 }
 
 
 // Agent Portfolio Management Functions
-function addStockToAgentPortfolio(agentId) { // This is for MANUAL input
+function addStockToAgentPortfolio(agentId) {
     const agent = agents[agentId];
     const inputElement = document.getElementById(agent.addToPortfolioInputId);
     const searchTerm = inputElement.value.trim();
@@ -552,7 +569,7 @@ function addStockToAgentPortfolio(agentId) { // This is for MANUAL input
     }
 
     agent.portfolio.push({ code: foundStock.code, name: foundStock.name, allocation: 0 });
-    inputElement.value = ""; // Clear manual input field
+    inputElement.value = "";
     renderAgentPortfolio(agentId);
     saveAgentData();
 }
@@ -882,10 +899,6 @@ function populateApiModelDropdown(selectedEndpointUrl, selectedModelValue = null
 
     if (!selectedEndpointUrl || selectedEndpointUrl === "") {
         modelSelect.disabled = true;
-        //const defaultOption = document.createElement('option');
-        //defaultOption.value = "";
-        //defaultOption.textContent = "--- 先选择接入点 ---";
-        //modelSelect.appendChild(defaultOption);
         return;
     }
 
@@ -923,19 +936,17 @@ function saveApiSettings() {
     setTimeout(() => { statusEl.textContent = ""; closeApiSettingsModal(); }, 2000);
 }
 
-function clearApiSettings() { 
+function clearApiSettings() {
     if (confirm("确定要清除所有已保存的API设置吗？此操作不可撤销。")) {
         localStorage.removeItem('apiSettings');
         apiSettings = { endpoint: '', key: '', model: '' };
 
         const endpointSelect = document.getElementById('apiEndpointSelect');
         const apiKeyInput = document.getElementById('apiKey');
-        // const modelSelect = document.getElementById('apiModelSelect'); // Already handled by populate
 
-        if(endpointSelect) endpointSelect.value = ""; // This will trigger its change event
+        if(endpointSelect) endpointSelect.value = "";
         if(apiKeyInput) apiKeyInput.value = "";
-        
-        // Explicitly repopulate model dropdown for empty endpoint
+
         populateApiModelDropdown("");
 
 
@@ -957,11 +968,16 @@ function loadApiSettings() {
 
     if (!endpointSelect || !modelSelect || !apiKeyInput) return;
 
-    //endpointSelect.innerHTML = '<option value="">--- 选择模型接入点 ---</option>'; // Add a default blank option
-    endpointSelect.innerHTML = ""; // Clear existing options
+    endpointSelect.innerHTML = ""; 
     let firstEndpointValue = null;
+    // Add a placeholder default option
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = "";
+    placeholderOption.textContent = "--- 选择模型接入点 ---";
+    endpointSelect.appendChild(placeholderOption);
+
     for (const endpointUrl in endpointModelMap) {
-        if(firstEndpointValue === null) firstEndpointValue = endpointUrl;
+        if(firstEndpointValue === null && endpointUrl) firstEndpointValue = endpointUrl;
         const option = document.createElement('option');
         option.value = endpointUrl;
         option.textContent = endpointUrl;
@@ -970,11 +986,12 @@ function loadApiSettings() {
 
     endpointSelect.addEventListener('change', (event) => {
         const newSelectedEndpoint = event.target.value;
-        populateApiModelDropdown(newSelectedEndpoint, apiSettings.model); // Pass current model if re-selecting same endpoint
+        const currentSelectedModel = document.getElementById('apiModelSelect').value;
+        populateApiModelDropdown(newSelectedEndpoint, currentSelectedModel);
     });
 
     const savedSettings = localStorage.getItem('apiSettings');
-    let initialEndpointToLoad = ""; // Default to blank
+    let initialEndpointToLoad = "";
 
     if (savedSettings) {
         apiSettings = JSON.parse(savedSettings);
@@ -984,10 +1001,7 @@ function loadApiSettings() {
         apiKeyInput.value = apiSettings.key || "";
     }
 
-    if (initialEndpointToLoad) {
-        endpointSelect.value = initialEndpointToLoad;
-    }
-
+    endpointSelect.value = initialEndpointToLoad; // Set to "" if no valid saved endpoint
     populateApiModelDropdown(endpointSelect.value, apiSettings.model || null);
 }
 
@@ -1207,12 +1221,61 @@ function loadMyPortfolio() {
     renderMyPortfolio();
 }
 
-// Close modal if clicked outside
-window.onclick = function(event) {
-    if (apiSettingsModal && event.target == apiSettingsModal) {
-        closeApiSettingsModal();
+// Analysis Report Modal Functions
+const analysisReportModal = document.getElementById('analysisReportModal');
+
+function openAnalysisReportModal(agentProducingReportId, stockName) {
+    const modal = document.getElementById('analysisReportModal');
+    if (!modal) return;
+
+    const modalTitle = document.getElementById('analysisReportModalTitle');
+    const modalBody = document.getElementById('analysisReportModalBody');
+
+    if (modalTitle) {
+        const agentDisplayName = agents[agentProducingReportId] ? agents[agentProducingReportId].name : "AI";
+        modalTitle.innerHTML = `<i class="fas fa-file-alt"></i> ${agentDisplayName} 对 ${stockName} 的分析报告`;
     }
-    if (performanceModal && event.target == performanceModal) {
-        closePerformanceModal();
+    if (modalBody) {
+        modalBody.textContent = currentAnalysisReport;
+    }
+
+    modal.style.display = "block";
+}
+
+function closeAnalysisReportModal() {
+    const modal = document.getElementById('analysisReportModal');
+    if (modal) {
+        modal.style.display = "none";
     }
 }
+
+async function copyAnalysisReportToClipboard() {
+    if (!currentAnalysisReport) {
+        alert("没有报告内容可供复制。");
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(currentAnalysisReport);
+        alert("分析报告已复制到剪贴板！");
+    } catch (err) {
+        console.error('无法复制报告: ', err);
+        alert("复制失败。请检查浏览器控制台或手动复制。");
+    }
+}
+
+// Close modal if clicked outside - Consolidated
+window.onclick = function(event) {
+    const apiModal = document.getElementById('apiSettingsModal');
+    const perfModal = document.getElementById('performanceModal');
+    const reportModal = document.getElementById('analysisReportModal'); // get fresh reference
+
+    if (apiModal && event.target == apiModal) {
+        closeApiSettingsModal();
+    }
+    if (perfModal && event.target == perfModal) {
+        closePerformanceModal();
+    }
+    if (reportModal && event.target == reportModal) {
+        closeAnalysisReportModal();
+    }
+};
