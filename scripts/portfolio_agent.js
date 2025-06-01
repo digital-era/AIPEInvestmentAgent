@@ -439,7 +439,7 @@ async function analyzeStockForAgent(agentId) {
 
     // 5. Make API Call
     try {
-        let requestUrl = apiSettings.endpoint;
+        let requestUrl = (apiSettings.endpoint.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl) + "/v1/chat/completions";
         let requestPayload;
         const headers = { 'Content-Type': 'application/json' };
 
@@ -882,10 +882,10 @@ function populateApiModelDropdown(selectedEndpointUrl, selectedModelValue = null
 
     if (!selectedEndpointUrl || selectedEndpointUrl === "") {
         modelSelect.disabled = true;
-        const defaultOption = document.createElement('option');
-        defaultOption.value = "";
-        defaultOption.textContent = "--- 先选择接入点 ---";
-        modelSelect.appendChild(defaultOption);
+        //const defaultOption = document.createElement('option');
+        //defaultOption.value = "";
+        //defaultOption.textContent = "--- 先选择接入点 ---";
+        //modelSelect.appendChild(defaultOption);
         return;
     }
 
@@ -957,7 +957,8 @@ function loadApiSettings() {
 
     if (!endpointSelect || !modelSelect || !apiKeyInput) return;
 
-    endpointSelect.innerHTML = '<option value="">--- 选择模型接入点 ---</option>'; // Add a default blank option
+    //endpointSelect.innerHTML = '<option value="">--- 选择模型接入点 ---</option>'; // Add a default blank option
+    endpointSelect.innerHTML = ""; // Clear existing options
     let firstEndpointValue = null;
     for (const endpointUrl in endpointModelMap) {
         if(firstEndpointValue === null) firstEndpointValue = endpointUrl;
