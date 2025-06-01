@@ -12,6 +12,7 @@ let agents = {
         photo: "images/female_avatar.png",
         stockPoolList: [],
         portfolio: [],
+        latestReport: "", // <--- 新增：存储此Agent的最新报告
         stockInputId: 'agent1StockInput',
         stockPoolListId: 'agent1StockPoolList',
         stockSelectId: 'agent1StockSelect',
@@ -59,6 +60,7 @@ Warren Buffett的核心信息:
         photo: "images/male_avatar.png",
         stockPoolList: [],
         portfolio: [],
+        latestReport: "", // <--- 新增：存储此Agent的最新报告
         stockInputId: 'agent2StockInput',
         stockPoolListId: 'agent2StockPoolList',
         stockSelectId: 'agent2StockSelect',
@@ -106,8 +108,8 @@ let myPortfolioTitle = "我的投资组合"; // Default title
 let apiSettings = { endpoint: '', key: '', model: '' };
 let performanceChartInstance = null;
 let currentBacktestTarget = null;
-let currentAnalysisReport = ""; // To store the report for the modal
-let currentReportAgentId = null; // To know which agent's report is being shown
+// let currentAnalysisReport = ""; // <--- 删除：不再需要全局报告
+// let currentReportAgentId = null; // <--- 删除：不再需要全局报告Agent ID
 
 // API Settings Model/Endpoint Configuration
 const endpointModelMap = {
@@ -115,7 +117,7 @@ const endpointModelMap = {
         { value: "deepseek-chat", labelKey: "modelDeepSeekV3" }
     ],
     "https://generativelanguage.googleapis.com": [
-        { value: "gemini-2.5-flash-preview-05-20", labelKey: "modelGeminiFlash" } // Keeping your latest model value
+        { value: "gemini-1.5-flash-preview-0514", labelKey: "modelGeminiFlash" } // 与你提供的最新代码中的模型值保持一致
     ],
     "https://api.openai.com": [
         { value: "gpt-4o-mini", labelKey: "modelGpt4oMini" }
@@ -124,7 +126,7 @@ const endpointModelMap = {
 
 const modelDisplayStrings = {
     "modelDeepSeekV3": "DeepSeek Chat (deepseek-chat)",
-    "modelGeminiFlash": "gemini-2.5-flash-preview-05-20", // Display string for Gemini
+    "modelGeminiFlash": "Google Gemini 1.5 Flash (gemini-1.5-flash-preview-0514)", // 与你提供的最新代码中的显示字符串保持一致
     "modelGpt4oMini": "OpenAI GPT-4o mini (gpt-4o-mini)"
 };
 
@@ -363,9 +365,9 @@ function renderStockPoolList(agentId) {
     });
 }
 
-// Stock Analysis For Agent (MODAL VERSION)
+// Stock Analysis For Agent (MODAL VERSION - Agent Specific Report)
 async function analyzeStockForAgent(agentId) {
-    const agent = agents[agentId];
+    const agent = agents[agentId]; // agent 对象现在包含 latestReport
     const stockSelect = document.getElementById(agent.stockSelectId);
     const analysisInput = document.getElementById(agent.analysisInputId);
     const analysisDisplayElement = document.getElementById(agent.analysisOutputId); // This is the textarea
@@ -375,6 +377,7 @@ async function analyzeStockForAgent(agentId) {
     if (viewReportBtn) {
         viewReportBtn.style.display = 'none';
     }
+    agent.latestReport = ""; // <--- 清空此Agent的旧报告
 
     let stockToAnalyze = analysisInput.value.trim();
     if (stockToAnalyze === "" && stockSelect.value !== "") {
@@ -453,7 +456,6 @@ async function analyzeStockForAgent(agentId) {
         const headers = { 'Content-Type': 'application/json' };
 
         if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
-            // Common structure for OpenAI-compatible APIs (like DeepSeek)
             requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
             headers['Authorization'] = `Bearer ${apiSettings.key}`;
             requestPayload = {
@@ -509,8 +511,7 @@ async function analyzeStockForAgent(agentId) {
             }
         }
 
-        currentAnalysisReport = analysisReportText;
-        currentReportAgentId = agentId;
+        agent.latestReport = analysisReportText; // <--- 存储报告到对应的 agent 对象
 
         if (analysisDisplayElement) {
             analysisDisplayElement.value = `AI为“${stockNameForDisplay}”生成的分析报告已就绪。\n点击下方按钮查看完整报告。`;
@@ -531,8 +532,7 @@ async function analyzeStockForAgent(agentId) {
 
     } catch (error) {
         console.error("analyzeStockForAgent API Call Error:", error);
-        currentAnalysisReport = "";
-        currentReportAgentId = null;
+        agent.latestReport = ""; // 清空报告
         if (analysisDisplayElement) {
             analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}\n请检查控制台详情。`;
             analysisDisplayElement.style.color = 'var(--danger-color)';
@@ -962,77 +962,63 @@ function clearApiSettings() {
 
 
 function loadApiSettings() {
-    const endpointSelect = document.getElementById('apiEndpointSelect'); // 获取“模型接入点”下拉列表元素
-    const modelSelect = document.getElementById('apiModelSelect');     // 获取“模型选择”下拉列表元素
-    const apiKeyInput = document.getElementById('apiKey');             // 获取 API Key 输入框元素
+    const endpointSelect = document.getElementById('apiEndpointSelect'); 
+    const modelSelect = document.getElementById('apiModelSelect');     
+    const apiKeyInput = document.getElementById('apiKey');             
 
-    if (!endpointSelect || !modelSelect || !apiKeyInput) return; // 如果任何一个元素不存在，则退出
+    if (!endpointSelect || !modelSelect || !apiKeyInput) return; 
 
-    endpointSelect.innerHTML = ""; // 清空“模型接入点”下拉列表的现有选项
+    endpointSelect.innerHTML = ""; 
 
-    // 填充“模型接入点”下拉列表
-    let deepSeekEndpointValue = null; // 用于存储 DeepSeek 接入点的 URL
-    for (const endpointUrl in endpointModelMap) { // 遍历预定义的接入点映射
-        if (endpointUrl.includes("deepseek.com")) { // 如果当前 URL 包含 "deepseek.com"
-            deepSeekEndpointValue = endpointUrl;    // 记录下来
+    let deepSeekEndpointValue = null; 
+    for (const endpointUrl in endpointModelMap) { 
+        if (endpointUrl.includes("deepseek.com")) { 
+            deepSeekEndpointValue = endpointUrl;    
         }
-        const option = document.createElement('option'); // 创建新的 <option> 元素
-        option.value = endpointUrl;                      // 设置 option 的值
-        option.textContent = endpointUrl;                // 设置 option 显示的文本
-        endpointSelect.appendChild(option);              // 将 option 添加到下拉列表中
+        const option = document.createElement('option'); 
+        option.value = endpointUrl;                      
+        option.textContent = endpointUrl;                
+        endpointSelect.appendChild(option);              
     }
 
-    // 为“模型接入点”下拉列表添加 change 事件监听器
     endpointSelect.addEventListener('change', (event) => {
-        const newSelectedEndpoint = event.target.value; // 获取新选中的接入点 URL
-        // 当接入点改变时，尝试保持已选模型（如果新接入点也支持该模型），
-        // 否则 populateApiModelDropdown 会选择新接入点的第一个可用模型。
+        const newSelectedEndpoint = event.target.value; 
         populateApiModelDropdown(newSelectedEndpoint, apiSettings.model);
     });
 
-    // 加载已保存的设置
-    const savedSettings = localStorage.getItem('apiSettings'); // 从 localStorage 获取已存设置
-    let initialEndpointToSelect = null; // 初始化要选中的接入点（默认为 null）
-    let initialModelToSelect = null;    // 初始化要选中的模型（默认为 null）
+    const savedSettings = localStorage.getItem('apiSettings'); 
+    let initialEndpointToSelect = null; 
+    let initialModelToSelect = null;    
 
-    if (savedSettings) { // 如果存在已存设置
+    if (savedSettings) { 
         try {
-            apiSettings = JSON.parse(savedSettings); // 解析 JSON 字符串
-            // 检查已存的接入点和模型是否仍然有效
+            apiSettings = JSON.parse(savedSettings); 
             if (apiSettings.endpoint && endpointModelMap[apiSettings.endpoint]) {
-                initialEndpointToSelect = apiSettings.endpoint; // 使用已存的接入点
+                initialEndpointToSelect = apiSettings.endpoint; 
                 if (apiSettings.model && endpointModelMap[apiSettings.endpoint].some(m => m.value === apiSettings.model)) {
-                    initialModelToSelect = apiSettings.model; // 使用已存的模型
+                    initialModelToSelect = apiSettings.model; 
                 }
             }
-            apiKeyInput.value = apiSettings.key || ""; // 设置 API Key 输入框的值
+            apiKeyInput.value = apiSettings.key || ""; 
         } catch (e) {
-            console.error("解析已存API设置时出错:", e); // 如果解析失败，打印错误
-            localStorage.removeItem('apiSettings');   // 清除损坏的设置
-            apiSettings = { endpoint: '', key: '', model: '' }; // 重置 apiSettings 对象
+            console.error("解析已存API设置时出错:", e); 
+            localStorage.removeItem('apiSettings');   
+            apiSettings = { endpoint: '', key: '', model: '' }; 
         }
     }
 
-    // 如果没有有效的已存接入点，并且找到了 DeepSeek 接入点，则默认选择 DeepSeek
     if (!initialEndpointToSelect && deepSeekEndpointValue) {
         initialEndpointToSelect = deepSeekEndpointValue;
     }
 
-    // 在下拉列表中实际选中该接入点
     if (initialEndpointToSelect) {
         endpointSelect.value = initialEndpointToSelect;
     } else if (endpointSelect.options.length > 0) {
-        // 如果上述逻辑都未能确定一个接入点（例如 endpointModelMap 为空），
-        // 则回退到选择列表中的第一个选项（如果有的话）
         endpointSelect.selectedIndex = 0;
-        initialEndpointToSelect = endpointSelect.value; // 更新 initialEndpointToSelect
+        initialEndpointToSelect = endpointSelect.value; 
     }
 
-
-    // 根据最终选定（或默认选定）的接入点来填充模型下拉列表
     if (initialEndpointToSelect) {
-        // 如果我们默认选择了 DeepSeek 接入点，并且之前没有保存过模型（或者保存的模型无效），
-        // 并且 DeepSeek 接入点确实有模型定义，则尝试选择其第一个模型作为默认模型
         if (initialEndpointToSelect === deepSeekEndpointValue && 
             !initialModelToSelect && 
             endpointModelMap[deepSeekEndpointValue] && 
@@ -1041,14 +1027,11 @@ function loadApiSettings() {
         }
         populateApiModelDropdown(initialEndpointToSelect, initialModelToSelect);
     } else {
-        // 如果没有可用的接入点或发生其他问题
-        populateApiModelDropdown("", null); // 这会禁用模型下拉列表
+        populateApiModelDropdown("", null); 
     }
 
-    // 根据最终的下拉列表选项，更新全局的 apiSettings 对象
-    apiSettings.endpoint = endpointSelect.value; // 获取当前选中的接入点
-    apiSettings.model = modelSelect.value;     // 获取当前选中的模型
-    // apiSettings.key 已经被设置或为空字符串
+    apiSettings.endpoint = endpointSelect.value; 
+    apiSettings.model = modelSelect.value;     
 }
 
 
@@ -1223,10 +1206,12 @@ function saveAgentData() {
     const dataToSave = {
         agent1StockPool: agents.agent1.stockPoolList,
         agent1Portfolio: agents.agent1.portfolio,
+        agent1LatestReport: agents.agent1.latestReport, // <--- 保存 report
         agent2StockPool: agents.agent2.stockPoolList,
         agent2Portfolio: agents.agent2.portfolio,
+        agent2LatestReport: agents.agent2.latestReport  // <--- 保存 report
     };
-    localStorage.setItem('agentsData_v3', JSON.stringify(dataToSave));
+    localStorage.setItem('agentsData_v3', JSON.stringify(dataToSave)); // Consider versioning if schema changes often
 }
 
 function loadAgentData() {
@@ -1235,8 +1220,10 @@ function loadAgentData() {
         const parsedData = JSON.parse(savedData);
         agents.agent1.stockPoolList = parsedData.agent1StockPool || [];
         agents.agent1.portfolio = parsedData.agent1Portfolio || [];
+        agents.agent1.latestReport = parsedData.agent1LatestReport || ""; // <--- 加载 report
         agents.agent2.stockPoolList = parsedData.agent2StockPool || [];
         agents.agent2.portfolio = parsedData.agent2Portfolio || [];
+        agents.agent2.latestReport = parsedData.agent2LatestReport || ""; // <--- 加载 report
     }
     renderStockPoolList('agent1');
     renderAgentPortfolio('agent1');
@@ -1268,21 +1255,30 @@ function loadMyPortfolio() {
 }
 
 // Analysis Report Modal Functions
-const analysisReportModal = document.getElementById('analysisReportModal');
+const analysisReportModal = document.getElementById('analysisReportModal'); // Already correct
 
-function openAnalysisReportModal(agentProducingReportId, stockName) {
+function openAnalysisReportModal(agentIdForReport, stockName) { // Changed parameter name for clarity
     const modal = document.getElementById('analysisReportModal');
     if (!modal) return;
+
+    const agentWhoseReport = agents[agentIdForReport]; // Get the specific agent object
+    if (!agentWhoseReport) {
+        console.error("无法找到 Agent 对象: ", agentIdForReport);
+        // Optionally display an error in the modal or an alert
+        const modalBody = document.getElementById('analysisReportModalBody');
+        if (modalBody) modalBody.textContent = "错误：无法加载指定智能体的报告。";
+        modal.style.display = "block";
+        return;
+    }
 
     const modalTitle = document.getElementById('analysisReportModalTitle');
     const modalBody = document.getElementById('analysisReportModalBody');
 
     if (modalTitle) {
-        const agentDisplayName = agents[agentProducingReportId] ? agents[agentProducingReportId].name : "AI";
-        modalTitle.innerHTML = `<i class="fas fa-file-alt"></i> ${agentDisplayName} 对 ${stockName} 的分析报告`;
+        modalTitle.innerHTML = `<i class="fas fa-file-alt"></i> ${agentWhoseReport.name} 对 ${stockName} 的分析报告`;
     }
     if (modalBody) {
-        modalBody.textContent = currentAnalysisReport;
+        modalBody.textContent = agentWhoseReport.latestReport || "未能加载报告内容或报告为空。"; // <--- 从 agent 对象获取报告
     }
 
     modal.style.display = "block";
@@ -1296,12 +1292,15 @@ function closeAnalysisReportModal() {
 }
 
 async function copyAnalysisReportToClipboard() {
-    if (!currentAnalysisReport) {
-        alert("没有报告内容可供复制。");
+    const modalBody = document.getElementById('analysisReportModalBody');
+    const reportToCopy = modalBody ? modalBody.textContent : "";
+
+    if (!reportToCopy || reportToCopy === "未能加载报告内容或报告为空。" || reportToCopy === "错误：无法加载指定智能体的报告。") {
+        alert("没有有效的报告内容可供复制。");
         return;
     }
     try {
-        await navigator.clipboard.writeText(currentAnalysisReport);
+        await navigator.clipboard.writeText(reportToCopy);
         alert("分析报告已复制到剪贴板！");
     } catch (err) {
         console.error('无法复制报告: ', err);
@@ -1313,7 +1312,7 @@ async function copyAnalysisReportToClipboard() {
 window.onclick = function(event) {
     const apiModal = document.getElementById('apiSettingsModal');
     const perfModal = document.getElementById('performanceModal');
-    const reportModal = document.getElementById('analysisReportModal'); // get fresh reference
+    const reportModal = document.getElementById('analysisReportModal'); 
 
     if (apiModal && event.target == apiModal) {
         closeApiSettingsModal();
