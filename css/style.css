@@ -1,0 +1,845 @@
+/* General Styles */
+:root {
+    --primary-bg: #1A1D24; 
+    --secondary-bg: #23272F; 
+    --card-bg: #2C313A; 
+    --text-color: #E0E0E0; 
+    --text-muted: #A0AEC0; 
+    --accent-color1: #3498DB; 
+    --accent-color2: #2ECC71; 
+    --accent-color-value: #F39C12; 
+    --accent-color-growth: #8E44AD; 
+    --danger-color: #E74C3C; 
+    --border-color: #4A5568; 
+    --input-bg: #353A43; 
+    --font-family: 'Inter', 'Segoe UI', 'Roboto', 'Microsoft YaHei', sans-serif; 
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.15);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 20px rgba(0,0,0,0.25);
+    --tab-active-bg: linear-gradient(90deg, #29B6F6, #66BB6A); 
+    --tab-inactive-bg: #4DB6AC; 
+    --tab-text-color: #F5F5F5; 
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-family);
+}
+
+body {
+    background: var(--primary-bg);
+    color: var(--text-color);
+    min-height: 100vh;
+    line-height: 1.6;
+    font-size: 16px;
+}
+
+.page-container {
+    max-width: 1400px; 
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    margin-bottom: 25px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.main-header .logo-title {
+    display: flex;
+    align-items: center;
+}
+
+.main-header .logo-title i {
+    font-size: 2.3rem;
+    margin-right: 12px;
+    background: linear-gradient(135deg, var(--accent-color1), var(--accent-color2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.main-header h1 {
+    font-size: 1.8rem; 
+    font-weight: 600;
+    color: var(--text-color);
+    letter-spacing: 0.5px;
+}
+
+.main-header nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    margin-left: 20px;
+    font-size: 1rem;
+    padding: 8px 15px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    font-weight: 500;
+}
+.main-header nav a i {
+    margin-right: 6px;
+}
+
+.main-header nav a:hover,
+.main-header nav a.active-nav {
+    background-color: rgba(52, 152, 219, 0.15); 
+    color: var(--accent-color1);
+}
+
+/* Main Tabs (AI Agents / My Portfolio) */
+.tabs-main {
+    display: flex;
+    margin-bottom: 30px; 
+    gap: 15px; 
+    justify-content: center; 
+}
+
+.tab-link-main {
+    flex-grow: 1; 
+    max-width: 400px; 
+    padding: 15px 25px; 
+    cursor: pointer;
+    border: none;
+    border-radius: 10px; 
+    color: var(--tab-text-color); 
+    font-size: 1.1rem; 
+    font-weight: 500;
+    text-align: center;
+    transition: opacity 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+    background: var(--tab-inactive-bg); 
+    box-shadow: var(--shadow-sm);
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-link-main:hover {
+    opacity: 0.90;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.tab-link-main.active {
+    background: var(--tab-active-bg);
+    color: #FFFFFF; 
+    font-weight: 600;
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(102, 187, 106, 0.35); 
+    opacity: 1;
+    transform: translateY(-1px); 
+}
+
+.tab-link-main.active:hover {
+    opacity: 1; 
+    transform: translateY(-1px);
+}
+
+.tab-link-main i {
+    margin-right: 12px; 
+    font-size: 1.1em; 
+}
+
+.main-tab-content {
+    display: none;
+    animation: fadeIn 0.4s ease-out;
+}
+.main-tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Agent Cards Container */
+.agent-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(550px, 1fr)); 
+    gap: 25px;
+}
+
+.agent-card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border-left: 5px solid transparent; 
+}
+.agent-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.value-agent-card { border-left-color: var(--accent-color-value); }
+.growth-agent-card { border-left-color: var(--accent-color-growth); }
+
+.agent-profile {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.agent-photo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 15px;
+    border: 3px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+#agent1Photo { border-color: var(--accent-color-value); }
+#agent2Photo { border-color: var(--accent-color-growth); }
+
+.agent-name {
+    font-size: 1.7rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+#agent1NameDisplay { color: var(--accent-color-value); }
+#agent2NameDisplay { color: var(--accent-color-growth); }
+
+.agent-role {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+#agent1RoleDisplay { color: var(--accent-color-value); font-weight: 500;}
+#agent2RoleDisplay { color: var(--accent-color-growth); font-weight: 500;}
+
+
+.agent-details h3 {
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+.agent-details h3 i {
+    margin-right: 8px;
+    color: var(--accent-color1); 
+}
+
+.value-agent-card .agent-details h3 i { color: var(--accent-color-value); }
+.growth-agent-card .agent-details h3 i { color: var(--accent-color-growth); }
+
+
+.core-logic {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    background-color: var(--secondary-bg);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.agent-section {
+    margin-bottom: 20px;
+}
+.agent-section h4 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 12px;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed var(--border-color);
+}
+.agent-section h4 i { margin-right: 8px; }
+
+/* Stock Management and Analysis within Agent Cards */
+.stock-management, .stock-analysis-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select, 
+.stock-select, 
+textarea {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%; 
+}
+input[type="text"]::placeholder,
+textarea::placeholder {
+    color: #718096; 
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus, 
+.stock-select:focus,
+textarea:focus {
+    border-color: var(--accent-color1);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.stock-management input[type="text"],
+.stock-analysis-controls input[type="text"] {
+    flex-grow: 1;
+    min-width: 180px;
+}
+.stock-analysis-controls .stock-select,
+.settings-form select { 
+    flex-grow: 1;
+    min-width: 180px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23A0AEC0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 10px auto;
+    padding-right: 30px; 
+}
+.settings-form select option { 
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+
+.stock-analysis-controls span {
+    color: var(--text-muted);
+}
+
+button {
+    background: linear-gradient(135deg, var(--accent-color1), var(--accent-color2));
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: transform 0.1s ease-out, box-shadow 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+button i {
+    margin-right: 6px;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.stock-list { 
+    list-style: none;
+    padding: 0;
+    max-height: 120px; 
+    overflow-y: auto;
+    background-color: var(--secondary-bg);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+.stock-list li {
+    background-color: var(--input-bg);
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+.stock-list li .remove-stock-btn {
+    background-color: var(--danger-color);
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+.analysis-section {
+    margin-top: 20px;
+}
+.analysis-output h5 {
+    margin-top: 15px;
+    margin-bottom: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.analysis-output textarea {
+    width: 100%;
+    min-height: 80px; 
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 0.85rem;
+    background-color: var(--secondary-bg); 
+}
+
+
+/* Agent Portfolio Section */
+.agent-portfolio-section {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.agent-portfolio-section h4 {
+    font-size: 1.2rem; 
+    color: var(--text-color);
+}
+.value-agent-card .agent-portfolio-section h4 i { color: var(--accent-color-value); }
+.growth-agent-card .agent-portfolio-section h4 i { color: var(--accent-color-growth); }
+
+
+.agent-portfolio-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.agent-portfolio-table-style { 
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+.agent-portfolio-table-style th, 
+.agent-portfolio-table-style td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.agent-portfolio-table-style th {
+    background-color: var(--input-bg); 
+    font-weight: 500;
+}
+.value-agent-card .agent-portfolio-table-style th { color: var(--accent-color-value); }
+.growth-agent-card .agent-portfolio-table-style th { color: var(--accent-color-growth); }
+
+
+.agent-portfolio-table-style tr:last-child td { border-bottom: none; }
+.agent-portfolio-table-style tr:hover { background-color: rgba(255,255,255,0.02); }
+
+.agent-portfolio-table-style input[type="number"] {
+    width: 70px;
+    padding: 5px 7px;
+    font-size: 0.85rem;
+}
+.agent-portfolio-table-style .remove-agent-stock-btn { 
+    background-color: var(--danger-color);
+    padding: 5px 9px;
+    font-size: 0.75rem;
+}
+.agent-portfolio-table-style .total-label {
+    text-align: right;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.agent-portfolio-table-style .total-value {
+    font-weight: 600;
+    font-size: 1rem;
+}
+.balance-agent-portfolio-btn {
+    margin-left: 5px;
+    padding: 2px 5px;
+    font-size: 0.7em;
+}
+.value-agent-card .balance-agent-portfolio-btn { background: var(--accent-color-value); }
+.growth-agent-card .balance-agent-portfolio-btn { background: var(--accent-color-growth); }
+
+
+.add-to-agent-portfolio {
+    display: flex;
+    flex-direction: column; 
+    gap: 12px; 
+    border-top: 1px dashed var(--border-color);
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.add-from-pool-section,
+.manual-add-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.add-from-pool-section .stock-select,
+.manual-add-section input[type="text"] {
+    flex-grow: 1; 
+}
+
+.add-from-pool-section button,
+.manual-add-section button {
+    flex-shrink: 0; 
+}
+
+.or-divider {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    font-style: italic;
+    margin: 5px 0;
+    width: 100%;
+    position: relative;
+}
+.or-divider::before, .or-divider::after {
+    content: "";
+    display: inline-block;
+    width: 40%;
+    height: 1px;
+    background-color: var(--border-color);
+    vertical-align: middle;
+    margin: 0 5px;
+}
+
+
+/* My Portfolio Section */
+#myPortfolio {
+    background-color: var(--secondary-bg);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+}
+.my-portfolio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap; 
+}
+#myPortfolio h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text-color); 
+    margin-bottom: 0;
+    display: flex; 
+    align-items: center;
+}
+#myPortfolio h2 i.fa-briefcase { 
+    margin-right: 10px;
+    color: var(--accent-color2); 
+}
+
+#myPortfolioTitleText {
+    outline: none; 
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    min-width: 150px; /* Give it some base width */
+}
+#myPortfolioTitleText[contenteditable="true"] {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    cursor: text;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+.edit-title-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8em; 
+    padding: 3px 6px;
+    margin-left: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1; /* Ensure icon is vertically centered if text wraps */
+}
+.edit-title-btn:hover {
+    background-color: var(--input-bg);
+    color: var(--accent-color1);
+}
+.edit-title-btn i { margin-right: 0; } 
+
+
+.my-portfolio-description {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+.my-portfolio-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap; 
+}
+
+#myPortfolioTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+#myPortfolioTable th, #myPortfolioTable td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+}
+#myPortfolioTable th {
+    background-color: var(--card-bg); 
+    color: var(--accent-color1); 
+    font-weight: 500;
+}
+#myPortfolioTable tr:last-child td { border-bottom: none; }
+#myPortfolioTable tr:hover { background-color: rgba(255,255,255,0.02); }
+
+#myPortfolioTable input[type="number"] {
+    width: 75px;
+    padding: 6px 8px;
+    text-align: right;
+}
+#myPortfolioTable .remove-portfolio-item-btn {
+    background-color: var(--danger-color);
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+#myPortfolioTable .total-label {
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+#myPortfolioTable .total-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+#balancePortfolioBtn { 
+    margin-left: 5px;
+    padding: 3px 6px;
+    font-size: 0.75em;
+    background: var(--accent-color2); 
+}
+
+
+/* Modal Styles (API Settings & Performance) */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+    backdrop-filter: blur(5px);
+    animation: modalFadeIn 0.3s;
+}
+@keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-content {
+    background-color: var(--secondary-bg);
+    margin: 10% auto;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    animation: modalScaleUp 0.3s;
+}
+.modal-content.large { max-width: 800px; }
+
+@keyframes modalScaleUp {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.close-button {
+    color: var(--text-muted);
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    transition: color 0.2s;
+}
+.close-button:hover,
+.close-button:focus {
+    color: var(--text-color);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal h2 {
+    font-size: 1.6rem;
+    color: var(--accent-color1);
+    margin-bottom: 25px;
+}
+.modal h2 i { margin-right: 10px; }
+
+.settings-form .form-group { 
+    margin-bottom: 20px;
+}
+.settings-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.settings-form label i {
+    margin-right: 8px;
+    color: var(--accent-color1);
+}
+.settings-form input[type="text"], 
+.settings-form input[type="password"],
+.settings-form select { 
+    width: 100%;
+}
+.danger-btn { /* Style for clear API settings button */
+    background: var(--danger-color) !important; /* Override other button styles */
+}
+.danger-btn:hover {
+    background: #c0392b !important; /* Darker red on hover */
+}
+
+
+.status-message {
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+.status-message.success { color: var(--accent-color2); }
+.status-message.error { color: var(--danger-color); }
+
+/* Performance Modal Specifics */
+.performance-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.performance-controls label { margin-bottom: 0; } 
+.performance-controls input[type="date"] {
+    padding: 8px 10px;
+}
+.backtest-results-area {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    min-height: 150px;
+    color: var(--text-muted);
+}
+#performanceChart {
+    background-color: var(--card-bg); 
+    border-radius: 8px;
+    padding:10px;
+    max-height: 350px; 
+}
+
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--secondary-bg);
+}
+
+
+/* Responsive adjustments */
+@media (max-width: 1200px) { 
+    .agent-cards-container {
+        grid-template-columns: 1fr; 
+    }
+}
+
+@media (max-width: 768px) {
+    .page-container { padding: 15px; }
+    .main-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .main-header nav {
+        margin-top: 15px;
+        margin-left: 0;
+        width: 100%;
+    }
+    .main-header nav a {
+        margin-left: 0;
+        margin-right: 10px;
+        display: inline-block;
+        margin-bottom: 5px;
+        font-size: 0.95rem;
+    }
+    .tabs-main { flex-direction: column; }
+    .tab-link-main {
+        border-bottom: none;
+        border-left: 3px solid transparent;
+    }
+    .tab-link-main.active {
+        border-bottom: none;
+        border-left: 3px solid var(--accent-color1);
+    }
+
+    .stock-management, 
+    .stock-analysis-controls, 
+    .performance-controls, 
+    .my-portfolio-header, 
+    .agent-portfolio-controls,
+    .settings-form .form-group,
+    .add-from-pool-section, /* Ensure these new sections also stack on mobile */
+    .manual-add-section
+    {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .my-portfolio-header h2 { margin-bottom: 10px; }
+    #myPortfolio h2 { 
+        flex-wrap: wrap; 
+    }
+    #myPortfolioTitleText {
+        width: calc(100% - 40px); 
+        margin-bottom: 5px; 
+    }
+     .edit-title-btn {
+        margin-left: 0; 
+    }
+
+
+    .stock-management input[type="text"], 
+    .stock-analysis-controls input[type="text"],
+    .stock-analysis-controls .stock-select,
+    .settings-form select, 
+    .stock-management button,
+    .stock-analysis-controls button,
+    .performance-controls input[type="date"],
+    .performance-controls button,
+    .agent-portfolio-controls button,
+    .my-portfolio-controls button,
+    .add-from-pool-section .stock-select, /* Ensure full width for new selects */
+    .add-from-pool-section button,
+    .manual-add-section input[type="text"],
+    .manual-add-section button
+     {
+        width: 100%;
+        margin-bottom: 8px; 
+    }
+     .stock-analysis-controls span {
+        text-align: center;
+        margin: 8px 0;
+    }
+    .modal-content { margin: 5% auto; padding: 20px; }
+}
