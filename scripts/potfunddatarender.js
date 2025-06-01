@@ -65,14 +65,22 @@ function getTopNUniqueStocks(jsonData, count) {
 
 
 async function loadAndProcessExcelData() {
-    const excelFilePath = 'data/AIPEFinanceData.xlsx'; // Path relative to potfunddatarender.js
+    console.log("loadAndProcessExcelData called"); // Debug log
+    // Prevent multiple executions if called rapidly
+    if (window.isExcelDataLoading) {
+        console.log("Excel data is already being loaded. Awaiting existing promise.");
+        return window.allStockDataGlobalPromise; // Return the existing promise
+    }
+    window.isExcelDataLoading = true;
+
+
+    const excelFilePath = 'data/AIPEFinanceData.xlsx'; 
     try {
         const response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch Excel file: ${response.statusText} (URL: ${excelFilePath})`);
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
-        // --- Process "Flow5DaysSort" for main data and first dropdown ---
         const flow5DaysSortSheetName = "Flow5DaysSort";
         const flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
         if (!flow5DaysSortSheet) throw new Error(`Sheet "${flow5DaysSortSheetName}" not found.`);
@@ -93,13 +101,14 @@ async function loadAndProcessExcelData() {
         if (Object.keys(groupedByStockCode).length === 0) throw new Error("No valid stock data from 'Flow5DaysSort'.");
 
         let firstCodeProcessed = false;
+        allStockData = {}; // Reset global allStockData before populating
+
         for (const stockCode in groupedByStockCode) {
-            if (!firstCodeProcessed) {
-                defaultStockCode = stockCode; // Set default stock from the first group encountered
+            if (!firstCodeProcessed && stockCode !== "ERROR") { // Avoid setting ERROR as default
+                defaultStockCode = stockCode; 
                 firstCodeProcessed = true;
             }
             const stockEntries = groupedByStockCode[stockCode];
-            // Sort entries by date descending to easily get the latest and recent 5 days
             stockEntries.sort((a, b) => new Date(formatDate(b['日期'])).getTime() - new Date(formatDate(a['日期'])).getTime());
             
             const latestEntry = stockEntries[0];
@@ -108,10 +117,9 @@ async function loadAndProcessExcelData() {
                 continue;
             }
             
-            // Take up to 5 most recent entries for dailyData
             const dailyDataForStock = stockEntries.slice(0, 5).map(entry => ({
                 date: formatDate(entry['日期']),
-                potScore: String(entry['PotScore'] ?? '0'), // PotScore
+                potScore: String(entry['PotScore'] ?? '0'), 
                 superLargeInflow: String(entry['超大单净流入-净占比'] ?? '0%'),
                 largeInflow: String(entry['大单净流入-净占比'] ?? '0%'),
                 change: String(entry['涨跌幅'] ?? '0%'),
@@ -120,14 +128,13 @@ async function loadAndProcessExcelData() {
 
             allStockData[stockCode] = {
                 name: String(latestEntry['名称'] ?? 'N/A'),
-                totalInflow: String(latestEntry['总净流入占比_5日总和'] ?? '0%'), // This is the 5-day total from the sheet
-                currentPotScore: String(latestEntry['PotScore'] ?? '0'), // PotScore from the latest entry
+                totalInflow: String(latestEntry['总净流入占比_5日总和'] ?? '0%'), 
+                currentPotScore: String(latestEntry['PotScore'] ?? '0'), 
                 latestDate: formatDate(latestEntry['日期']),
                 dailyData: dailyDataForStock
             };
         }
 
-        // --- Process "Flow5DaysPositive" for the second dropdown ---
         const flow5DaysPositiveSheetName = "Flow5DaysPositive";
         const flow5DaysPositiveSheet = workbook.Sheets[flow5DaysPositiveSheetName];
         if (flow5DaysPositiveSheet) {
@@ -136,19 +143,21 @@ async function loadAndProcessExcelData() {
                 top20ContinuousInflowStocks = getTopNUniqueStocks(flow5DaysPositiveJsonData, 20);
             } else {
                 console.warn(`Sheet "${flow5DaysPositiveSheetName}" is empty.`);
+                top20ContinuousInflowStocks = [];
             }
         } else {
             console.warn(`Sheet "${flow5DaysPositiveSheetName}" not found. Continuous inflow dropdown will be empty.`);
-            top20ContinuousInflowStocks = []; // Ensure it's an empty array if sheet not found
+            top20ContinuousInflowStocks = []; 
         }
         
-        console.log('Excel data processed successfully. Default stock:', defaultStockCode);
+        console.log('Excel data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in allStockData:', Object.keys(allStockData).length);
+        window.isExcelDataLoading = false;
         return true;
 
     } catch (error) {
-        console.error("Error loading or processing Excel data:", error);
-        alert(`数据加载或处理错误: ${error.message}\n请检查Excel文件 ("Flow5DaysSort", "Flow5DaysPositive" sheets and columns) 和控制台输出。`);
-        // Provide some fallback dummy data or clear display
+        console.error("Error loading or processing Excel data in potfunddatarender.js:", error);
+        // Alerting from here might be disruptive if both pages try to load it.
+        // Consider a more robust global error state or rely on the calling page's error handling.
         allStockData = { 
             "ERROR": {
                 name: "数据加载失败",
@@ -161,6 +170,7 @@ async function loadAndProcessExcelData() {
         defaultStockCode = "ERROR";
         top20TotalInflowStocks = [];
         top20ContinuousInflowStocks = [];
-        return false; 
+        window.isExcelDataLoading = false;
+        throw error; // Re-throw to allow calling script to catch it
     }
 }
