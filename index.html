@@ -3,658 +3,332 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>量化分析</title>
+    <title>AI投资范式Agent</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="scripts/potfunddatarender.js"></script> 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-        }
-        
-        body {
-            background: #181818; 
-            color: #EAEAEA; 
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        header {
-            text-align: center;
-            padding: 20px 0;
-            margin-bottom: 30px;
-            border-bottom: 1px solid #3A3A3A; 
-            position: relative;
-        }
-        
-        h1 { 
-            font-size: 2.8rem;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-        }
-
-        .color-wave-title {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; 
-            font-size: 2.8rem; 
-            background: linear-gradient(
-                90deg,
-                #007CF0, 
-                #00DFD8, 
-                #007CF0  
-            );
-            background-size: 200% auto;
-            color: transparent;
-            -webkit-background-clip: text;
-            background-clip: text;
-            animation: gradientWave 6s linear infinite;
-            -webkit-animation: gradientWave 6s linear infinite;
-            display: inline-block; 
-            padding: 0 5px; 
-        }
-        
-        .color-wave-title i { 
-            background: linear-gradient(90deg, #007CF0, #00DFD8); 
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-right: 10px; 
-        }
-
-        @keyframes gradientWave {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-        
-        .subtitle {
-            color: #a0d2eb; 
-            font-size: 1.3rem;
-            margin-bottom: 20px;
-            max-width: 800px;
-            margin: 0 auto 25px;
-            line-height: 1.6;
-        }
-        
-        .search-controls-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px; 
-            margin: 30px 0;
-            flex-wrap: wrap; 
-        }
-
-        .search-box {
-            display: flex;
-            align-items: center; 
-            background: #282828; 
-            border-radius: 50px;
-            padding: 8px 10px; 
-            min-width: 300px; 
-            flex-grow: 1; 
-            max-width: 500px; 
-            backdrop-filter: blur(10px); 
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5); 
-            border: 1px solid #424242; 
-        }
-        
-        .search-box input {
-            background: transparent;
-            border: none;
-            color: #EAEAEA; 
-            font-size: 1.1rem; 
-            padding: 10px; 
-            width: 100%; 
-            outline: none;
-            flex-grow: 1; 
-            margin-right: 5px; 
-        }
-        
-        .search-box input::placeholder {
-            color: #787878; 
-        }
-        
-        .search-box button {
-            background: linear-gradient(90deg, #3498db, #2ecc71);
-            border: none;
-            border-radius: 50px;
-            color: white; 
-            cursor: pointer;
-            font-weight: bold;
-            padding: 10px 20px; 
-            transition: all 0.3s ease;
-            font-size: 1rem; 
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); 
-            white-space: nowrap; 
-            flex-shrink: 0; 
-        }
-        
-        .search-box button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        .dropdown-select {
-            background: #282828;
-            color: #EAEAEA;
-            border: 1px solid #424242;
-            border-radius: 25px; 
-            padding: 11px 15px; 
-            font-size: 0.9rem;
-            cursor: pointer;
-            outline: none;
-            min-width: 220px; 
-            max-width: 300px;
-            text-overflow: ellipsis;
-            -webkit-appearance: none; 
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23AAAAAA%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
-            background-repeat: no-repeat;
-            background-position: right 15px center;
-            background-size: 12px auto;
-        }
-        .dropdown-select option {
-            background: #282828;
-            color: #EAEAEA;
-        }
-
-        .stock-info { display: flex; justify-content: space-between; background: #212121; border-radius: 20px; padding: 25px; margin-bottom: 30px; backdrop-filter: blur(12px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); border: 1px solid #3A3A3A; }
-        .info-card { text-align: center; padding: 25px; border-radius: 15px; background: #242424; flex: 1; margin: 0 12px; transition: all 0.4s ease; position: relative; overflow: hidden; }
-        .info-card:before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #3498db, #2ecc71); }
-        .info-card:hover { transform: translateY(-8px); background: #2E2E2E; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); }
-        .info-card h3 { font-size: 1.2rem; color: #64B5F6; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; }
-        .info-card h3 i { margin-right: 12px; font-size: 1.4rem; }
-        .info-card .value { font-size: 2.8rem; font-weight: 800; margin: 15px 0; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); color: #EAEAEA; transition: color 0.3s ease; }
-        .info-card #stockName.value { background: linear-gradient(90deg, #1abc9c, #3498db); -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent; transition: none; }
-        .info-card .label { color: #90A4AE; font-size: 1rem; margin-top: 10px; }
-        .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-bottom: 40px; }
-        .card { background: #242424; border-radius: 20px; padding: 30px; backdrop-filter: blur(12px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); border: 1px solid #3A3A3A; transition: transform 0.3s ease; }
-        .card:hover { transform: translateY(-5px); }
-        .card h2 { font-size: 1.7rem; margin-bottom: 25px; color: #64B5F6; display: flex; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #3A3A3A; }
-        .card h2 i { margin-right: 15px; font-size: 1.8rem; background: linear-gradient(90deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: rgba(100, 181, 246, 0.15); color: #90CAF9; text-align: left; padding: 16px 20px; font-weight: 600; font-size: 1.1rem; }
-        td { padding: 16px 20px; border-bottom: 1px solid #303030; font-size: 1.05rem; color: #EAEAEA; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover { background: #2A2A2A; }
-        .chart-container { height: 350px; margin-top: 20px; position: relative; }
-        .double-chart-container { height: 380px; margin-top: 20px; position: relative; }
-        .positive { color: #2ecc71 !important; font-weight: bold; }
-        .negative { color: #e74c3c !important; font-weight: bold; }
-        .medium { color: #ff9800 !important; font-weight: bold; }
-        .footer { text-align: center; margin-top: 50px; padding: 25px; color: #FFFFFF; font-size: 1rem; border-top: 1px solid #3A3A3A; background: #212121; border-radius: 15px; }
-        .footer p { margin: 8px 0; }
-        .full-width { grid-column: 1 / -1; }
-        @media (max-width: 1200px) { 
-             .search-controls-container {
-                flex-direction: column;
-                align-items: stretch; 
-            }
-            .dropdown-select, .search-box {
-                width: 100%; 
-                max-width: none;
-            }
-        }
-        @media (max-width: 1100px) {
-            .dashboard { grid-template-columns: 1fr; }
-            .stock-info { flex-direction: column; }
-            .info-card { margin: 15px 0; }
-            h1, .color-wave-title { font-size: 2.2rem; } 
-            .subtitle { font-size: 0.8rem; } 
-        }
-        
-        .tabs { display: flex; margin-bottom: 20px; background: #282828; border-radius: 12px; overflow: hidden; }
-        .tab { flex: 1; text-align: center; padding: 15px; cursor: pointer; transition: all 0.3s ease; font-weight: 600; color: #B0BEC5; }
-        .tab.active { background: rgba(100, 181, 246, 0.3); color: #90CAF9; }
-        .tab:hover:not(.active) { background: #333333; color: #EAEAEA;}
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .legend { display: flex; justify-content: center; margin-top: 20px; gap: 20px; }
-        .legend-item { display: flex; align-items: center; font-size: 0.9rem; color: #B0BEC5; }
-        .legend-color { width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; }
-        .legend-potscore { background: linear-gradient(90deg, #2ecc71, #ff9800, #e74c3c); }
-        .legend-super { background: #3498db; }
-        .legend-large { background: #2ecc71; }
-        .legend-price { background: #e67e22; }
-        .legend-potscore-line { background: #9b59b6; }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1 class="color-wave-title"><i class="fas fa-chart-network"></i> AI投资范式，量化分析</h1>
-            <p class="subtitle">深度感知标的动能，解析主力资金动向，把握市场脉搏</p>
+    <div class="page-container">
+        <header class="main-header">
+            <div class="logo-title">
+                <i class="fas fa-brain"></i>
+                <h1>AI投资范式Agent</h1>
+            </div>
+            <nav>
+                <a href="index.html" class="active-nav"><i class="fas fa-users-cog"></i> AI投资组合</a>
+                <a href="PotScoreFundAnalytics.html"><i class="fas fa-chart-line"></i> AI投资量化</a>
+                <a href="#apiSettingsModal" onclick="openApiSettingsModal()"><i class="fas fa-cog"></i> API设置</a>
+            </nav>
         </header>
-        
-        <div class="search-controls-container">
-            <select id="top20TotalInflowDropdown" class="dropdown-select">
-                <option value="">Top20 5日总净流入占比</option>
-            </select>
-            <div class="search-box">
-                <input type="text" id="stockCode" placeholder="输入股票代码或名称..." value="">
-                <button onclick="triggerLoadStockDataFromInput()"><i class="fas fa-search"></i> 查询分析</button>
+
+        <div class="content-area">
+            <div class="tabs-main">
+                <button class="tab-link-main active" onclick="openMainTab(event, 'aiAgents')"><i class="fas fa-user-tie"></i> AI投资组合Agent</button>
+                <button class="tab-link-main" onclick="openMainTab(event, 'myPortfolio')"><i class="fas fa-arrow-trend-up"></i> 我的投资组合</button>
             </div>
-            <select id="top20ContinuousInflowDropdown" class="dropdown-select">
-                <option value="">Top20 5日持续净流入占比</option>
-            </select>
-        </div>
-        
-        <div class="stock-info">
-            <div class="info-card">
-                <h3><i class="fas fa-signature"></i> 股票名称</h3>
-                <div class="value" id="stockName">---</div>
-                <div class="label">股票代码: <span id="stockCodeDisplay">---</span></div>
+
+            <div id="aiAgents" class="main-tab-content active">
+                <div class="agent-cards-container">
+                    <!-- Agent Card 1: 大智 (Value Investing) -->
+                    <div class="agent-card value-agent-card">
+                        <div class="agent-profile">
+                            <img src="images/female_avatar.png" alt="大智" class="agent-photo" id="agent1Photo">
+                            <h2 class="agent-name" id="agent1NameDisplay">大智</h2>
+                            <p class="agent-role">负责: <span id="agent1RoleDisplay">稳健智远</span> 投资组合</p>
+                        </div>
+                        <div class="agent-details">
+                            <h3><i class="fas fa-lightbulb"></i> 核心投资理念</h3>
+                            <p id="agent1Logic" class="core-logic">
+                                我的投资哲学强调深入理解企业的内在价值，寻找那些拥有强大护城河、稳定盈利能力和优秀管理层的公司。
+                                我倾向于长期持有，并相信市场的短期波动最终会回归到企业的真实价值。在分析时，我会特别关注公司的财务健康状况、行业地位以及宏观经济环境。
+                                量化因子方面，我会审视标的动能(PotScore)以判断市场情绪和短期趋势，并结合主力资金流入情况，确保我的价值判断得到市场资金的佐证。
+                            </p>
+                            
+                            <div class="agent-section">
+                                <h4><i class="fas fa-clipboard-list"></i> 自选股票分析池</h4>
+                                <div class="stock-management">
+                                    <input type="text" id="agent1StockInput" placeholder="代码 名称 (如: 600519 茅台)">
+                                    <button onclick="addStockToPool('agent1')"><i class="fas fa-plus-circle"></i> 添加到分析池</button>
+                                </div>
+                                <ul id="agent1StockPoolList" class="stock-list"></ul>
+                            </div>
+
+                             <div class="agent-section analysis-section">
+                                <h4><i class="fas fa-search-dollar"></i> 股票分析</h4>
+                                <div class="stock-analysis-controls">
+                                    <select id="agent1StockSelect" class="stock-select">
+                                        <option value="">--- 从分析池选择 ---</option>
+                                    </select>
+                                    <span>或</span>
+                                    <input type="text" id="agent1AnalysisInput" placeholder="输入新股票代码/名称分析">
+                                    <button onclick="analyzeStockForAgent('agent1')"><i class="fas fa-cogs"></i> 分析股票</button>
+                                </div>
+                                <div class="analysis-output">
+                                    <h5>分析报告 (模拟):</h5>
+                                    <textarea id="agent1AnalysisOutput" rows="6" readonly placeholder="分析结果将在此显示..."></textarea>
+                                </div>
+                            </div>
+
+                            <div class="agent-section agent-portfolio-section">
+                                <h4><i class="fas fa-briefcase"></i> 大智的投资组合</h4>
+                                <div class="agent-portfolio-controls">
+                                    <button onclick="exportAgentPortfolioToExcel('agent1')"><i class="fas fa-file-excel"></i> 导出组合</button>
+                                    <button onclick="openPerformanceModal('agent1')"><i class="fas fa-chart-pie"></i> 收益测算</button>
+                                </div>
+                                <table id="agent1PortfolioTable" class="agent-portfolio-table-style">
+                                    <thead>
+                                        <tr>
+                                            <th>股票代码/名称</th>
+                                            <th>配置比例 (%) <button class="balance-agent-portfolio-btn" data-agentid="agent1" title="自动平衡比例"><i class="fas fa-magic"></i></button></th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Agent 1 Portfolio items will be added here -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td class="total-label">总计:</td>
+                                            <td id="agent1PortfolioTotalAllocation" class="total-value">0%</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                 <div class="stock-management add-to-agent-portfolio">
+                                    <!-- Section for adding from analysis pool -->
+                                    <div class="add-from-pool-section">
+                                        <select id="agent1AddFromPoolSelect" class="stock-select">
+                                            <option value="">--- 从分析池选择添加到组合 ---</option>
+                                        </select>
+                                        <button onclick="addSelectedStockFromPoolToAgentPortfolio('agent1')" title="添加选中股票到组合">
+                                            <i class="fas fa-level-down-alt"></i> 添加选中
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="or-divider">或</div>
+
+                                    <!-- Section for manual input -->
+                                    <div class="manual-add-section">
+                                        <input type="text" id="agent1AddToPortfolioInput" placeholder="手动输入代码/名称添加">
+                                        <button onclick="addStockToAgentPortfolio('agent1')">
+                                            <i class="fas fa-plus-circle"></i> 手动添加
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card 2: 大成 (Growth Investing) -->
+                    <div class="agent-card growth-agent-card">
+                        <div class="agent-profile">
+                            <img src="images/male_avatar.png" alt="大成" class="agent-photo" id="agent2Photo">
+                            <h2 class="agent-name" id="agent2NameDisplay">大成</h2>
+                            <p class="agent-role">负责: <span id="agent2RoleDisplay">锐进先锋</span> 投资组合</p>
+                        </div>
+                        <div class="agent-details">
+                            <h3><i class="fas fa-lightbulb"></i> 核心投资理念</h3>
+                            <p id="agent2Logic" class="core-logic">
+                                我专注于发掘具有颠覆性创新能力和巨大增长潜力的公司，尤其是在人工智能、区块链、基因编辑等前沿科技领域。
+                                我相信技术进步是驱动未来经济增长的核心动力，并乐于承担较高风险以追求超额回报。我的分析侧重于公司的技术壁垒、市场规模、以及其商业模式的可扩展性。
+                                对于量化因子，我会关注标的动能(PotScore)来捕捉市场对创新趋势的早期反应，同时分析主力资金流入情况，以验证增长故事是否获得聪明资金的认可。
+                            </p>
+                            
+                            <div class="agent-section">
+                                <h4><i class="fas fa-clipboard-list"></i> 自选股票分析池</h4>
+                                <div class="stock-management">
+                                    <input type="text" id="agent2StockInput" placeholder="代码 名称 (如: TSLA 特斯拉)">
+                                    <button onclick="addStockToPool('agent2')"><i class="fas fa-plus-circle"></i> 添加到分析池</button>
+                                </div>
+                                <ul id="agent2StockPoolList" class="stock-list"></ul>
+                            </div>
+
+                             <div class="agent-section analysis-section">
+                                <h4><i class="fas fa-search-dollar"></i> 股票分析</h4>
+                                <div class="stock-analysis-controls">
+                                    <select id="agent2StockSelect" class="stock-select">
+                                        <option value="">--- 从分析池选择 ---</option>
+                                    </select>
+                                    <span>或</span>
+                                    <input type="text" id="agent2AnalysisInput" placeholder="输入新股票代码/名称分析">
+                                    <button onclick="analyzeStockForAgent('agent2')"><i class="fas fa-cogs"></i> 分析股票</button>
+                                </div>
+                                <div class="analysis-output">
+                                    <h5>分析报告 (模拟):</h5>
+                                    <textarea id="agent2AnalysisOutput" rows="6" readonly placeholder="分析结果将在此显示..."></textarea>
+                                </div>
+                            </div>
+
+                            <div class="agent-section agent-portfolio-section">
+                                <h4><i class="fas fa-briefcase"></i> 大成的投资组合</h4>
+                                <div class="agent-portfolio-controls">
+                                    <button onclick="exportAgentPortfolioToExcel('agent2')"><i class="fas fa-file-excel"></i> 导出组合</button>
+                                    <button onclick="openPerformanceModal('agent2')"><i class="fas fa-chart-pie"></i> 收益测算</button>
+                                </div>
+                                <table id="agent2PortfolioTable" class="agent-portfolio-table-style">
+                                    <thead>
+                                        <tr>
+                                            <th>股票代码/名称</th>
+                                            <th>配置比例 (%) <button class="balance-agent-portfolio-btn" data-agentid="agent2" title="自动平衡比例"><i class="fas fa-magic"></i></button></th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Agent 2 Portfolio items -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td class="total-label">总计:</td>
+                                            <td id="agent2PortfolioTotalAllocation" class="total-value">0%</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                <div class="stock-management add-to-agent-portfolio">
+                                    <!-- Section for adding from analysis pool -->
+                                    <div class="add-from-pool-section">
+                                        <select id="agent2AddFromPoolSelect" class="stock-select">
+                                            <option value="">--- 从分析池选择添加到组合 ---</option>
+                                        </select>
+                                        <button onclick="addSelectedStockFromPoolToAgentPortfolio('agent2')" title="添加选中股票到组合">
+                                            <i class="fas fa-level-down-alt"></i> 添加选中
+                                        </button>
+                                    </div>
+
+                                    <div class="or-divider">或</div>
+                                    
+                                    <!-- Section for manual input -->
+                                    <div class="manual-add-section">
+                                        <input type="text" id="agent2AddToPortfolioInput" placeholder="手动输入代码/名称添加">
+                                        <button onclick="addStockToAgentPortfolio('agent2')">
+                                            <i class="fas fa-plus-circle"></i> 手动添加
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="info-card">
-                <h3><i class="fas fa-bolt"></i> 当前动能指数</h3>
-                <div class="value" id="currentPotScore">--</div>
-                <div class="label">最新交易日: <span id="latestDate">----</span></div>
-            </div>
-            <div class="info-card">
-                <h3><i class="fas fa-wave-pulse"></i> 5日总净流入占比</h3>
-                <div class="value" id="totalInflow">--%</div>
-                <div class="label" id="totalInflowLabel">近5日主力资金净流入加权占比</div>
-            </div>
-        </div>
+
+            <div id="myPortfolio" class="main-tab-content">
+                <div class="my-portfolio-header">
+                    <h2>
+                        <i class="fas fa-briefcase"></i> 
+                        <span id="myPortfolioTitleText" contenteditable="false">我的投资组合</span>
+                        <button id="editMyPortfolioTitleBtn" class="edit-title-btn" title="编辑组合名称"><i class="fas fa-pencil-alt"></i></button>
+                    </h2>
+                    <div class="my-portfolio-controls">
+                        <button onclick="syncStocksToMyPortfolio()"><i class="fas fa-sync-alt"></i> 同步AI智能体组合</button>
+                        <button onclick="exportMyPortfolioToExcel()"><i class="fas fa-file-excel"></i> 导出我的组合</button>
+                        <button onclick="openPerformanceModal('myPortfolio')"><i class="fas fa-chart-pie"></i> 我的组合收益测算</button>
+                    </div>
+                </div>
+                <p class="my-portfolio-description">以下是根据AI智能体建议及您的自定义配置形成的投资组合。您可以调整各项资产的比例。</p>
                 
-        <div class="dashboard">
-            <div class="card">
-                <h2><i class="fas fa-table-list"></i> 5日动能指数和主力资金明细</h2>
-                <div class="table-container">
-                    <table id="flowTable">
-                        <thead>
-                            <tr>
-                                <th>日期</th>
-                                <th>动能指数</th>
-                                <th>超大单净占比</th>
-                                <th>大单净占比</th>
-                                <th>涨跌幅</th>
-                                <th>收盘价</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="card">
-                <h2><i class="fas fa-money-bill-trend-up"></i> 资金流向趋势图</h2>
-                <div class="chart-container">
-                    <canvas id="flowChart"></canvas>
-                </div>
-            </div>
-            <div class="card full-width">
-                <h2><i class="fas fa-chart-line"></i> 动能指数与价格趋势图</h2>
-                <div class="double-chart-container">
-                    <canvas id="doubleChart"></canvas>
-                </div>
+                <table id="myPortfolioTable">
+                    <thead>
+                        <tr>
+                            <th>股票代码/名称</th>
+                            <th>来源</th>
+                            <th>建议比例 (%)</th>
+                            <th>我的配置 (%) <button id="balancePortfolioBtn" title="自动平衡未配置股票的比例"><i class="fas fa-magic"></i></button></th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Portfolio items will be added here -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="total-label">总计:</td>
+                            <td id="myPortfolioTotalAllocation" class="total-value">0%</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
         </div>
-        
-        <div class="footer">
-            <p>© 2025 AI范式进化. 保留所有权利。
-            <p>相关分析和数据仅供参考，不构成投资建议</p>
+
+        <footer>
+            <p>© 2025 AI范式进化. 保留所有权利。</p>
+            <p>投资有风险，入市需谨慎。本内容仅供参考，不构成任何投资建议。</p>
+        </footer>
+    </div>
+
+    <!-- API Settings Modal -->
+    <div id="apiSettingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeApiSettingsModal()">×</span>
+            <h2><i class="fas fa-cog"></i> API及模型设置</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label for="apiEndpointSelect"><i class="fas fa-server"></i> 模型接入点 (API Endpoint):</label>
+                    <select id="apiEndpointSelect" class="stock-select">
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="apiKey"><i class="fas fa-key"></i> API Key:</label>
+                    <input type="password" id="apiKey" placeholder="输入您的API Key">
+                </div>
+                <div class="form-group">
+                    <label for="apiModelSelect"><i class="fas fa-robot"></i> 模型选择:</label>
+                    <select id="apiModelSelect" class="stock-select">
+                        <!-- Options will be populated by JS based on endpoint selection -->
+                    </select>
+                </div>
+                <button onclick="saveApiSettings()"><i class="fas fa-save"></i> 保存设置</button>
+                <button onclick="clearApiSettings()" class="danger-btn" style="margin-top: 10px;"><i class="fas fa-trash-alt"></i> 清除已存API信息</button>
+                <p id="settingsStatus" class="status-message"></p>
+            </div>
         </div>
     </div>
 
+    <!-- Performance Backtest Modal -->
+    <div id="performanceModal" class="modal">
+        <div class="modal-content large">
+            <span class="close-button" onclick="closePerformanceModal()">×</span>
+            <h2 id="performanceModalTitle"><i class="fas fa-chart-pie"></i> 投资组合收益测算评估</h2>
+            <div class="performance-controls">
+                <label for="backtestStartDate">开始日期:</label>
+                <input type="date" id="backtestStartDate">
+                <label for="backtestEndDate">结束日期:</label>
+                <input type="date" id="backtestEndDate">
+                <button onclick="runBacktest()"><i class="fas fa-play-circle"></i> 开始测算</button>
+            </div>
+            <div id="backtestResults" class="backtest-results-area">
+                <p>请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。</p>
+                <canvas id="performanceChart" style="display:none;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/potfunddatarender.js"></script> <!-- LOAD THIS FIRST -->
+    <script src="scripts/portfolio_agent.js"></script>   <!-- LOAD THIS SECOND -->
     <script>
-        window.flowChartInstance = null;
-        window.doubleChartInstance = null;
-
-        document.addEventListener('DOMContentLoaded', async function() {
-            document.getElementById('stockName').textContent = "加载中...";
-            document.getElementById('stockCode').placeholder = "加载数据中...";
-            
-            const dataLoaded = await loadAndProcessExcelData(); 
-
-            populateDropdown('top20TotalInflowDropdown', top20TotalInflowStocks, "Top20 5日总净流入占比");
-            populateDropdown('top20ContinuousInflowDropdown', top20ContinuousInflowStocks, "Top20 5日持续净流入占比");
-
-            if (dataLoaded && defaultStockCode) {
-                document.getElementById('stockCode').value = defaultStockCode;
-                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; // Updated placeholder
-                loadStockDataByCode(defaultStockCode); 
-            } else if (dataLoaded && Object.keys(allStockData).length > 0) {
-                const firstCode = Object.keys(allStockData)[0];
-                document.getElementById('stockCode').value = firstCode;
-                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; // Updated placeholder
-                loadStockDataByCode(firstCode); 
-            } else {
-                 document.getElementById('stockName').textContent = "数据加载失败";
-                 document.getElementById('stockCode').placeholder = "加载失败";
-            }
-
-            document.getElementById('top20TotalInflowDropdown').addEventListener('change', handleDropdownChange);
-            document.getElementById('top20ContinuousInflowDropdown').addEventListener('change', handleDropdownChange);
-            
-            // Event listener for Enter key in stockCode input
-            document.getElementById('stockCode').addEventListener('keypress', function(event) {
-                if (event.key === 'Enter' || event.keyCode === 13) { 
-                    event.preventDefault(); 
-                    triggerLoadStockDataFromInput(); 
-                }
-            });
-        });
-
-        function populateDropdown(dropdownId, stockList, defaultOptionText) {
-            const select = document.getElementById(dropdownId);
-            select.innerHTML = `<option value="">${defaultOptionText}</option>`; 
-            if (stockList && stockList.length > 0) {
-                stockList.forEach(stock => {
-                    const option = document.createElement('option');
-                    option.value = stock.code;
-                    option.textContent = `${stock.code} - ${stock.name}`;
-                    select.appendChild(option);
-                });
-            } else {
-                 const option = document.createElement('option');
-                 option.textContent = "无可用数据";
-                 option.disabled = true;
-                 select.appendChild(option);
-            }
-        }
-
-        function handleDropdownChange(event) {
-            const selectedStockCode = event.target.value;
-            if (selectedStockCode) {
-                document.getElementById('stockCode').value = selectedStockCode; 
-                loadStockDataByCode(selectedStockCode);
-                if (event.target.id === 'top20TotalInflowDropdown') {
-                    document.getElementById('top20ContinuousInflowDropdown').value = "";
-                } else {
-                    document.getElementById('top20TotalInflowDropdown').value = "";
-                }
-            }
-        }
-        
-        function triggerLoadStockDataFromInput() {
-            const searchInputValue = document.getElementById('stockCode').value.trim();
-            if (searchInputValue) {
-                loadStockDataByCode(searchInputValue);
-                document.getElementById('top20TotalInflowDropdown').value = "";
-                document.getElementById('top20ContinuousInflowDropdown').value = "";
-            } else {
-                alert("请输入股票代码或名称。");
-            }
-        }
-
-        function loadStockDataByCode(searchTerm) {
-            if (!allStockData || Object.keys(allStockData).length === 0) {
-                alert("数据尚未加载或加载失败，请刷新页面。");
-                return;
-            }
-
-            let stockData = null;
-            let foundStockCode = null;
-
-            // Try direct match by code first
-            if (allStockData[searchTerm]) {
-                stockData = allStockData[searchTerm];
-                foundStockCode = searchTerm;
-            } else {
-                // If not a direct code match, try to find by name (partial, case-insensitive)
-                const searchTermLower = searchTerm.toLowerCase();
-                for (const code in allStockData) {
-                    if (allStockData[code].name.toLowerCase().includes(searchTermLower)) {
-                        stockData = allStockData[code];
-                        foundStockCode = code;
-                        document.getElementById('stockCode').value = code; // Update input with actual code
-                        break; 
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof window.allStockDataGlobalPromise === 'undefined') {
+                console.log("AI Portfolio Page (index.html): Initializing Excel data load...");
+                try {
+                    if (typeof loadAndProcessExcelData === "function") {
+                        window.allStockDataGlobalPromise = loadAndProcessExcelData();
+                        await window.allStockDataGlobalPromise;
+                        console.log("AI Portfolio Page (index.html): Excel data load attempt complete.");
+                    } else {
+                        console.error("loadAndProcessExcelData function not found. Ensure potfunddatarender.js is loaded correctly.");
                     }
+                } catch (error) {
+                    console.error("Error loading Excel data on AI Portfolio page:", error);
+                    alert("股票基础数据加载失败，部分功能可能受限。请尝试刷新或检查AI投资量化页面是否正常。");
                 }
-            }
-
-            if (!stockData) {
-                alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
-                renderStockData({}, searchTerm); 
-                if (window.flowChartInstance) { window.flowChartInstance.destroy(); window.flowChartInstance = null; }
-                if (window.doubleChartInstance) { window.doubleChartInstance.destroy(); window.doubleChartInstance = null; }
-                const flowCtx = document.getElementById('flowChart').getContext('2d');
-                if (flowCtx) flowCtx.clearRect(0, 0, flowCtx.canvas.width, flowCtx.canvas.height);
-                const doubleCtx = document.getElementById('doubleChart').getContext('2d');
-                if (doubleCtx) doubleCtx.clearRect(0, 0, doubleCtx.canvas.width, doubleCtx.canvas.height);
-                return;
-            }
-            
-            renderStockData(stockData, foundStockCode);
-            renderFlowChart(stockData); 
-            renderDoubleChart(stockData);
-        }
-
-        function getPotScoreClass(potScoreValue) {
-            const score = parseFloat(potScoreValue);
-            if (isNaN(score)) return ''; 
-            if (score > 0) return 'positive';
-            if (score < 0 && score >= -0.2) return 'medium'; 
-            if (score < -0.2) return 'negative';
-            return 'positive'; 
-        }
-
-        function renderStockData(data, stockCodeToDisplay) {
-            const isEmptyData = !data || Object.keys(data).length === 0 || !data.name;
-
-            document.getElementById('stockName').textContent = isEmptyData ? "---" : data.name;
-            document.getElementById('stockCodeDisplay').textContent = isEmptyData ? "---" : stockCodeToDisplay;
-            
-            const currentPotScoreElement = document.getElementById('currentPotScore');
-            currentPotScoreElement.textContent = isEmptyData ? "--" : data.currentPotScore;
-            currentPotScoreElement.className = 'value'; 
-            if (!isEmptyData) currentPotScoreElement.classList.add(getPotScoreClass(data.currentPotScore));
-            
-            const totalInflowElement = document.getElementById('totalInflow');
-            totalInflowElement.textContent = isEmptyData ? "--%" : data.totalInflow;
-            totalInflowElement.className = 'value'; 
-            if (!isEmptyData) {
-                const totalInflowValue = parseFloat(String(data.totalInflow).replace('%','')); 
-                if (!isNaN(totalInflowValue)) {
-                    if (totalInflowValue >= 0) totalInflowElement.classList.add('positive');
-                    else totalInflowElement.classList.add('negative');
-                }
-            }
-
-            document.getElementById('latestDate').textContent = isEmptyData ? "----" : data.latestDate;
-            
-            const tableBody = document.querySelector('#flowTable tbody');
-            tableBody.innerHTML = ''; 
-            
-            if (!isEmptyData && data.dailyData && data.dailyData.length > 0) {
-                data.dailyData.forEach(day => {
-                    const row = document.createElement('tr');
-                    const potScoreClass = getPotScoreClass(day.potScore); 
-                    row.innerHTML = `
-                        <td>${day.date ?? 'N/A'}</td>
-                        <td class="${potScoreClass}">${day.potScore ?? 'N/A'}</td>
-                        <td class="${parseFloat(String(day.superLargeInflow).replace('%','')) >= 0 ? 'positive' : 'negative'}">${day.superLargeInflow ?? 'N/A'}</td>
-                        <td class="${parseFloat(String(day.largeInflow).replace('%','')) >= 0 ? 'positive' : 'negative'}">${day.largeInflow ?? 'N/A'}</td>
-                        <td class="${(day.change && String(day.change).startsWith('+')) ? 'positive' : ((day.change && String(day.change).startsWith('-')) ? 'negative' : '')}">${day.change ?? 'N/A'}</td>
-                        <td>${typeof day.price === 'number' ? day.price.toFixed(2) : 'N/A'}</td>
-                    `;
-                    tableBody.appendChild(row);
-                });
-            } else if (!isEmptyData) {
-                 tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">此股票无详细数据</td></tr>';
             } else {
-                 tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">请选择或查询股票</td></tr>';
+                 console.log("AI Portfolio Page (index.html): Excel data likely already loaded or being loaded via existing promise.");
+                 await window.allStockDataGlobalPromise; 
             }
-        }
-
-        function renderFlowChart(data) {
-            const ctx = document.getElementById('flowChart').getContext('2d');
-            if (window.flowChartInstance) {
-                window.flowChartInstance.destroy();
-                window.flowChartInstance = null;
-            }
-
-            if (!data || !data.dailyData || data.dailyData.length === 0) {
-                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                ctx.save(); 
-                ctx.fillStyle = '#787878'; ctx.textAlign = 'center'; ctx.font = '16px Segoe UI';
-                ctx.fillText("无资金流向图表数据", ctx.canvas.width / 2, ctx.canvas.height / 2);
-                ctx.restore(); 
-                return;
-            }
-            
-            const dailyDataReversed = [...data.dailyData].reverse(); 
-            const dates = dailyDataReversed.map(d => d.date);
-            const superLargeData = dailyDataReversed.map(d => parseFloat(String(d.superLargeInflow).replace('%','')));
-            const largeData = dailyDataReversed.map(d => parseFloat(String(d.largeInflow).replace('%','')));
-            
-            window.flowChartInstance = new Chart(ctx, { 
-                 type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [
-                        {
-                            label: '超大单净占比', data: superLargeData,
-                            borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.15)', 
-                            borderWidth: 3, fill: true, tension: 0.3,
-                            pointRadius: 5, pointBackgroundColor: '#3498db'
-                        },
-                        {
-                            label: '大单净占比', data: largeData,
-                            borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.15)', 
-                            borderWidth: 3, fill: true, tension: 0.3,
-                            pointRadius: 5, pointBackgroundColor: '#2ecc71'
-                        }
-                    ]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { color: '#EAEAEA', font: { size: 14 }}},
-                        tooltip: {
-                            mode: 'index', intersect: false,
-                            backgroundColor: 'rgba(40, 40, 40, 0.95)', 
-                            titleColor: '#B0BEC5', bodyColor: '#EAEAEA',   
-                            titleFont: { size: 16 }, bodyFont: { size: 14 },
-                            padding: 12, displayColors: true,
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed.y !== null) label += context.parsed.y.toFixed(2) + '%';
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255, 255, 255, 0.12)' },
-                            ticks: { color: '#90A4AE', font: { size: 13 }}
-                        },
-                        y: {
-                            grid: { color: 'rgba(255, 255, 255, 0.12)'},
-                            ticks: { color: '#90A4AE', font: { size: 13 },
-                                callback: function(value) { return value + '%'; }
-                            }
-                        }
-                    },
-                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
-                    animation: { duration: 1500, easing: 'easeOutQuart' }
-                }
-            });
-        }
-
-        function renderDoubleChart(data) {
-            const ctx = document.getElementById('doubleChart').getContext('2d');
-             if (window.doubleChartInstance) {
-                window.doubleChartInstance.destroy();
-                window.doubleChartInstance = null;
-            }
-
-            if (!data || !data.dailyData || data.dailyData.length === 0) {
-                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                ctx.save();
-                ctx.fillStyle = '#787878'; ctx.textAlign = 'center'; ctx.font = '16px Segoe UI';
-                ctx.fillText("无动能/价格图表数据", ctx.canvas.width / 2, ctx.canvas.height / 2);
-                ctx.restore();
-                return;
-            }
-            
-            const dailyDataReversed = [...data.dailyData].reverse();
-            const dates = dailyDataReversed.map(d => d.date);
-            const potScores = dailyDataReversed.map(d => parseFloat(d.potScore));
-            const prices = dailyDataReversed.map(d => d.price);
-
-            window.doubleChartInstance = new Chart(ctx, { 
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [
-                        {
-                            label: '动能指数', data: potScores,
-                            borderColor: '#9b59b6', backgroundColor: 'rgba(155, 89, 182, 0.2)', 
-                            borderWidth: 3, fill: true, tension: 0.3, yAxisID: 'y',
-                            pointRadius: 5, pointBackgroundColor: '#9b59b6'
-                        },
-                        {
-                            label: '收盘价格', data: prices, 
-                            borderColor: '#e67e22', backgroundColor: 'rgba(230, 126, 34, 0.2)', 
-                            borderWidth: 3, fill: true, tension: 0.3, yAxisID: 'y1',
-                            pointRadius: 5, pointBackgroundColor: '#e67e22'
-                        }
-                    ]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { color: '#EAEAEA', font: { size: 14 }}},
-                        tooltip: {
-                            mode: 'index', intersect: false,
-                            backgroundColor: 'rgba(40, 40, 40, 0.95)', 
-                            titleColor: '#B0BEC5', bodyColor: '#EAEAEA',  
-                            titleFont: { size: 16 }, bodyFont: { size: 14 },
-                            padding: 12, displayColors: true,
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y.toFixed(2);
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255, 255, 255, 0.12)' },
-                            ticks: { color: '#90A4AE', font: { size: 13 }}
-                        },
-                        y: { 
-                            type: 'linear', display: true, position: 'left',
-                            grid: { color: 'rgba(155, 89, 182, 0.25)' },
-                            ticks: { color: '#9b59b6', font: { size: 13 }},
-                            title: { display: true, text: '动能指数', color: '#9b59b6', font: { size: 14, weight: 'bold' }}
-                        },
-                        y1: { 
-                            type: 'linear', display: true, position: 'right',
-                            grid: { drawOnChartArea: false, },
-                            ticks: { color: '#e67e22', font: { size: 13 }},
-                            title: { display: true, text: '收盘价格', color: '#e67e22', font: { size: 14, weight: 'bold' }}
-                        }
-                    },
-                    interaction: { mode: 'index', intersect: false },
-                    animation: { duration: 1500, easing: 'easeOutQuart' }
-                }
-            });
-        }
+        });
     </script>
 </body>
 </html>
