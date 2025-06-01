@@ -439,7 +439,7 @@ async function analyzeStockForAgent(agentId) {
 
     // 5. Make API Call
     try {
-        let requestUrl = (apiSettings.endpoint.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl) + "/v1/chat/completions";
+        let requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
         let requestPayload;
         const headers = { 'Content-Type': 'application/json' };
 
