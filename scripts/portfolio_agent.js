@@ -117,7 +117,7 @@ const endpointModelMap = {
         { value: "deepseek-chat", labelKey: "modelDeepSeekV3" }
     ],
     "https://generativelanguage.googleapis.com": [
-        { value: "gemini-1.5-flash-preview-0514", labelKey: "modelGeminiFlash" } // 与你提供的最新代码中的模型值保持一致
+        { value: "gemini-2.5-flash-preview-05-20", labelKey: "modelGeminiFlash" } // 与你提供的最新代码中的模型值保持一致
     ],
     "https://api.openai.com": [
         { value: "gpt-4o-mini", labelKey: "modelGpt4oMini" }
@@ -126,7 +126,7 @@ const endpointModelMap = {
 
 const modelDisplayStrings = {
     "modelDeepSeekV3": "DeepSeek Chat (deepseek-chat)",
-    "modelGeminiFlash": "Google Gemini 1.5 Flash (gemini-1.5-flash-preview-0514)", // 与你提供的最新代码中的显示字符串保持一致
+    "modelGeminiFlash": "gemini-2.5-flash-preview-05-20", // 与你提供的最新代码中的显示字符串保持一致
     "modelGpt4oMini": "OpenAI GPT-4o mini (gpt-4o-mini)"
 };
 
