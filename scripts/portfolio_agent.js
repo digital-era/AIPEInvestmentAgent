@@ -115,7 +115,7 @@ const endpointModelMap = {
         { value: "deepseek-chat", labelKey: "modelDeepSeekV3" }
     ],
     "https://generativelanguage.googleapis.com": [
-        { value: "gemini-1.5-flash-preview-0514", labelKey: "modelGeminiFlash" } // Keeping your latest model value
+        { value: "gemini-2.5-flash-preview-05-20", labelKey: "modelGeminiFlash" } // Keeping your latest model value
     ],
     "https://api.openai.com": [
         { value: "gpt-4o-mini", labelKey: "modelGpt4oMini" }
@@ -124,7 +124,7 @@ const endpointModelMap = {
 
 const modelDisplayStrings = {
     "modelDeepSeekV3": "DeepSeek Chat (deepseek-chat)",
-    "modelGeminiFlash": "Google Gemini 1.5 Flash (gemini-1.5-flash-preview-0514)", // Display string for Gemini
+    "modelGeminiFlash": "gemini-2.5-flash-preview-05-20", // Display string for Gemini
     "modelGpt4oMini": "OpenAI GPT-4o mini (gpt-4o-mini)"
 };
 
@@ -973,7 +973,8 @@ function loadApiSettings() {
     // Add a placeholder default option
     const placeholderOption = document.createElement('option');
     placeholderOption.value = "";
-    placeholderOption.textContent = "--- 选择模型接入点 ---";
+    //placeholderOption.textContent = "--- 选择模型接入点 ---";
+    endpointSelect.innerHTML = ""; // Clear existing options
     endpointSelect.appendChild(placeholderOption);
 
     for (const endpointUrl in endpointModelMap) {
