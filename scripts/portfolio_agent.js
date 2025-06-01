@@ -971,11 +971,11 @@ function loadApiSettings() {
     endpointSelect.innerHTML = ""; 
     let firstEndpointValue = null;
     // Add a placeholder default option
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = "";
+    //const placeholderOption = document.createElement('option');
+    //placeholderOption.value = "";
     //placeholderOption.textContent = "--- 选择模型接入点 ---";
-    endpointSelect.innerHTML = ""; // Clear existing options
-    endpointSelect.appendChild(placeholderOption);
+    //endpointSelect.innerHTML = ""; // Clear existing options
+    //endpointSelect.appendChild(placeholderOption);
 
     for (const endpointUrl in endpointModelMap) {
         if(firstEndpointValue === null && endpointUrl) firstEndpointValue = endpointUrl;
