@@ -119,7 +119,7 @@ const endpointModelMap = {
 
 const modelDisplayStrings = {
     "modelDeepSeekV3": "DeepSeek Chat (deepseek-chat)",
-    "modelGeminiFlash": "Google Gemini 1.5 Flash (gemini-1.5-flash-preview-0514)",
+    "modelGeminiFlash": "gemini-2.5-flash-preview-05-20",
     "modelGpt4oMini": "OpenAI GPT-4o mini (gpt-4o-mini)"
 };
 
