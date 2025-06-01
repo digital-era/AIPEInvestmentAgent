@@ -1,3 +1,5 @@
+--- START OF FILE index.html ---
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -65,9 +67,10 @@
                                     <input type="text" id="agent1AnalysisInput" placeholder="输入新股票代码/名称分析">
                                     <button onclick="analyzeStockForAgent('agent1')"><i class="fas fa-cogs"></i> 分析股票</button>
                                 </div>
-                                <div class="analysis-output">
+                                <div class="analysis-output"> <!-- This is the parent for the textarea and button -->
                                     <h5>分析报告:</h5>
                                     <textarea id="agent1AnalysisOutput" rows="6" readonly placeholder="分析结果将在此显示..."></textarea>
+                                    <!-- "View Report" button will be dynamically added here by JS -->
                                 </div>
                             </div>
 
@@ -155,9 +158,10 @@
                                     <input type="text" id="agent2AnalysisInput" placeholder="输入新股票代码/名称分析">
                                     <button onclick="analyzeStockForAgent('agent2')"><i class="fas fa-cogs"></i> 分析股票</button>
                                 </div>
-                                <div class="analysis-output">
+                                <div class="analysis-output"> <!-- This is the parent for the textarea and button -->
                                     <h5>分析报告:</h5>
                                     <textarea id="agent2AnalysisOutput" rows="6" readonly placeholder="分析结果将在此显示..."></textarea>
+                                    <!-- "View Report" button will be dynamically added here by JS -->
                                 </div>
                             </div>
 
@@ -302,6 +306,20 @@
             <div id="backtestResults" class="backtest-results-area">
                 <p>请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。</p>
                 <canvas id="performanceChart" style="display:none;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD THIS: Analysis Report Modal -->
+    <div id="analysisReportModal" class="modal">
+        <div class="modal-content large">
+            <span class="close-button" onclick="closeAnalysisReportModal()">×</span>
+            <h2 id="analysisReportModalTitle"><i class="fas fa-file-alt"></i> AI分析报告</h2>
+            <div class="analysis-report-modal-controls">
+                <button onclick="copyAnalysisReportToClipboard()"><i class="fas fa-copy"></i> 复制报告内容</button>
+            </div>
+            <div id="analysisReportModalBody" class="analysis-report-body">
+                <!-- Report content will be injected here by JavaScript -->
             </div>
         </div>
     </div>
