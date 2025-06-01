@@ -962,48 +962,93 @@ function clearApiSettings() {
 
 
 function loadApiSettings() {
-    const endpointSelect = document.getElementById('apiEndpointSelect');
-    const modelSelect = document.getElementById('apiModelSelect');
-    const apiKeyInput = document.getElementById('apiKey');
+    const endpointSelect = document.getElementById('apiEndpointSelect'); // 获取“模型接入点”下拉列表元素
+    const modelSelect = document.getElementById('apiModelSelect');     // 获取“模型选择”下拉列表元素
+    const apiKeyInput = document.getElementById('apiKey');             // 获取 API Key 输入框元素
 
-    if (!endpointSelect || !modelSelect || !apiKeyInput) return;
+    if (!endpointSelect || !modelSelect || !apiKeyInput) return; // 如果任何一个元素不存在，则退出
 
-    endpointSelect.innerHTML = ""; 
-    let firstEndpointValue = null;
-    // Add a placeholder default option
-    //const placeholderOption = document.createElement('option');
-    //placeholderOption.value = "";
-    //placeholderOption.textContent = "--- 选择模型接入点 ---";
-    //endpointSelect.innerHTML = ""; // Clear existing options
-    //endpointSelect.appendChild(placeholderOption);
+    endpointSelect.innerHTML = ""; // 清空“模型接入点”下拉列表的现有选项
 
-    for (const endpointUrl in endpointModelMap) {
-        if(firstEndpointValue === null && endpointUrl) firstEndpointValue = endpointUrl;
-        const option = document.createElement('option');
-        option.value = endpointUrl;
-        option.textContent = endpointUrl;
-        endpointSelect.appendChild(option);
+    // 填充“模型接入点”下拉列表
+    let deepSeekEndpointValue = null; // 用于存储 DeepSeek 接入点的 URL
+    for (const endpointUrl in endpointModelMap) { // 遍历预定义的接入点映射
+        if (endpointUrl.includes("deepseek.com")) { // 如果当前 URL 包含 "deepseek.com"
+            deepSeekEndpointValue = endpointUrl;    // 记录下来
+        }
+        const option = document.createElement('option'); // 创建新的 <option> 元素
+        option.value = endpointUrl;                      // 设置 option 的值
+        option.textContent = endpointUrl;                // 设置 option 显示的文本
+        endpointSelect.appendChild(option);              // 将 option 添加到下拉列表中
     }
 
+    // 为“模型接入点”下拉列表添加 change 事件监听器
     endpointSelect.addEventListener('change', (event) => {
-        const newSelectedEndpoint = event.target.value;
-        const currentSelectedModel = document.getElementById('apiModelSelect').value;
-        populateApiModelDropdown(newSelectedEndpoint, currentSelectedModel);
+        const newSelectedEndpoint = event.target.value; // 获取新选中的接入点 URL
+        // 当接入点改变时，尝试保持已选模型（如果新接入点也支持该模型），
+        // 否则 populateApiModelDropdown 会选择新接入点的第一个可用模型。
+        populateApiModelDropdown(newSelectedEndpoint, apiSettings.model);
     });
 
-    const savedSettings = localStorage.getItem('apiSettings');
-    let initialEndpointToLoad = "";
+    // 加载已保存的设置
+    const savedSettings = localStorage.getItem('apiSettings'); // 从 localStorage 获取已存设置
+    let initialEndpointToSelect = null; // 初始化要选中的接入点（默认为 null）
+    let initialModelToSelect = null;    // 初始化要选中的模型（默认为 null）
 
-    if (savedSettings) {
-        apiSettings = JSON.parse(savedSettings);
-        if (apiSettings.endpoint && endpointModelMap[apiSettings.endpoint]) {
-            initialEndpointToLoad = apiSettings.endpoint;
+    if (savedSettings) { // 如果存在已存设置
+        try {
+            apiSettings = JSON.parse(savedSettings); // 解析 JSON 字符串
+            // 检查已存的接入点和模型是否仍然有效
+            if (apiSettings.endpoint && endpointModelMap[apiSettings.endpoint]) {
+                initialEndpointToSelect = apiSettings.endpoint; // 使用已存的接入点
+                if (apiSettings.model && endpointModelMap[apiSettings.endpoint].some(m => m.value === apiSettings.model)) {
+                    initialModelToSelect = apiSettings.model; // 使用已存的模型
+                }
+            }
+            apiKeyInput.value = apiSettings.key || ""; // 设置 API Key 输入框的值
+        } catch (e) {
+            console.error("解析已存API设置时出错:", e); // 如果解析失败，打印错误
+            localStorage.removeItem('apiSettings');   // 清除损坏的设置
+            apiSettings = { endpoint: '', key: '', model: '' }; // 重置 apiSettings 对象
         }
-        apiKeyInput.value = apiSettings.key || "";
     }
 
-    endpointSelect.value = initialEndpointToLoad; // Set to "" if no valid saved endpoint
-    populateApiModelDropdown(endpointSelect.value, apiSettings.model || null);
+    // 如果没有有效的已存接入点，并且找到了 DeepSeek 接入点，则默认选择 DeepSeek
+    if (!initialEndpointToSelect && deepSeekEndpointValue) {
+        initialEndpointToSelect = deepSeekEndpointValue;
+    }
+
+    // 在下拉列表中实际选中该接入点
+    if (initialEndpointToSelect) {
+        endpointSelect.value = initialEndpointToSelect;
+    } else if (endpointSelect.options.length > 0) {
+        // 如果上述逻辑都未能确定一个接入点（例如 endpointModelMap 为空），
+        // 则回退到选择列表中的第一个选项（如果有的话）
+        endpointSelect.selectedIndex = 0;
+        initialEndpointToSelect = endpointSelect.value; // 更新 initialEndpointToSelect
+    }
+
+
+    // 根据最终选定（或默认选定）的接入点来填充模型下拉列表
+    if (initialEndpointToSelect) {
+        // 如果我们默认选择了 DeepSeek 接入点，并且之前没有保存过模型（或者保存的模型无效），
+        // 并且 DeepSeek 接入点确实有模型定义，则尝试选择其第一个模型作为默认模型
+        if (initialEndpointToSelect === deepSeekEndpointValue && 
+            !initialModelToSelect && 
+            endpointModelMap[deepSeekEndpointValue] && 
+            endpointModelMap[deepSeekEndpointValue].length > 0) {
+            initialModelToSelect = endpointModelMap[deepSeekEndpointValue][0].value;
+        }
+        populateApiModelDropdown(initialEndpointToSelect, initialModelToSelect);
+    } else {
+        // 如果没有可用的接入点或发生其他问题
+        populateApiModelDropdown("", null); // 这会禁用模型下拉列表
+    }
+
+    // 根据最终的下拉列表选项，更新全局的 apiSettings 对象
+    apiSettings.endpoint = endpointSelect.value; // 获取当前选中的接入点
+    apiSettings.model = modelSelect.value;     // 获取当前选中的模型
+    // apiSettings.key 已经被设置或为空字符串
 }
 
 
