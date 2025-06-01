@@ -1,24 +1,24 @@
 /* General Styles */
 :root {
-    --primary-bg: #1A1D24; 
-    --secondary-bg: #23272F; 
-    --card-bg: #2C313A; 
-    --text-color: #E0E0E0; 
-    --text-muted: #A0AEC0; 
-    --accent-color1: #3498DB; 
-    --accent-color2: #2ECC71; 
-    --accent-color-value: #F39C12; 
-    --accent-color-growth: #8E44AD; 
-    --danger-color: #E74C3C; 
-    --border-color: #4A5568; 
-    --input-bg: #353A43; 
-    --font-family: 'Inter', 'Segoe UI', 'Roboto', 'Microsoft YaHei', sans-serif; 
+    --primary-bg: #1A1D24;
+    --secondary-bg: #23272F;
+    --card-bg: #2C313A;
+    --text-color: #E0E0E0;
+    --text-muted: #A0AEC0;
+    --accent-color1: #3498DB;
+    --accent-color2: #2ECC71;
+    --accent-color-value: #F39C12;
+    --accent-color-growth: #8E44AD;
+    --danger-color: #E74C3C;
+    --border-color: #4A5568;
+    --input-bg: #353A43;
+    --font-family: 'Inter', 'Segoe UI', 'Roboto', 'Microsoft YaHei', sans-serif;
     --shadow-sm: 0 2px 4px rgba(0,0,0,0.15);
     --shadow-md: 0 4px 8px rgba(0,0,0,0.2);
     --shadow-lg: 0 10px 20px rgba(0,0,0,0.25);
-    --tab-active-bg: linear-gradient(90deg, #29B6F6, #66BB6A); 
-    --tab-inactive-bg: #4DB6AC; 
-    --tab-text-color: #F5F5F5; 
+    --tab-active-bg: linear-gradient(90deg, #29B6F6, #66BB6A);
+    --tab-inactive-bg: #4DB6AC;
+    --tab-text-color: #F5F5F5;
 }
 
 * {
@@ -37,7 +37,7 @@ body {
 }
 
 .page-container {
-    max-width: 1400px; 
+    max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -66,7 +66,7 @@ body {
 }
 
 .main-header h1 {
-    font-size: 1.8rem; 
+    font-size: 1.8rem;
     font-weight: 600;
     color: var(--text-color);
     letter-spacing: 0.5px;
@@ -88,33 +88,33 @@ body {
 
 .main-header nav a:hover,
 .main-header nav a.active-nav {
-    background-color: rgba(52, 152, 219, 0.15); 
+    background-color: rgba(52, 152, 219, 0.15);
     color: var(--accent-color1);
 }
 
 /* Main Tabs (AI Agents / My Portfolio) */
 .tabs-main {
     display: flex;
-    margin-bottom: 30px; 
-    gap: 15px; 
-    justify-content: center; 
+    margin-bottom: 30px;
+    gap: 15px;
+    justify-content: center;
 }
 
 .tab-link-main {
-    flex-grow: 1; 
-    max-width: 400px; 
-    padding: 15px 25px; 
+    flex-grow: 1;
+    max-width: 400px;
+    padding: 15px 25px;
     cursor: pointer;
     border: none;
-    border-radius: 10px; 
-    color: var(--tab-text-color); 
-    font-size: 1.1rem; 
+    border-radius: 10px;
+    color: var(--tab-text-color);
+    font-size: 1.1rem;
     font-weight: 500;
     text-align: center;
     transition: opacity 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
-    background: var(--tab-inactive-bg); 
+    background: var(--tab-inactive-bg);
     box-shadow: var(--shadow-sm);
-    display: flex; 
+    display: flex;
     align-items: center;
     justify-content: center;
 }
@@ -127,21 +127,21 @@ body {
 
 .tab-link-main.active {
     background: var(--tab-active-bg);
-    color: #FFFFFF; 
+    color: #FFFFFF;
     font-weight: 600;
-    box-shadow: var(--shadow-lg), 0 0 20px rgba(102, 187, 106, 0.35); 
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(102, 187, 106, 0.35);
     opacity: 1;
-    transform: translateY(-1px); 
+    transform: translateY(-1px);
 }
 
 .tab-link-main.active:hover {
-    opacity: 1; 
+    opacity: 1;
     transform: translateY(-1px);
 }
 
 .tab-link-main i {
-    margin-right: 12px; 
-    font-size: 1.1em; 
+    margin-right: 12px;
+    font-size: 1.1em;
 }
 
 .main-tab-content {
@@ -160,7 +160,7 @@ body {
 /* Agent Cards Container */
 .agent-cards-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(550px, 1fr)); 
+    grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
     gap: 25px;
 }
 
@@ -172,7 +172,7 @@ body {
     display: flex;
     flex-direction: column;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    border-left: 5px solid transparent; 
+    border-left: 5px solid transparent;
 }
 .agent-card:hover {
     transform: translateY(-5px);
@@ -224,7 +224,7 @@ body {
 }
 .agent-details h3 i {
     margin-right: 8px;
-    color: var(--accent-color1); 
+    color: var(--accent-color1);
 }
 
 .value-agent-card .agent-details h3 i { color: var(--accent-color-value); }
@@ -267,9 +267,9 @@ input[type="text"],
 input[type="password"],
 input[type="number"],
 input[type="date"],
-select, 
-.stock-select, 
-textarea {
+select,
+.stock-select,
+textarea { /* Applied to the textarea for analysis status display */
     background-color: var(--input-bg);
     color: var(--text-color);
     border: 1px solid var(--border-color);
@@ -278,20 +278,20 @@ textarea {
     font-size: 0.95rem;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
-    width: 100%; 
+    width: 100%;
 }
 input[type="text"]::placeholder,
-textarea::placeholder {
-    color: #718096; 
+textarea::placeholder { /* Now applies to analysis status textarea too */
+    color: #718096;
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="number"]:focus,
 input[type="date"]:focus,
-select:focus, 
+select:focus,
 .stock-select:focus,
-textarea:focus {
+textarea:focus { /* Applies to analysis status textarea when focused (though it's readonly) */
     border-color: var(--accent-color1);
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
 }
@@ -302,7 +302,7 @@ textarea:focus {
     min-width: 180px;
 }
 .stock-analysis-controls .stock-select,
-.settings-form select { 
+.settings-form select {
     flex-grow: 1;
     min-width: 180px;
     -webkit-appearance: none;
@@ -312,9 +312,9 @@ textarea:focus {
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 10px auto;
-    padding-right: 30px; 
+    padding-right: 30px;
 }
-.settings-form select option { 
+.settings-form select option {
     background-color: var(--input-bg);
     color: var(--text-color);
 }
@@ -349,10 +349,10 @@ button:active {
     box-shadow: none;
 }
 
-.stock-list { 
+.stock-list {
     list-style: none;
     padding: 0;
-    max-height: 120px; 
+    max-height: 120px;
     overflow-y: auto;
     background-color: var(--secondary-bg);
     padding: 10px;
@@ -378,19 +378,23 @@ button:active {
 .analysis-section {
     margin-top: 20px;
 }
-.analysis-output h5 {
+.analysis-output h5 { /* This h5 is still present */
     margin-top: 15px;
     margin-bottom: 8px;
     font-size: 1rem;
     font-weight: 500;
     color: var(--text-muted);
 }
+/* Styles for the textarea used as status display */
 .analysis-output textarea {
     width: 100%;
-    min-height: 80px; 
+    min-height: 80px; /* Or desired height for status */
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
     font-size: 0.85rem;
-    background-color: var(--secondary-bg); 
+    background-color: var(--secondary-bg); /* Darker for status */
+    color: var(--text-muted); /* Default status color */
+    resize: none; /* Prevent user resizing */
+    margin-bottom: 10px; /* Space for the button */
 }
 
 
@@ -402,7 +406,7 @@ button:active {
 }
 
 .agent-portfolio-section h4 {
-    font-size: 1.2rem; 
+    font-size: 1.2rem;
     color: var(--text-color);
 }
 .value-agent-card .agent-portfolio-section h4 i { color: var(--accent-color-value); }
@@ -416,14 +420,14 @@ button:active {
     flex-wrap: wrap;
 }
 
-.agent-portfolio-table-style { 
+.agent-portfolio-table-style {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
     font-size: 0.9rem;
 }
 
-.agent-portfolio-table-style th, 
+.agent-portfolio-table-style th,
 .agent-portfolio-table-style td {
     padding: 10px 12px;
     text-align: left;
@@ -431,7 +435,7 @@ button:active {
 }
 
 .agent-portfolio-table-style th {
-    background-color: var(--input-bg); 
+    background-color: var(--input-bg);
     font-weight: 500;
 }
 .value-agent-card .agent-portfolio-table-style th { color: var(--accent-color-value); }
@@ -446,7 +450,7 @@ button:active {
     padding: 5px 7px;
     font-size: 0.85rem;
 }
-.agent-portfolio-table-style .remove-agent-stock-btn { 
+.agent-portfolio-table-style .remove-agent-stock-btn {
     background-color: var(--danger-color);
     padding: 5px 9px;
     font-size: 0.75rem;
@@ -471,8 +475,8 @@ button:active {
 
 .add-to-agent-portfolio {
     display: flex;
-    flex-direction: column; 
-    gap: 12px; 
+    flex-direction: column;
+    gap: 12px;
     border-top: 1px dashed var(--border-color);
     padding-top: 15px;
     margin-top: 15px;
@@ -488,12 +492,12 @@ button:active {
 
 .add-from-pool-section .stock-select,
 .manual-add-section input[type="text"] {
-    flex-grow: 1; 
+    flex-grow: 1;
 }
 
 .add-from-pool-section button,
 .manual-add-section button {
-    flex-shrink: 0; 
+    flex-shrink: 0;
 }
 
 .or-divider {
@@ -528,27 +532,27 @@ button:active {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
-    flex-wrap: wrap; 
+    flex-wrap: wrap;
 }
 #myPortfolio h2 {
     font-size: 1.8rem;
     font-weight: 600;
-    color: var(--text-color); 
+    color: var(--text-color);
     margin-bottom: 0;
-    display: flex; 
+    display: flex;
     align-items: center;
 }
-#myPortfolio h2 i.fa-briefcase { 
+#myPortfolio h2 i.fa-briefcase {
     margin-right: 10px;
-    color: var(--accent-color2); 
+    color: var(--accent-color2);
 }
 
 #myPortfolioTitleText {
-    outline: none; 
+    outline: none;
     padding: 2px 5px;
     border-radius: 4px;
     transition: background-color 0.2s;
-    min-width: 150px; /* Give it some base width */
+    min-width: 150px; 
 }
 #myPortfolioTitleText[contenteditable="true"] {
     background-color: var(--input-bg);
@@ -560,18 +564,18 @@ button:active {
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 0.8em; 
+    font-size: 0.8em;
     padding: 3px 6px;
     margin-left: 8px;
     cursor: pointer;
     border-radius: 4px;
-    line-height: 1; /* Ensure icon is vertically centered if text wraps */
+    line-height: 1; 
 }
 .edit-title-btn:hover {
     background-color: var(--input-bg);
     color: var(--accent-color1);
 }
-.edit-title-btn i { margin-right: 0; } 
+.edit-title-btn i { margin-right: 0; }
 
 
 .my-portfolio-description {
@@ -582,7 +586,7 @@ button:active {
 .my-portfolio-controls {
     display: flex;
     gap: 10px;
-    flex-wrap: wrap; 
+    flex-wrap: wrap;
 }
 
 #myPortfolioTable {
@@ -597,8 +601,8 @@ button:active {
     font-size: 0.95rem;
 }
 #myPortfolioTable th {
-    background-color: var(--card-bg); 
-    color: var(--accent-color1); 
+    background-color: var(--card-bg);
+    color: var(--accent-color1);
     font-weight: 500;
 }
 #myPortfolioTable tr:last-child td { border-bottom: none; }
@@ -623,15 +627,15 @@ button:active {
     font-weight: 700;
     font-size: 1.1rem;
 }
-#balancePortfolioBtn { 
+#balancePortfolioBtn {
     margin-left: 5px;
     padding: 3px 6px;
     font-size: 0.75em;
-    background: var(--accent-color2); 
+    background: var(--accent-color2);
 }
 
 
-/* Modal Styles (API Settings & Performance) */
+/* Modal Styles (API Settings & Performance & Analysis Report) */
 .modal {
     display: none;
     position: fixed;
@@ -653,12 +657,20 @@ button:active {
     padding: 30px;
     border-radius: 12px;
     width: 90%;
-    max-width: 600px;
+    max-width: 600px; /* Default max-width */
     box-shadow: var(--shadow-lg);
     position: relative;
     animation: modalScaleUp 0.3s;
 }
-.modal-content.large { max-width: 800px; }
+/* For larger modals like Performance and Analysis Report */
+.modal-content.large {
+    max-width: 800px; /* For performance modal */
+}
+#analysisReportModal .modal-content { /* Specific for analysis report modal */
+    max-width: 900px; /* Wider for reports */
+    margin: 5% auto; 
+}
+
 
 @keyframes modalScaleUp {
     from { transform: scale(0.9); opacity: 0; }
@@ -679,14 +691,14 @@ button:active {
     cursor: pointer;
 }
 
-.modal h2 {
+.modal h2 { /* General modal h2 */
     font-size: 1.6rem;
-    color: var(--accent-color1);
+    color: var(--accent-color1); /* Default accent */
     margin-bottom: 25px;
 }
 .modal h2 i { margin-right: 10px; }
 
-.settings-form .form-group { 
+.settings-form .form-group {
     margin-bottom: 20px;
 }
 .settings-form label {
@@ -699,16 +711,16 @@ button:active {
     margin-right: 8px;
     color: var(--accent-color1);
 }
-.settings-form input[type="text"], 
+.settings-form input[type="text"],
 .settings-form input[type="password"],
-.settings-form select { 
+.settings-form select {
     width: 100%;
 }
-.danger-btn { /* Style for clear API settings button */
-    background: var(--danger-color) !important; /* Override other button styles */
+.danger-btn { 
+    background: var(--danger-color) !important;
 }
 .danger-btn:hover {
-    background: #c0392b !important; /* Darker red on hover */
+    background: #c0392b !important; 
 }
 
 
@@ -727,7 +739,7 @@ button:active {
     margin-bottom: 20px;
     flex-wrap: wrap;
 }
-.performance-controls label { margin-bottom: 0; } 
+.performance-controls label { margin-bottom: 0; }
 .performance-controls input[type="date"] {
     padding: 8px 10px;
 }
@@ -740,10 +752,66 @@ button:active {
     color: var(--text-muted);
 }
 #performanceChart {
-    background-color: var(--card-bg); 
+    background-color: var(--card-bg);
     border-radius: 8px;
     padding:10px;
-    max-height: 350px; 
+    max-height: 350px;
+}
+
+/* Analysis Report Modal Specific Styles */
+#analysisReportModalTitle { /* Can override general modal h2 if needed */
+    color: var(--accent-color1); /* Example, could be different */
+}
+
+.analysis-report-modal-controls {
+    margin-bottom: 15px;
+    text-align: right; /* Align copy button to the right */
+}
+
+.analysis-report-modal-controls button {
+    background: var(--accent-color2); /* Green for copy button */
+    color: white;
+}
+.analysis-report-modal-controls button:hover {
+    background: #27ae60; /* Darker green */
+}
+
+.analysis-report-body {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    min-height: 300px; 
+    max-height: 70vh; 
+    overflow-y: auto; 
+    white-space: pre-wrap; 
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; 
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+#analysisReportModal {
+    z-index: 1001; /* Ensure it's above other potential modals */
+}
+
+.view-report-btn { /* Style for the "View Full Report" button in agent card */
+    background: var(--accent-color1);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+    display: none; /* Initially hidden, shown by JS */
+    margin-top: 8px; /* Space above if textarea is short */
+    border: none; /* Ensure no default button border */
+}
+.view-report-btn i {
+    margin-right: 6px;
+}
+.view-report-btn:hover {
+    background: #2980b9; /* Darker accent */
 }
 
 
@@ -760,9 +828,9 @@ footer {
 
 
 /* Responsive adjustments */
-@media (max-width: 1200px) { 
+@media (max-width: 1200px) {
     .agent-cards-container {
-        grid-template-columns: 1fr; 
+        grid-template-columns: 1fr;
     }
 }
 
@@ -794,52 +862,60 @@ footer {
         border-left: 3px solid var(--accent-color1);
     }
 
-    .stock-management, 
-    .stock-analysis-controls, 
-    .performance-controls, 
-    .my-portfolio-header, 
+    .stock-management,
+    .stock-analysis-controls,
+    .performance-controls,
+    .my-portfolio-header,
     .agent-portfolio-controls,
     .settings-form .form-group,
-    .add-from-pool-section, /* Ensure these new sections also stack on mobile */
+    .add-from-pool-section, 
     .manual-add-section
     {
         flex-direction: column;
         align-items: stretch;
     }
     .my-portfolio-header h2 { margin-bottom: 10px; }
-    #myPortfolio h2 { 
-        flex-wrap: wrap; 
+    #myPortfolio h2 {
+        flex-wrap: wrap;
     }
     #myPortfolioTitleText {
-        width: calc(100% - 40px); 
-        margin-bottom: 5px; 
+        width: calc(100% - 40px);
+        margin-bottom: 5px;
     }
      .edit-title-btn {
-        margin-left: 0; 
+        margin-left: 0;
     }
 
 
-    .stock-management input[type="text"], 
+    .stock-management input[type="text"],
     .stock-analysis-controls input[type="text"],
     .stock-analysis-controls .stock-select,
-    .settings-form select, 
+    .settings-form select,
     .stock-management button,
     .stock-analysis-controls button,
     .performance-controls input[type="date"],
     .performance-controls button,
     .agent-portfolio-controls button,
     .my-portfolio-controls button,
-    .add-from-pool-section .stock-select, /* Ensure full width for new selects */
+    .add-from-pool-section .stock-select, 
     .add-from-pool-section button,
     .manual-add-section input[type="text"],
-    .manual-add-section button
+    .manual-add-section button,
+    .view-report-btn /* Ensure report button is also full width on mobile if desired */
      {
         width: 100%;
-        margin-bottom: 8px; 
+        margin-bottom: 8px;
     }
      .stock-analysis-controls span {
         text-align: center;
         margin: 8px 0;
     }
-    .modal-content { margin: 5% auto; padding: 20px; }
+    .modal-content, 
+    #analysisReportModal .modal-content, /* Ensure modal content is also responsive */
+    .modal-content.large { 
+        margin: 5% auto; 
+        padding: 20px; 
+        width: 95%; /* More width on mobile */
+        max-width: none; /* Remove max-width constraint for mobile if it's too restrictive */
+    }
 }
