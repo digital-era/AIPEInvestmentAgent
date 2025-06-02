@@ -1,11 +1,11 @@
 # wrangler.toml
-name = "your-pages-project-name" # 通常与 Pages 项目名一致
-compatibility_date = "YYYY-MM-DD" # 使用一个近期的日期
+name = "aipeinvestmentagentworker" # 通常与 Pages 项目名一致
+compatibility_date = "2025-05-31" # 使用一个近期的日期
 
 # 如果有环境变量，可以在这里定义，或者在 Pages UI 中设置
 # [vars]
-# ALIYUN_ACCESS_KEY_ID = "your_id"
-# ALIYUN_ACCESS_KEY_SECRET = "your_secret"
+# OSS_ACCESS_KEY_ID = "your_id"
+# OSS_ACCESS_KEY_SECRET = "your_secret"
 # OSS_STS_ROLE_ARN = "your_role_arn"
 # GEMINI_API_KEY = "your_gemini_key"
 # DEEPSEEK_API_KEY = "your_deepseek_key"
