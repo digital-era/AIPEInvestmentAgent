@@ -36,6 +36,9 @@ async function handleGetRequest(context) { // 修改了函数签名以匹配 fet
             apiVersion: '2015-04-01',
         });
 
+        const endpoint = `https://sts.${OSS_REGION}.aliyuncs.com`;
+        console.log('STS Endpoint:', endpoint); // 打印 Endpoint
+
         const params = {
             Action: 'AssumeRole',
             RoleArn: OSS_STS_ROLE_ARN,
@@ -43,6 +46,7 @@ async function handleGetRequest(context) { // 修改了函数签名以匹配 fet
             DurationSeconds: 3600,
             // Policy: JSON.stringify({...}) // 可选
         };
+        console.log('STS Request Params:', JSON.stringify(params)); // 打印请求参数
 
         // 注意：Cloudflare Workers 中，外部网络请求默认使用 fetch API。
         // @alicloud/pop-core 内部如何发起请求是关键，如果它依赖 Node.js 的 'http'/'https' 模块，就会失败。
