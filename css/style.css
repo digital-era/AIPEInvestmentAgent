@@ -72,6 +72,40 @@ body {
     letter-spacing: 0.5px;
 }
 
+/* 新增的文字波浪效果样式，应用到 h1 内部的 span */
+.color-wave-text {
+    /* font-family 可以保持项目统一，或者在这里指定 */
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; 
+    /* 字体大小、字重、字间距将从父级 h1 继承，所以这里不需要重复设置 */
+    background: linear-gradient(
+        90deg,
+        #007CF0, 
+        #00DFD8, 
+        #007CF0  
+    );
+    background-size: 200% auto;
+    color: transparent; /* 文字本身透明 */
+    -webkit-background-clip: text; /* 背景裁剪到文字 */
+    background-clip: text; /* 背景裁剪到文字 */
+    animation: gradientWave 6s linear infinite;
+    -webkit-animation: gradientWave 6s linear infinite;
+    /* display: inline-block; /* span 默认是 inline，对于 background-clip: text 通常也可以工作，
+                              如果效果不理想，可以尝试 inline-block */
+    padding: 0 2px; /* 给渐变文字一点点左右呼吸空间，可选 */
+}
+
+@keyframes gradientWave {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
 .main-header nav a {
     color: var(--text-muted);
     text-decoration: none;
