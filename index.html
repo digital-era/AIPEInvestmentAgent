@@ -1,904 +1,138 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI投资范式Agent</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="css/style.css">
-    <style>
-	/* ... (顶部的 .auth-section, #loginBtn等通用样式可以保持，具体尺寸在媒体查询中覆盖) ... */
-        .auth-section { display: flex; align-items: center; padding-right: 15px; flex-shrink: 0; gap: 8px; }
-        #loginBtn, #logoutBtn { background-color: #007bff; color: white; padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; display: flex; align-items: center; justify-content: center; /* 水平居中内容 */ box-sizing: border-box;}
-        #loginBtn { background-color: #28a745; }
-        #logoutBtn { background-color: #dc3545; }
-        #loginBtn i, #logoutBtn i { margin-right: 5px; }
-        #githubUserInfo { display: flex; align-items: center; color: var(--text-color); gap: 8px; }
-        #githubUserAvatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; flex-shrink: 0; }
-        #githubUserName { font-weight: normal; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
-        .hidden { display: none !important; }
-        #authErrorMessages { color: red; font-size: 0.8em; display: none; }
+export default {
+  async fetch(request, env, ctx) {
+    if (request.method === "GET") {
+      return handleGetRequest({ env });
+    }
+    return new Response("Method Not Allowed", { status: 405 });
+  }
+};
 
-        .main-header {
-            display: flex;
-            align-items: center;
-            flex-wrap: nowrap; 
-            padding: 10px 15px;
+async function handleGetRequest(context) {
+  const { env } = context;
+  const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_STS_ROLE_ARN, OSS_REGION } = env;
+
+  if (!OSS_ACCESS_KEY_ID || !OSS_ACCESS_KEY_SECRET || !OSS_STS_ROLE_ARN || !OSS_REGION) {
+    return new Response(JSON.stringify({ error: 'STS 配置不完整' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    // 1. 准备请求参数
+    const params = {
+      Action: 'AssumeRole',
+      RoleArn: OSS_STS_ROLE_ARN,
+      RoleSessionName: 'cf-worker-session-' + Date.now(),
+      DurationSeconds: 3600,
+      Format: 'JSON',
+      Version: '2015-04-01',
+      AccessKeyId: OSS_ACCESS_KEY_ID,
+      SignatureMethod: 'HMAC-SHA1',
+      SignatureVersion: '1.0',
+      Timestamp: new Date().toISOString().replace(/\.\d{3}Z/, 'Z'),
+      SignatureNonce: Date.now() + Math.random().toString(36).substring(2, 10),
+      RegionId: OSS_REGION
+    };
+
+    // 2. 生成签名 (使用阿里云特定的编码规则)
+    const signature = await generateAliyunSignature(params, OSS_ACCESS_KEY_SECRET);
+    params.Signature = signature;
+
+    // 3. 构造请求URL (使用阿里云要求的编码方式)
+    const endpoint = `https://sts.${OSS_REGION}.aliyuncs.com`;
+    const queryString = Object.keys(params)
+      .sort()
+      .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
+      .join('&');
+
+    const url = `${endpoint}/?${queryString}`;
+    console.log("请求URL:", url);  // 调试用
+
+    // 4. 发送请求
+    const response = await fetch(url, { method: 'GET' });
+    
+    // 检查响应类型
+    const contentType = response.headers.get('content-type') || '';
+    const responseText = await response.text();
+    
+    if (!contentType.includes('application/json')) {
+      console.error("非JSON响应:", responseText.substring(0, 300));
+      throw new Error(`阿里云返回错误: ${response.status} ${response.statusText}`);
+    }
+
+    const result = JSON.parse(responseText);
+
+    // 5. 处理响应
+    if (result.Credentials) {
+      return new Response(JSON.stringify({
+        AccessKeyId: result.Credentials.AccessKeyId,
+        AccessKeySecret: result.Credentials.AccessKeySecret,
+        SecurityToken: result.Credentials.SecurityToken,
+        Expiration: result.Credentials.Expiration
+      }), {
+        status: 200,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0' 
         }
-        .logo-title {
-            margin-right: 15px; 
-            flex-shrink: 0; 
-        }
-
-        .main-header nav { 
-            display: flex;
-            align-items: center;
-            flex-grow: 1; 
-        }
-        .main-header nav a {
-            white-space: nowrap;
-            padding: 10px 8px; 
-            text-decoration: none;
-            color: var(--text-color);
-            font-size: 0.9em; 
-        }
-        .main-header nav a:nth-child(2) {
-            /* margin-left: auto; (如果nav不是flex-grow:1才有效，现在是flex-grow:1) */
-        }
-
-        .secondary-nav-auth-wrapper {
-            display: flex; 
-            align-items: center;
-            margin-left: 15px; 
-        }
-        .secondary-nav-auth-wrapper .api-settings-link { 
-            white-space: nowrap;
-            padding: 10px 8px; 
-            text-decoration: none;
-            color: var(--text-color);
-            font-size: 0.9em; 
-            margin-right: 10px; 
-        }
-         .secondary-nav-auth-wrapper .api-settings-link i {
-            margin-right: 5px;
-        }
-         /* Portfolio actions and loading indicator */
-        .portfolio-actions { 
-            margin-left: 5px; /* 与Auth区域的间距 */
-            display:none; /* 由JS控制显示 */
-            align-items: center; 
-            gap: 5px;
-        }
-        .portfolio-actions button { /* 通用portfolio按钮样式 */
-            font-size: 0.8em; 
-            padding: 6px 8px; /* 默认padding */
-            white-space: nowrap; 
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center; /* 水平居中内容 */
-            box-sizing: border-box;
-        }
-        .portfolio-actions button:first-of-type { /* 下载按钮 */
-            background-color: #17a2b8; /* Info blue */
-        }
-        .portfolio-actions button:last-of-type { /* 保存按钮 */
-             background-color: #0069d9; /* Primary blue */
-        }
-        .portfolio-actions button i {
-            margin-right: 3px;
-        }
-
-        #portfolioLoadingIndicator { font-size: 0.8em; color: var(--text-muted); margin-left: 10px;}
-
-
-        /* 媒体查询 - 针对小屏幕 (手机端) */
-        @media (max-width: 768px) { 
-            .main-header {
-                flex-wrap: wrap; 
-            }
-            .logo-title {
-                margin-right: auto; 
-            }
-            .main-header nav { 
-                 flex-grow: 0; 
-                 margin-right: 0; 
-            }
-            .main-header nav a {
-                padding: 8px 5px; 
-                font-size: 0.85em; 
-            }
-            /* 如果需要 "AI投资量化" 在nav内部靠右，确保nav是flex容器，并给该链接特定class设置margin-left: auto */
-            .main-header nav a.nav-link-quant { /* 假设 HTML 中有 class="nav-link-quant" */
-                 margin-left: auto;
-            }
-            
-            .secondary-nav-auth-wrapper {
-                width: 100%; 
-                margin-left: 0; 
-                margin-top: 8px; 
-                justify-content: flex-end; 
-                padding: 0; 
-                gap: 5px; /* 增加API设置链接, Auth区域, Portfolio Actions之间的间距 */
-            }
-            
-            .secondary-nav-auth-wrapper .api-settings-link {
-                margin-right: 0; /* 移除单独的右边距，由父级gap控制 */
-                padding: 6px 8px; 
-                font-size: 0.8em; 
-            }
-             .secondary-nav-auth-wrapper .api-settings-link i {
-                margin-right: 3px; 
-            }
-            
-            .secondary-nav-auth-wrapper .auth-section {
-                padding-right: 0; 
-                gap: 5px; /* 登出按钮和用户信息的间距 */
-            }
-
-            /* --- 统一按钮样式的关键部分 --- */
-            .secondary-nav-auth-wrapper #logoutBtn,
-            .secondary-nav-auth-wrapper .portfolio-actions button {
-                font-size: 0.78em; /* 统一字体大小 */
-                padding: 6px 0;   /* 统一上下padding, 左右padding通过min-width控制 */
-                min-width: 55px;  /* 设置一个最小宽度，确保按钮长度相似。根据实际文字调整 */
-                text-align: center; /* 确保文字在按钮内居中 */
-                white-space: nowrap;
-                /* display: inline-flex; align-items: center; justify-content: center; (已在通用按钮设置) */
-            }
-            .secondary-nav-auth-wrapper #logoutBtn i,
-            .secondary-nav-auth-wrapper .portfolio-actions button i {
-                margin-right: 3px; /* 统一图标间距 */
-            }
-            /* ----------------------------- */
-            
-            #githubUserAvatar {
-                width: 24px; height: 24px;
-            }
-            #githubUserName {
-                max-width: 45px; /* 进一步限制用户名宽度 */
-                font-size: 0.8em;
-            }
-            .portfolio-actions {
-                margin-left: 0; /* 由父级gap控制 */
-            }
-        }
-
-         @media (max-width: 480px) { 
-            .logo-title { margin-right: 10px; }
-            .logo-title h1, .logo-title i { font-size: 1em; }
-            .main-header nav a { font-size: 0.8em; padding: 6px 3px; }
-
-            .secondary-nav-auth-wrapper {
-                gap: 3px; /* 进一步缩小间距 */
-            }
-            .secondary-nav-auth-wrapper .api-settings-link {
-                font-size: 0.75em;
-                padding: 5px 6px;
-            }
-            .secondary-nav-auth-wrapper #logoutBtn,
-            .secondary-nav-auth-wrapper .portfolio-actions button {
-                font-size: 0.7em; /* 极限缩小字体 */
-                padding: 5px 0; 
-                min-width: 48px; /* 调整最小宽度 */
-            }
-            .secondary-nav-auth-wrapper .api-settings-link i,
-            .secondary-nav-auth-wrapper #logoutBtn i,
-            .secondary-nav-auth-wrapper .portfolio-actions button i {
-                margin-right: 2px;
-            }
-
-            #githubUserAvatar {
-                width: 20px; height: 20px;
-            }
-            #githubUserName {
-                 display: none; 
-            }
-            .logo-title h1 {
-                font-size: 1.1em; /* 缩小标题字号 */
-            }
-            .logo-title i {
-                font-size: 1.1em; /* 缩小图标字号 */
-            }
-         }		 
-    </style>
-</head>
-<body>
-    <div class="page-container">
-        <header class="main-header">
-	    <div class="logo-title">
-	        <h1>
-		    <i class="fas fa-brain"></i> 
-		    <span class="color-wave-text">AI投资范式Agent</span> 
-	        </h1>
-	    </div>
-
-            <nav> <!-- 主导航，只包含核心链接 -->
-                <a href="index.html" class="active-nav"><i class="fas fa-users-cog"></i> AI投资组合</a>
-                <a href="PotScoreFundAnalytics.html"><i class="fas fa-chart-line"></i> AI投资量化</a>
-            </nav>
-            <!-- 新的 wrapper，包含 API 设置和 Auth Section -->
-            <div class="secondary-nav-auth-wrapper">
-                <a href="#apiSettingsModal" onclick="openApiSettingsModal()" class="api-settings-link"><i class="fas fa-cog"></i> 设置</a>
-                <div class="auth-section">
-                    <div id="githubUserInfo" class="hidden">
-                        <img id="githubUserAvatar" src="" alt="User Avatar">
-                        <span id="githubUserName"></span>
-                        <button id="logoutBtn" title="Logout"><i class="fas fa-sign-out-alt"></i> 登出</button>
-                    </div>
-                    <button id="loginBtn" title="Login with GitHub"><i class="fab fa-github"></i> GitHub 登录</button>
-                    <div id="authErrorMessages"></div>
-                </div>
-                <!-- Portfolio Actions (for R2 solution) -->
-                <div class="portfolio-actions">
-                    <button onclick="downloadPortfolioFromOSS()" title="下载当前编辑的组合数据到本地Excel文件"><i class="fas fa-download"></i> 组合</button>
-                    <button onclick="uploadPortfolioToOSS()" title="将当前编辑的组合数据保存到云端" style="margin-left: 5px;"><i class="fas fa-cloud-upload-alt"></i> 保存</button>
-                    <span id="portfolioLoadingIndicator" style="display:none;">处理中...</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- ... (rest of your HTML body remains the same, no need for duplicated auth elements) ... -->
-        <div class="content-area">
-            <div class="tabs-main">
-                <button class="tab-link-main active" onclick="openMainTab(event, 'aiAgents')"><i class="fas fa-user-tie"></i> AI投资组合Agent</button>
-                <button class="tab-link-main" onclick="openMainTab(event, 'myPortfolio')"><i class="fas fa-arrow-trend-up"></i> 我的投资组合</button>
-            </div>
-
-            <div id="aiAgents" class="main-tab-content active">
-                <div class="agent-cards-container">
-                    <!-- Agent Card 1: 大智 (Value Investing) -->
-                    <div class="agent-card value-agent-card">
-                        <div class="agent-profile">
-                            <img src="images/female_avatar.png" alt="大智" class="agent-photo" id="agent1Photo">
-                            <h2 class="agent-name" id="agent1NameDisplay">大智</h2>
-                            <p class="agent-role">负责: <span id="agent1RoleDisplay">稳健智远</span> 投资组合</p>
-                        </div>
-                        <div class="agent-details">
-                            <h3><i class="fas fa-lightbulb"></i> 核心投资理念</h3>
-                            <p id="agent1Logic" class="core-logic">
-                                我的投资哲学强调深入理解企业的内在价值，寻找那些拥有强大护城河、稳定盈利能力和优秀管理层的公司。
-                                我倾向于长期持有，并相信市场的短期波动最终会回归到企业的真实价值。在分析时，我会特别关注公司的财务健康状况、行业地位以及宏观经济环境。
-                                量化因子方面，我会审视标的动能(PotScore)以判断市场情绪和短期趋势，并结合主力资金流入情况，确保我的价值判断得到市场资金的佐证。
-                            </p>
-                            
-                            <div class="agent-section">
-                                <h4><i class="fas fa-clipboard-list"></i> 自选股票分析池</h4>
-                                <div class="stock-management">
-                                    <input type="text" id="agent1StockInput" placeholder="代码 名称 (如: 600519 茅台)">
-                                    <button onclick="addStockToPool('agent1')"><i class="fas fa-plus-circle"></i> 添加到分析池</button>
-                                </div>
-                                <ul id="agent1StockPoolList" class="stock-list"></ul>
-                            </div>
-
-                             <div class="agent-section analysis-section">
-                                <h4><i class="fas fa-search-dollar"></i> 股票分析</h4>
-                                <div class="stock-analysis-controls">
-                                    <select id="agent1StockSelect" class="stock-select">
-                                        <option value="">--- 从分析池选择 ---</option>
-                                    </select>
-                                    <span>或</span>
-                                    <input type="text" id="agent1AnalysisInput" placeholder="输入新股票代码/名称分析">
-                                    <button onclick="analyzeStockForAgent('agent1')"><i class="fas fa-cogs"></i> 分析股票</button>
-                                </div>
-                                <div class="analysis-output"> <!-- This is the parent for the textarea and button -->
-                                    <h5>分析报告:</h5>
-                                    <textarea id="agent1AnalysisOutput" rows="6" readonly placeholder="分析结果将在此显示..."></textarea>
-                                    <!-- "View Report" button will be dynamically added here by JS -->
-                                </div>
-                            </div>
-
-                            <div class="agent-section agent-portfolio-section">
-                                <h4><i class="fas fa-briefcase"></i> 稳健智远投资组合</h4>
-                                <div class="agent-portfolio-controls">
-                                    <button onclick="exportAgentPortfolioToExcel('agent1')"><i class="fas fa-file-excel"></i> 导出组合</button>
-                                    <button onclick="openPerformanceModal('agent1')"><i class="fas fa-chart-pie"></i> 收益测算</button>
-                                </div>
-                                <table id="agent1PortfolioTable" class="agent-portfolio-table-style">
-                                    <thead>
-                                        <tr>
-                                            <th>股票代码/名称</th>
-                                            <th>配置比例 (%) <button class="balance-agent-portfolio-btn" data-agentid="agent1" title="自动平衡比例"><i class="fas fa-magic"></i></button></th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Agent 1 Portfolio items will be added here -->
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td class="total-label">总计:</td>
-                                            <td id="agent1PortfolioTotalAllocation" class="total-value">0%</td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                                 <div class="stock-management add-to-agent-portfolio">
-                                    <!-- Section for adding from analysis pool -->
-                                    <div class="add-from-pool-section">
-                                        <select id="agent1AddFromPoolSelect" class="stock-select">
-                                            <option value="">--- 从分析池选择添加到组合 ---</option>
-                                        </select>
-                                        <button onclick="addSelectedStockFromPoolToAgentPortfolio('agent1')" title="添加选中股票到组合">
-                                            <i class="fas fa-level-down-alt"></i> 添加选中
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="or-divider">或</div>
-
-                                    <!-- Section for manual input -->
-                                    <div class="manual-add-section">
-                                        <input type="text" id="agent1AddToPortfolioInput" placeholder="手动输入代码/名称添加">
-                                        <button onclick="addStockToAgentPortfolio('agent1')">
-                                            <i class="fas fa-plus-circle"></i> 手动添加
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Agent Card 2: 大成 (Growth Investing) -->
-                    <div class="agent-card growth-agent-card">
-                        <div class="agent-profile">
-                            <img src="images/male_avatar.png" alt="大成" class="agent-photo" id="agent2Photo">
-                            <h2 class="agent-name" id="agent2NameDisplay">大成</h2>
-                            <p class="agent-role">负责: <span id="agent2RoleDisplay">锐进先锋</span> 投资组合</p>
-                        </div>
-                        <div class="agent-details">
-                            <h3><i class="fas fa-lightbulb"></i> 核心投资理念</h3>
-                            <p id="agent2Logic" class="core-logic">
-                                我专注于发掘具有颠覆性创新能力和巨大增长潜力的公司，尤其是在人工智能、区块链、基因编辑等前沿科技领域。
-                                我相信技术进步是驱动未来经济增长的核心动力，并乐于承担较高风险以追求超额回报。我的分析侧重于公司的技术壁垒、市场规模、以及其商业模式的可扩展性。
-                                对于量化因子，我会关注标的动能(PotScore)来捕捉市场对创新趋势的早期反应，同时分析主力资金流入情况，以验证增长故事是否获得聪明资金的认可。
-                            </p>
-                            
-                            <div class="agent-section">
-                                <h4><i class="fas fa-clipboard-list"></i> 自选股票分析池</h4>
-                                <div class="stock-management">
-                                    <input type="text" id="agent2StockInput" placeholder="代码 名称 (如: 300750 宁德时代)">
-                                    <button onclick="addStockToPool('agent2')"><i class="fas fa-plus-circle"></i> 添加到分析池</button>
-                                </div>
-                                <ul id="agent2StockPoolList" class="stock-list"></ul>
-                            </div>
-
-                             <div class="agent-section analysis-section">
-                                <h4><i class="fas fa-search-dollar"></i> 股票分析</h4>
-                                <div class="stock-analysis-controls">
-                                    <select id="agent2StockSelect" class="stock-select">
-                                        <option value="">--- 从分析池选择 ---</option>
-                                    </select>
-                                    <span>或</span>
-                                    <input type="text" id="agent2AnalysisInput" placeholder="输入新股票代码/名称分析">
-                                    <button onclick="analyzeStockForAgent('agent2')"><i class="fas fa-cogs"></i> 分析股票</button>
-                                </div>
-                                <div class="analysis-output"> <!-- This is the parent for the textarea and button -->
-                                    <h5>分析报告:</h5>
-                                    <textarea id="agent2AnalysisOutput" rows="6" readonly placeholder="分析结果将在此显示..."></textarea>
-                                    <!-- "View Report" button will be dynamically added here by JS -->
-                                </div>
-                            </div>
-
-                            <div class="agent-section agent-portfolio-section">
-                                <h4><i class="fas fa-briefcase"></i> 锐进先锋投资组合</h4>
-                                <div class="agent-portfolio-controls">
-                                    <button onclick="exportAgentPortfolioToExcel('agent2')"><i class="fas fa-file-excel"></i> 导出组合</button>
-                                    <button onclick="openPerformanceModal('agent2')"><i class="fas fa-chart-pie"></i> 收益测算</button>
-                                </div>
-                                <table id="agent2PortfolioTable" class="agent-portfolio-table-style">
-                                    <thead>
-                                        <tr>
-                                            <th>股票代码/名称</th>
-                                            <th>配置比例 (%) <button class="balance-agent-portfolio-btn" data-agentid="agent2" title="自动平衡比例"><i class="fas fa-magic"></i></button></th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Agent 2 Portfolio items -->
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td class="total-label">总计:</td>
-                                            <td id="agent2PortfolioTotalAllocation" class="total-value">0%</td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                                <div class="stock-management add-to-agent-portfolio">
-                                    <!-- Section for adding from analysis pool -->
-                                    <div class="add-from-pool-section">
-                                        <select id="agent2AddFromPoolSelect" class="stock-select">
-                                            <option value="">--- 从分析池选择添加到组合 ---</option>
-                                        </select>
-                                        <button onclick="addSelectedStockFromPoolToAgentPortfolio('agent2')" title="添加选中股票到组合">
-                                            <i class="fas fa-level-down-alt"></i> 添加选中
-                                        </button>
-                                    </div>
-
-                                    <div class="or-divider">或</div>
-                                    
-                                    <!-- Section for manual input -->
-                                    <div class="manual-add-section">
-                                        <input type="text" id="agent2AddToPortfolioInput" placeholder="手动输入代码/名称添加">
-                                        <button onclick="addStockToAgentPortfolio('agent2')">
-                                            <i class="fas fa-plus-circle"></i> 手动添加
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="myPortfolio" class="main-tab-content">
-                <div class="my-portfolio-header">
-                    <h2>
-                        <i class="fas fa-briefcase"></i> 
-                        <span id="myPortfolioTitleText" contenteditable="false">我的投资组合</span>
-                        <button id="editMyPortfolioTitleBtn" class="edit-title-btn" title="编辑组合名称"><i class="fas fa-pencil-alt"></i></button>
-                    </h2>
-                    <div class="my-portfolio-controls">
-                        <button onclick="syncStocksToMyPortfolio()"><i class="fas fa-sync-alt"></i> 同步AI智能体组合</button>
-                        <button onclick="exportMyPortfolioToExcel()"><i class="fas fa-file-excel"></i> 导出我的组合</button>
-                        <button onclick="openPerformanceModal('myPortfolio')"><i class="fas fa-chart-pie"></i> 我的组合收益测算</button>
-                    </div>
-                </div>
-                <p class="my-portfolio-description">以下是根据AI智能体建议及您的自定义配置形成的投资组合。您可以调整各项资产的比例。</p>
-                
-                <table id="myPortfolioTable">
-                    <thead>
-                        <tr>
-                            <th>股票代码/名称</th>
-                            <th>来源</th>
-                            <th>建议比例 (%)</th>
-                            <th>我的配置 (%) <button id="balancePortfolioBtn" title="自动平衡未配置股票的比例"><i class="fas fa-magic"></i></button></th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Portfolio items will be added here -->
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" class="total-label">总计:</td>
-                            <td id="myPortfolioTotalAllocation" class="total-value">0%</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-
-        <footer>
-            <p>© 2025 AI范式进化. 保留所有权利。</p>
-            <p>投资有风险，入市需谨慎。本内容仅供参考，不构成任何投资建议。</p>
-        </footer>
-    </div>
-
-    <!-- API Settings Modal -->
-    <div id="apiSettingsModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeApiSettingsModal()">×</span>
-            <h2><i class="fas fa-cog"></i> API及模型设置</h2>
-            <div class="settings-form">
-                <div class="form-group">
-                    <label for="apiEndpointSelect"><i class="fas fa-server"></i> 模型接入点 (API Endpoint):</label>
-                    <select id="apiEndpointSelect" class="stock-select">
-                        <!-- Options will be populated by JS -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="apiKey"><i class="fas fa-key"></i> API Key:</label>
-                    <input type="password" id="apiKey" placeholder="输入您的API Key">
-                </div>
-                <div class="form-group">
-                    <label for="apiModelSelect"><i class="fas fa-robot"></i> 模型选择:</label>
-                    <select id="apiModelSelect" class="stock-select">
-                        <!-- Options will be populated by JS based on endpoint selection -->
-                    </select>
-                </div>
-                <button onclick="saveApiSettings()"><i class="fas fa-save"></i> 保存设置</button>
-                <button onclick="clearApiSettings()" class="danger-btn" style="margin-top: 10px;"><i class="fas fa-trash-alt"></i> 清除已存API信息</button>
-                <p id="settingsStatus" class="status-message"></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Performance Backtest Modal -->
-    <div id="performanceModal" class="modal">
-        <div class="modal-content large">
-            <span class="close-button" onclick="closePerformanceModal()">×</span>
-            <h2 id="performanceModalTitle"><i class="fas fa-chart-pie"></i> 投资组合收益测算评估</h2>
-            <div class="performance-controls">
-                <label for="backtestStartDate">开始日期:</label>
-                <input type="date" id="backtestStartDate">
-                <label for="backtestEndDate">结束日期:</label>
-                <input type="date" id="backtestEndDate">
-                <button onclick="runBacktest()"><i class="fas fa-play-circle"></i> 开始测算</button>
-            </div>
-            <div id="backtestResults" class="backtest-results-area">
-                <p>请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。</p>
-                <canvas id="performanceChart" style="display:none;"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Analysis Report Modal -->
-    <div id="analysisReportModal" class="modal">
-        <div class="modal-content large">
-            <span class="close-button" onclick="closeAnalysisReportModal()">×</span>
-            <h2 id="analysisReportModalTitle"><i class="fas fa-file-alt"></i> AI分析报告</h2>
-            <div class="analysis-report-modal-controls">
-                <button onclick="copyAnalysisReportToClipboard()"><i class="fas fa-copy"></i> 复制报告内容</button>
-            </div>
-            <div id="analysisReportModalBody" class="analysis-report-body">
-                <!-- Report content will be injected here by JavaScript -->
-            </div>
-        </div>
-    </div>
-
-
-    <script src="scripts/potfunddatarender.js"></script>
-    <script src="scripts/portfolio_agent.js"></script>
-    <script>
-        // GitHub Auth Constants
-        const GITHUB_CLIENT_ID = 'Ov23liAr5gYJACq7QZ1p'; // 在部署时替换为真实ID
-        const REDIRECT_URI = 'https://aipeinvestmentagent.pages.dev/callback.html'; 
-        const GITHUB_AUTH_SCOPE = 'read:user user:email';
-
-        // DOM Elements for Auth 
-        const loginBtn = document.getElementById('loginBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const githubUserInfoDiv = document.getElementById('githubUserInfo');
-        const githubUserAvatarImg = document.getElementById('githubUserAvatar');
-        const githubUserNameSpan = document.getElementById('githubUserName');
-        const authErrorMessagesDiv = document.getElementById('authErrorMessages');
-        const portfolioActionsDiv = document.querySelector('.portfolio-actions');
-		
-		const portfolioLoadingIndicator = document.getElementById('portfolioLoadingIndicator');
-
-		// --- OSS 配置 (根据你的实际情况修改) ---
-		const ossConfig = {
-			bucket: 'aiep-users', // 例如 'aipe-portfolio-data'
-			region: 'oss-cn-hangzhou', // 例如 'oss-cn-hangzhou'
-			// 如果不使用STS，而是硬编码 (极不推荐):
-			//accessKeyId: 'OSS_ACCESS_KEY_ID',
-			//accessKeySecret: 'OSS_ACCESS_KEY_SECRET',
-			//secure: true, // 推荐
-			//endpoint: 'YOUR_OSS_ENDPOINT' // 例如 oss-cn-hangzhou.aliyuncs.com
-		};
-		const OSS_FILE_KEY = 'AIPEPortfolio.xlsx';
-		let ossClientInstance = null; // OSS SDK 实例
-
-		// --- 获取 OSS 客户端实例 (STS 方案) ---
-		async function getOSSClient() {
-			if (ossClientInstance && ossClientInstance.options.securityToken && Date.parse(ossClientInstance.options.expiration) > Date.now() + 300 * 1000 /* 提前5分钟刷新 */) {
-				return ossClientInstance;
-			}
-			try {
-				// 从你的后端获取STS临时凭证
-				const response = await fetch('/api/sts-credentials'); // 指向你创建的STS凭证颁发函数
-				if (!response.ok) {
-					const errText = await response.text();
-					throw new Error(`获取OSS临时凭证失败: ${response.status} - ${errText}`);
-				}
-				const stsData = await response.json();
-				if (stsData.error) {
-					throw new Error(`获取OSS临时凭证错误: ${stsData.error}`);
-				}
-
-				ossClientInstance = new OSS({
-					region: ossConfig.region,
-					accessKeyId: stsData.AccessKeyId,
-					accessKeySecret: stsData.AccessKeySecret,
-					stsToken: stsData.SecurityToken, // 重要！
-					bucket: ossConfig.bucket,
-					secure: true,
-					refreshSTSToken: async () => { // 可选：SDK 自动刷新 token 的回调
-					  console.log("OSS STS Token 即将过期，尝试刷新...");
-					  const refreshResponse = await fetch('/api/sts-credentials');
-					  if (!refreshResponse.ok) throw new Error('刷新 STS token 失败');
-					  return await refreshResponse.json();
-					},
-					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数
-				});
-				ossClientInstance.options.expiration = stsData.Expiration; // 存储过期时间用于检查
-				console.log("OSS Client (STS) 初始化成功。");
-				return ossClientInstance;
-			} catch (error) {
-				console.error("初始化 OSS Client (STS) 失败:", error);
-				alert(`无法连接到云存储服务 (STS): ${error.message}`);
-				throw error; // 重新抛出，让调用者处理
-			}
-		}
-
-
-		//const clientPromise = getOSSClient(); // getOSSClient() for STS
-
-		async function uploadPortfolioToOSS() {
-			if (!localStorage.getItem('github_access_token')) {
-				alert("请先登录以保存投资组合。");
-				return;
-			}
-			if (!portfolioLoadingIndicator || !portfolioActionsDiv) return;
-
-			portfolioLoadingIndicator.textContent = "正在生成并上传组合...";
-			portfolioLoadingIndicator.style.display = 'inline';
-			const buttons = portfolioActionsDiv.querySelectorAll('button');
-			buttons.forEach(b => b.disabled = true);
-
-			try {
-				const client = await getOSSClient(); // 使用STS
-				// const client = getOSSClientDirect(); // 如果不使用STS (不推荐)
-
-				if (typeof generatePortfolioExcelBlob !== "function") {
-					throw new Error("generatePortfolioExcelBlob 函数未定义。");
-				}
-				const excelArrayBuffer = await generatePortfolioExcelBlob(); // 这个函数将在 portfolio_agent.js 中定义
-				const excelBlob = new Blob([excelArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-				// OSS SDK 的 put 方法接受 Blob 或 File
-				await client.put(OSS_FILE_KEY, excelBlob);
-
-				alert("投资组合已成功保存到云端！");
-			} catch (error) {
-				console.error("上传投资组合到云端失败:", error);
-				alert(`上传投资组合失败: ${error.message}`);
-			} finally {
-				portfolioLoadingIndicator.style.display = 'none';
-				buttons.forEach(b => b.disabled = false);
-			}
-		}
-
-		async function downloadPortfolioFromOSS() {
-			if (!localStorage.getItem('github_access_token')) {
-				alert("请先登录以下载投资组合。");
-				return;
-			}
-			if (!portfolioLoadingIndicator || !portfolioActionsDiv) return;
-
-			portfolioLoadingIndicator.textContent = "正在从云端下载...";
-			portfolioLoadingIndicator.style.display = 'inline';
-			const buttons = portfolioActionsDiv.querySelectorAll('button');
-			buttons.forEach(b => b.disabled = true);
-
-			try {
-				const client = await getOSSClient(); // 使用STS
-				// const client = getOSSClientDirect(); // 如果不使用STS
-
-				// 使用 signatureUrl 生成带签名的下载链接 (推荐，可以设置有效期)
-				const downloadUrl = client.signatureUrl(OSS_FILE_KEY, {
-					expires: 300, // 链接5分钟内有效
-					// response: { 'content-disposition': `attachment; filename="${OSS_FILE_KEY}"` } // 让浏览器直接下载
-				});
-				// 或者直接 get 获取内容，然后前端构造 Blob 下载
-				// const result = await client.get(OSS_FILE_KEY);
-				// if (!result || !result.content) throw new Error("未能从OSS获取文件内容");
-				// const blob = new Blob([result.content], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-				const a = document.createElement('a');
-				a.style.display = 'none';
-				a.href = downloadUrl; // 使用签名URL
-				// a.download = OSS_FILE_KEY; // signatureUrl中如果包含 content-disposition，这里可能不需要
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a); // 注意：revokeObjectURL 不适用于签名URL
-
-				alert("投资组合文件已开始下载。");
-
-			} catch (error) {
-				console.error("从云端下载投资组合失败:", error);
-				if (error.status === 404 || (error.code && error.code.includes('NoSuchKey'))) {
-					alert("云端未找到投资组合文件。您可以先保存一次。");
-				} else {
-					alert(`下载投资组合失败: ${error.message}`);
-				}
-			} finally {
-				portfolioLoadingIndicator.style.display = 'none';
-				buttons.forEach(b => b.disabled = false);
-			}
-		}
-
-		async function loadPortfolioFromCloudAndApplyToUI() {
-			if (!localStorage.getItem('github_access_token')) {
-				if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-				return;
-			}
-			if (!portfolioLoadingIndicator) return;
-
-			console.log("尝试从云端加载投资组合数据 (OSS)...");
-			portfolioLoadingIndicator.textContent = "正在加载云端组合...";
-			portfolioLoadingIndicator.style.display = 'inline';
-
-			try {
-				const client = await getOSSClient(); // 使用STS
-				// const client = getOSSClientDirect(); // 如果不使用STS
-
-				const result = await client.get(OSS_FILE_KEY);
-				if (!result || !result.content) {
-					console.log("云端未找到投资组合文件 (OSS)，将使用本地/默认数据。");
-					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-					return;
-				}
-
-				const excelArrayBuffer = result.content; // result.content 应该是 Buffer 或 ArrayBuffer
-				if (typeof applyCloudPortfolioData === "function") {
-					// 如果 result.content 是 Node.js Buffer，需要转为 ArrayBuffer
-					const finalArrayBuffer = (excelArrayBuffer instanceof ArrayBuffer) ? excelArrayBuffer : excelArrayBuffer.buffer.slice(excelArrayBuffer.byteOffset, excelArrayBuffer.byteOffset + excelArrayBuffer.byteLength);
-					await applyCloudPortfolioData(finalArrayBuffer);
-					console.log("云端投资组合数据 (OSS) 已成功应用到UI。");
-				} else {
-					throw new Error("applyCloudPortfolioData 函数未定义。");
-				}
-			} catch (error) {
-				if (error.status === 404 || (error.code && error.code.includes('NoSuchKey'))) {
-					console.log("云端未找到投资组合文件 (OSS)，将使用本地/默认数据。");
-					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-				} else {
-					console.error("加载并应用云端投资组合数据 (OSS) 失败:", error);
-					alert(`加载云端投资组合数据时出错: ${error.message}\n将尝试使用本地数据。`);
-					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-				}
-			} finally {
-				portfolioLoadingIndicator.style.display = 'none';
-			}
-		}
-
-
-
-
-        let siteCoreDataReady = false; // Flag for Excel data (allStockData)
-
-        async function initializeCoreSiteData() {
-            if (siteCoreDataReady) {
-                console.log("index.html initializeCoreSiteData: Core data already marked ready.");
-                return;
-            }
-            console.log("index.html: Initializing core site data (Excel)...");
-            if (typeof loadAndProcessExcelData === "function") {
-                if (typeof window.allStockDataGlobalPromise === 'undefined') {
-                    window.allStockDataGlobalPromise = loadAndProcessExcelData();
-                }
-                try {
-                    await window.allStockDataGlobalPromise;
-                    if (typeof allStockData !== 'undefined' && Object.keys(allStockData).length > 0) {
-                        siteCoreDataReady = true;
-                        console.log("index.html: Excel data (allStockData) is now ready.");
-                    } else {
-                        console.error("index.html: Excel data promise resolved, but `allStockData` is empty or undefined.");
-                        if(authErrorMessagesDiv) authErrorMessagesDiv.textContent = "错误：股票基础数据加载不完整。";
-                    }
-                } catch (error) {
-                    console.error("index.html: Error loading Excel data via promise:", error);
-                    if(authErrorMessagesDiv) authErrorMessagesDiv.textContent = "股票基础数据加载失败。";
-                    // Do not alert here, let portfolio_agent.js's ensureStockDataIsReady handle alerts if user tries an action
-                }
-            } else {
-                console.error("index.html: loadAndProcessExcelData function not found!");
-                if(authErrorMessagesDiv) authErrorMessagesDiv.textContent = "错误：无法启动数据加载流程。";
-            }
-        }
-
-        function generateRandomState() { return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15); }
-        
-        async function fetchGitHubUserInfoFromApi(accessToken) { 
-            if (authErrorMessagesDiv) authErrorMessagesDiv.textContent = ''; 
-            try {
-                const response = await fetch('https://api.github.com/user', { headers: { 'Authorization': `token ${accessToken}`, 'Accept': 'application/vnd.github.v3+json'} });
-                if (!response.ok) { const errorData = await response.json(); throw new Error(`GitHub API error: ${errorData.message || response.statusText}`); }
-                return await response.json();
-            } catch (error) {
-                console.error('Error fetching GitHub user info:', error);
-                if (authErrorMessagesDiv) {authErrorMessagesDiv.textContent = `无法获取用户信息: ${error.message}`; authErrorMessagesDiv.style.display = 'block';}
-                return null;
-            }
-        }
-
-		// `displayLoggedInUser` 和 `updateAuthUI` 的逻辑与上一个回答中类似，
-		// 确保它们在合适的时机调用 `loadPortfolioFromCloudAndApplyToUI`。
-		// `DOMContentLoaded` 的逻辑也类似。
-		// ... (粘贴上一个回答中 displayLoggedInUser, updateAuthUI, DOMContentLoaded 相关部分，
-		// 确保它们现在调用的是基于 OSS SDK 的 loadPortfolioFromCloudAndApplyToUI) ...
-		function displayLoggedInUser(userData) { // 示例，确保与上一个回答的结构一致
-			if (userData && githubUserAvatarImg && githubUserNameSpan && githubUserInfoDiv && loginBtn && logoutBtn) {
-				githubUserAvatarImg.src = userData.avatar_url || 'images/default_avatar.png';
-				githubUserNameSpan.textContent = userData.name || userData.login;
-				githubUserInfoDiv.classList.remove('hidden');
-				loginBtn.classList.add('hidden');
-				logoutBtn.classList.remove('hidden');
-				if (authErrorMessagesDiv) authErrorMessagesDiv.style.display = 'none';
-				if (portfolioActionsDiv) portfolioActionsDiv.style.display = 'flex';
-
-				const coreDataReadyOrAttempted = siteCoreDataReady || (typeof allStockData !== 'undefined' && Object.keys(allStockData).length > 0) || window.allStockDataGlobalPromise;
-
-				if (coreDataReadyOrAttempted) {
-					loadPortfolioFromCloudAndApplyToUI();
-				} else {
-					if (window.allStockDataGlobalPromise) {
-						window.allStockDataGlobalPromise.then(() => {
-							loadPortfolioFromCloudAndApplyToUI();
-						}).catch(err => {
-							 if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-						});
-					} else {
-						 if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-					}
-				}
-			} else {
-				handleLogout();
-			}
-		}
-
-		function updateAuthUI() { // 示例，确保与上一个回答的结构一致
-			const accessToken = localStorage.getItem('github_access_token');
-			const storedUserInfo = localStorage.getItem('github_user_info');
-			const applyLoggedOutState = () => {
-				if (githubUserInfoDiv) githubUserInfoDiv.classList.add('hidden');
-				if (loginBtn) loginBtn.classList.remove('hidden');
-				if (logoutBtn) logoutBtn.classList.add('hidden');
-				if (portfolioActionsDiv) portfolioActionsDiv.style.display = 'none';
-				if (typeof initializePortfoliosAfterLogin === "function") {
-					initializePortfoliosAfterLogin();
-				}
-			};
-
-			if (accessToken && storedUserInfo) {
-				try {
-					const userData = JSON.parse(storedUserInfo);
-					displayLoggedInUser(userData);
-				} catch (e) { applyLoggedOutState(); }
-			} else if (accessToken && !storedUserInfo) {
-				fetchGitHubUserInfoFromApi(accessToken).then(userData => {
-					if (userData) {
-						localStorage.setItem('github_user_info', JSON.stringify(userData));
-						displayLoggedInUser(userData);
-					} else { applyLoggedOutState(); }
-				}).catch(() => applyLoggedOutState());
-			} else {
-				applyLoggedOutState();
-			}
-		}
-
-        function handleLogin() { 
-             if (!GITHUB_CLIENT_ID || GITHUB_CLIENT_ID === 'YOUR_GITHUB_CLIENT_ID') {
-                alert('GitHub Client ID 未在 index.html 中配置!'); return;
-            }
-            const state = generateRandomState();
-            localStorage.setItem('oauth_state', state);
-            const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(GITHUB_AUTH_SCOPE)}&state=${state}`;
-            window.location.href = authUrl;
-        }
-        function handleLogout() { 
-            localStorage.removeItem('github_access_token');
-            localStorage.removeItem('github_user_info');
-            localStorage.removeItem('oauth_state'); 
-            updateAuthUI(); // This will re-initialize portfolios for logged-out state
-        }
-
-        if (loginBtn) loginBtn.addEventListener('click', handleLogin);
-        if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
-        
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log("index.html: DOMContentLoaded - Starting initialization.");
-
-            // Crucial Step 1: Load Excel data (allStockData) and wait for it.
-            await initializeCoreSiteData();
-            console.log("index.html: `initializeCoreSiteData` completed. `siteCoreDataReady`=", siteCoreDataReady);
-            
-            // Crucial Step 2: Initialize authentication UI (which will then trigger portfolio loading).
-            updateAuthUI();
-            console.log("index.html: `updateAuthUI` called.");
-
-            // Other UI initializations from portfolio_agent.js (like setting up agent names, modals etc.)
-            // are typically inside its own DOMContentLoaded or called by initializePortfoliosAfterLogin.
-            // We just need to make sure the core data and auth state are established first.
-        });
-    </script>
-</body>
-</html>
+      });
+    } else if (result.Code) {
+      console.error('STS错误响应:', result);
+      throw new Error(`${result.Code}: ${result.Message}`);
+    } else {
+      throw new Error('无效的STS响应');
+    }
+  } catch (error) {
+    console.error('STS请求失败:', error);
+    return new Response(JSON.stringify({
+      error: `获取STS凭证失败: ${error.message}`
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 阿里云特定的百分比编码
+function percentEncode(str) {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A')
+    .replace(/%20/g, '+'); // 阿里云要求空格编码为+
+}
+
+// 符合阿里云规范的签名生成
+async function generateAliyunSignature(params, accessKeySecret) {
+  // 1. 参数排序和编码
+  const sortedKeys = Object.keys(params).sort();
+  const canonicalized = sortedKeys
+    .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
+    .join('&');
+
+  // 2. 构造签名字符串
+  const stringToSign = 
+    'GET&%2F&' + 
+    percentEncode(canonicalized).replace(/%20/g, '+');
+
+  // 3. 计算签名
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(`${accessKeySecret}&`),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(stringToSign)
+  );
+
+  // 4. Base64编码
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
