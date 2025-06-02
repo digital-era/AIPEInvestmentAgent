@@ -3,8 +3,8 @@
 // `npm install @alicloud/pop-core` (或者完整的 aliyun-sdk)
 // 如果在 CF Function 中直接使用 SDK 有困难，可以考虑一个轻量级的后端服务或使用 API 网关调用 STS。
 
-import RPCClient from '@alicloud/pop-core'; // 示例，具体引入方式和使用看阿里云SDK文档
-
+//import RPCClient from '@alicloud/pop-core'; // 示例，具体引入方式和使用看阿里云SDK文档
+const RPCClient = require('@alicloud/pop-core').RPCClient;
 export async function onRequestGet(context) {
     const { env } = context;
     const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_STS_ROLE_ARN, OSS_REGION } = env;
