@@ -236,8 +236,8 @@
                 </div>
                 <!-- Portfolio Actions (for R2 solution) -->
                 <div class="portfolio-actions">
-                    <button onclick="generateClientSideExcelDownload()" title="下载当前编辑的组合数据到本地Excel文件"><i class="fas fa-download"></i> 组合</button>
-                    <button onclick="forceSyncToR2()" title="将当前编辑的组合数据保存到云端" style="margin-left: 5px;"><i class="fas fa-cloud-upload-alt"></i> 保存</button>
+                    <button onclick="downloadPortfolioFromOSS()" title="下载当前编辑的组合数据到本地Excel文件"><i class="fas fa-download"></i> 组合</button>
+                    <button onclick="uploadPortfolioToOSS()" title="将当前编辑的组合数据保存到云端" style="margin-left: 5px;"><i class="fas fa-cloud-upload-alt"></i> 保存</button>
                     <span id="portfolioLoadingIndicator" style="display:none;">处理中...</span>
                 </div>
             </div>
@@ -560,6 +560,197 @@
         const githubUserNameSpan = document.getElementById('githubUserName');
         const authErrorMessagesDiv = document.getElementById('authErrorMessages');
         const portfolioActionsDiv = document.querySelector('.portfolio-actions');
+		
+		const portfolioLoadingIndicator = document.getElementById('portfolioLoadingIndicator');
+
+		// --- OSS 配置 (根据你的实际情况修改) ---
+		const ossConfig = {
+			bucket: 'aiep-users', // 例如 'aipe-portfolio-data'
+			region: 'oss-cn-hangzhou', // 例如 'oss-cn-hangzhou'
+			// 如果不使用STS，而是硬编码 (极不推荐):
+			//accessKeyId: 'OSS_ACCESS_KEY_ID',
+			//accessKeySecret: 'OSS_ACCESS_KEY_SECRET',
+			//secure: true, // 推荐
+			//endpoint: 'YOUR_OSS_ENDPOINT' // 例如 oss-cn-hangzhou.aliyuncs.com
+		};
+		const OSS_FILE_KEY = 'AIPEPortfolio.xlsx';
+		let ossClientInstance = null; // OSS SDK 实例
+
+		// --- 获取 OSS 客户端实例 (STS 方案) ---
+		async function getOSSClient() {
+			if (ossClientInstance && ossClientInstance.options.securityToken && Date.parse(ossClientInstance.options.expiration) > Date.now() + 300 * 1000 /* 提前5分钟刷新 */) {
+				return ossClientInstance;
+			}
+			try {
+				// 从你的后端获取STS临时凭证
+				const response = await fetch('/api/sts-credentials'); // 指向你创建的STS凭证颁发函数
+				if (!response.ok) {
+					const errText = await response.text();
+					throw new Error(`获取OSS临时凭证失败: ${response.status} - ${errText}`);
+				}
+				const stsData = await response.json();
+				if (stsData.error) {
+					throw new Error(`获取OSS临时凭证错误: ${stsData.error}`);
+				}
+
+				ossClientInstance = new OSS({
+					region: ossConfig.region,
+					accessKeyId: stsData.AccessKeyId,
+					accessKeySecret: stsData.AccessKeySecret,
+					stsToken: stsData.SecurityToken, // 重要！
+					bucket: ossConfig.bucket,
+					secure: true,
+					refreshSTSToken: async () => { // 可选：SDK 自动刷新 token 的回调
+					  console.log("OSS STS Token 即将过期，尝试刷新...");
+					  const refreshResponse = await fetch('/api/sts-credentials');
+					  if (!refreshResponse.ok) throw new Error('刷新 STS token 失败');
+					  return await refreshResponse.json();
+					},
+					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数
+				});
+				ossClientInstance.options.expiration = stsData.Expiration; // 存储过期时间用于检查
+				console.log("OSS Client (STS) 初始化成功。");
+				return ossClientInstance;
+			} catch (error) {
+				console.error("初始化 OSS Client (STS) 失败:", error);
+				alert(`无法连接到云存储服务 (STS): ${error.message}`);
+				throw error; // 重新抛出，让调用者处理
+			}
+		}
+
+
+		onst clientPromise = getOSSClient(); // getOSSClient() for STS
+
+		async function uploadPortfolioToOSS() {
+			if (!localStorage.getItem('github_access_token')) {
+				alert("请先登录以保存投资组合。");
+				return;
+			}
+			if (!portfolioLoadingIndicator || !portfolioActionsDiv) return;
+
+			portfolioLoadingIndicator.textContent = "正在生成并上传组合...";
+			portfolioLoadingIndicator.style.display = 'inline';
+			const buttons = portfolioActionsDiv.querySelectorAll('button');
+			buttons.forEach(b => b.disabled = true);
+
+			try {
+				const client = await getOSSClient(); // 使用STS
+				// const client = getOSSClientDirect(); // 如果不使用STS (不推荐)
+
+				if (typeof generatePortfolioExcelBlob !== "function") {
+					throw new Error("generatePortfolioExcelBlob 函数未定义。");
+				}
+				const excelArrayBuffer = await generatePortfolioExcelBlob(); // 这个函数将在 portfolio_agent.js 中定义
+				const excelBlob = new Blob([excelArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+				// OSS SDK 的 put 方法接受 Blob 或 File
+				await client.put(OSS_FILE_KEY, excelBlob);
+
+				alert("投资组合已成功保存到云端！");
+			} catch (error) {
+				console.error("上传投资组合到云端失败:", error);
+				alert(`上传投资组合失败: ${error.message}`);
+			} finally {
+				portfolioLoadingIndicator.style.display = 'none';
+				buttons.forEach(b => b.disabled = false);
+			}
+		}
+
+		async function downloadPortfolioFromOSS() {
+			if (!localStorage.getItem('github_access_token')) {
+				alert("请先登录以下载投资组合。");
+				return;
+			}
+			if (!portfolioLoadingIndicator || !portfolioActionsDiv) return;
+
+			portfolioLoadingIndicator.textContent = "正在从云端下载...";
+			portfolioLoadingIndicator.style.display = 'inline';
+			const buttons = portfolioActionsDiv.querySelectorAll('button');
+			buttons.forEach(b => b.disabled = true);
+
+			try {
+				const client = await getOSSClient(); // 使用STS
+				// const client = getOSSClientDirect(); // 如果不使用STS
+
+				// 使用 signatureUrl 生成带签名的下载链接 (推荐，可以设置有效期)
+				const downloadUrl = client.signatureUrl(OSS_FILE_KEY, {
+					expires: 300, // 链接5分钟内有效
+					// response: { 'content-disposition': `attachment; filename="${OSS_FILE_KEY}"` } // 让浏览器直接下载
+				});
+				// 或者直接 get 获取内容，然后前端构造 Blob 下载
+				// const result = await client.get(OSS_FILE_KEY);
+				// if (!result || !result.content) throw new Error("未能从OSS获取文件内容");
+				// const blob = new Blob([result.content], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+				const a = document.createElement('a');
+				a.style.display = 'none';
+				a.href = downloadUrl; // 使用签名URL
+				// a.download = OSS_FILE_KEY; // signatureUrl中如果包含 content-disposition，这里可能不需要
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a); // 注意：revokeObjectURL 不适用于签名URL
+
+				alert("投资组合文件已开始下载。");
+
+			} catch (error) {
+				console.error("从云端下载投资组合失败:", error);
+				if (error.status === 404 || (error.code && error.code.includes('NoSuchKey'))) {
+					alert("云端未找到投资组合文件。您可以先保存一次。");
+				} else {
+					alert(`下载投资组合失败: ${error.message}`);
+				}
+			} finally {
+				portfolioLoadingIndicator.style.display = 'none';
+				buttons.forEach(b => b.disabled = false);
+			}
+		}
+
+		async function loadPortfolioFromCloudAndApplyToUI() {
+			if (!localStorage.getItem('github_access_token')) {
+				if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+				return;
+			}
+			if (!portfolioLoadingIndicator) return;
+
+			console.log("尝试从云端加载投资组合数据 (OSS)...");
+			portfolioLoadingIndicator.textContent = "正在加载云端组合...";
+			portfolioLoadingIndicator.style.display = 'inline';
+
+			try {
+				const client = await getOSSClient(); // 使用STS
+				// const client = getOSSClientDirect(); // 如果不使用STS
+
+				const result = await client.get(OSS_FILE_KEY);
+				if (!result || !result.content) {
+					console.log("云端未找到投资组合文件 (OSS)，将使用本地/默认数据。");
+					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+					return;
+				}
+
+				const excelArrayBuffer = result.content; // result.content 应该是 Buffer 或 ArrayBuffer
+				if (typeof applyCloudPortfolioData === "function") {
+					// 如果 result.content 是 Node.js Buffer，需要转为 ArrayBuffer
+					const finalArrayBuffer = (excelArrayBuffer instanceof ArrayBuffer) ? excelArrayBuffer : excelArrayBuffer.buffer.slice(excelArrayBuffer.byteOffset, excelArrayBuffer.byteOffset + excelArrayBuffer.byteLength);
+					await applyCloudPortfolioData(finalArrayBuffer);
+					console.log("云端投资组合数据 (OSS) 已成功应用到UI。");
+				} else {
+					throw new Error("applyCloudPortfolioData 函数未定义。");
+				}
+			} catch (error) {
+				if (error.status === 404 || (error.code && error.code.includes('NoSuchKey'))) {
+					console.log("云端未找到投资组合文件 (OSS)，将使用本地/默认数据。");
+					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+				} else {
+					console.error("加载并应用云端投资组合数据 (OSS) 失败:", error);
+					alert(`加载云端投资组合数据时出错: ${error.message}\n将尝试使用本地数据。`);
+					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+				}
+			} finally {
+				portfolioLoadingIndicator.style.display = 'none';
+			}
+		}
+
+
 
 
         let siteCoreDataReady = false; // Flag for Excel data (allStockData)
@@ -609,89 +800,70 @@
             }
         }
 
-        function displayLoggedInUser(userData) {
-            if (userData && githubUserAvatarImg && githubUserNameSpan && githubUserInfoDiv && loginBtn && logoutBtn) {
-                githubUserAvatarImg.src = userData.avatar_url || 'images/default_avatar.png'; 
-                githubUserNameSpan.textContent = userData.name || userData.login; 
-                githubUserInfoDiv.classList.remove('hidden');
-                loginBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                if (authErrorMessagesDiv) authErrorMessagesDiv.style.display = 'none';
-                if (portfolioActionsDiv) portfolioActionsDiv.style.display = 'flex';
+		// `displayLoggedInUser` 和 `updateAuthUI` 的逻辑与上一个回答中类似，
+		// 确保它们在合适的时机调用 `loadPortfolioFromCloudAndApplyToUI`。
+		// `DOMContentLoaded` 的逻辑也类似。
+		// ... (粘贴上一个回答中 displayLoggedInUser, updateAuthUI, DOMContentLoaded 相关部分，
+		// 确保它们现在调用的是基于 OSS SDK 的 loadPortfolioFromCloudAndApplyToUI) ...
+		function displayLoggedInUser(userData) { // 示例，确保与上一个回答的结构一致
+			if (userData && githubUserAvatarImg && githubUserNameSpan && githubUserInfoDiv && loginBtn && logoutBtn) {
+				githubUserAvatarImg.src = userData.avatar_url || 'images/default_avatar.png';
+				githubUserNameSpan.textContent = userData.name || userData.login;
+				githubUserInfoDiv.classList.remove('hidden');
+				loginBtn.classList.add('hidden');
+				logoutBtn.classList.remove('hidden');
+				if (authErrorMessagesDiv) authErrorMessagesDiv.style.display = 'none';
+				if (portfolioActionsDiv) portfolioActionsDiv.style.display = 'flex';
 
-                // Initialize portfolios AFTER login confirmed AND core data is ready (or attempted)
-                if (typeof initializePortfoliosAfterLogin === "function") {
-                    if (siteCoreDataReady || (typeof allStockData !== 'undefined' && Object.keys(allStockData).length > 0)) {
-                        console.log("index.html displayLoggedInUser: Core data ready, initializing portfolios.");
-                        initializePortfoliosAfterLogin();
-                    } else {
-                        // If core data isn't ready, initializePortfoliosAfterLogin might still proceed
-                        // but functions within portfolio_agent.js (like addStockToPool) will await ensureStockDataIsReady.
-                        console.warn("index.html displayLoggedInUser: Core data not marked ready, but proceeding with portfolio init.");
-                        initializePortfoliosAfterLogin();
-                    }
-                } else { console.error("initializePortfoliosAfterLogin function not found."); }
+				const coreDataReadyOrAttempted = siteCoreDataReady || (typeof allStockData !== 'undefined' && Object.keys(allStockData).length > 0) || window.allStockDataGlobalPromise;
 
-            } else { 
-                console.warn("User info UI elements missing or user data null in displayLoggedInUser."); 
-                handleLogout(); 
-            }
-        }
+				if (coreDataReadyOrAttempted) {
+					loadPortfolioFromCloudAndApplyToUI();
+				} else {
+					if (window.allStockDataGlobalPromise) {
+						window.allStockDataGlobalPromise.then(() => {
+							loadPortfolioFromCloudAndApplyToUI();
+						}).catch(err => {
+							 if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+						});
+					} else {
+						 if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+					}
+				}
+			} else {
+				handleLogout();
+			}
+		}
 
-        function updateAuthUI() {
-            const accessToken = localStorage.getItem('github_access_token');
-            const storedUserInfo = localStorage.getItem('github_user_info');
-            if (authErrorMessagesDiv) authErrorMessagesDiv.textContent = '';
+		function updateAuthUI() { // 示例，确保与上一个回答的结构一致
+			const accessToken = localStorage.getItem('github_access_token');
+			const storedUserInfo = localStorage.getItem('github_user_info');
+			const applyLoggedOutState = () => {
+				if (githubUserInfoDiv) githubUserInfoDiv.classList.add('hidden');
+				if (loginBtn) loginBtn.classList.remove('hidden');
+				if (logoutBtn) logoutBtn.classList.add('hidden');
+				if (portfolioActionsDiv) portfolioActionsDiv.style.display = 'none';
+				if (typeof initializePortfoliosAfterLogin === "function") {
+					initializePortfoliosAfterLogin();
+				}
+			};
 
-            const applyLoggedOutState = () => {
-                if (githubUserInfoDiv && loginBtn && logoutBtn) {
-                    githubUserInfoDiv.classList.add('hidden');
-                    loginBtn.classList.remove('hidden');
-                    logoutBtn.classList.add('hidden');
-                }
-                if (authErrorMessagesDiv) authErrorMessagesDiv.style.display = 'none';
-                if (portfolioActionsDiv) portfolioActionsDiv.style.display = 'none';
-
-                // Even if logged out, try to initialize portfolios (will use local/defaults)
-                if (typeof initializePortfoliosAfterLogin === "function") {
-                     if (siteCoreDataReady || (typeof allStockData !== 'undefined' && Object.keys(allStockData).length > 0)) {
-                        console.log("index.html updateAuthUI (logged out): Core data ready, initializing portfolios.");
-                        initializePortfoliosAfterLogin();
-                    } else {
-                        console.warn("index.html updateAuthUI (logged out): Core data not ready, portfolio init may rely on fallbacks.");
-                        initializePortfoliosAfterLogin();
-                    }
-                }
-            };
-            
-            const applyErrorState = (message) => {
-                if (authErrorMessagesDiv) { authErrorMessagesDiv.textContent = message; authErrorMessagesDiv.style.display = 'block';}
-                handleLogout(); 
-            };
-
-            if (accessToken && storedUserInfo) {
-                try {
-                    const userData = JSON.parse(storedUserInfo);
-                    displayLoggedInUser(userData); // This will call initializePortfoliosAfterLogin
-                } catch (e) {
-                    console.error("Error parsing stored user info:", e);
-                    applyErrorState("登录会话已损坏，请重新登录。");
-                }
-            } else if (accessToken && !storedUserInfo) {
-                console.log("Access token found, user info missing. Fetching...");
-                fetchGitHubUserInfoFromApi(accessToken).then(userData => {
-                    if (userData) {
-                        localStorage.setItem('github_user_info', JSON.stringify(userData));
-                        displayLoggedInUser(userData); // This will call initializePortfoliosAfterLogin
-                    } else {
-                        applyErrorState("无法验证登录会话，请重新登录。");
-                    }
-                });
-            }
-            else { 
-                applyLoggedOutState();
-            }
-        }
+			if (accessToken && storedUserInfo) {
+				try {
+					const userData = JSON.parse(storedUserInfo);
+					displayLoggedInUser(userData);
+				} catch (e) { applyLoggedOutState(); }
+			} else if (accessToken && !storedUserInfo) {
+				fetchGitHubUserInfoFromApi(accessToken).then(userData => {
+					if (userData) {
+						localStorage.setItem('github_user_info', JSON.stringify(userData));
+						displayLoggedInUser(userData);
+					} else { applyLoggedOutState(); }
+				}).catch(() => applyLoggedOutState());
+			} else {
+				applyLoggedOutState();
+			}
+		}
 
         function handleLogin() { 
              if (!GITHUB_CLIENT_ID || GITHUB_CLIENT_ID === 'YOUR_GITHUB_CLIENT_ID') {
