@@ -67,56 +67,107 @@
 
 
         /* 媒体查询 - 针对小屏幕 (手机端) */
-        /* 断点需要根据实际内容调整，直到 "API设置" 和 "GitHub登录" 开始挤压主导航 */
-        @media (max-width: 880px) { 
+        /* 断点调整为 768px，你可以根据需要修改 */
+        @media (max-width: 768px) { 
             .main-header {
-                flex-wrap: wrap; /* 允许头部项目换行 */
+                flex-wrap: wrap; 
             }
 
-            .main-header nav { /* 主导航部分，包含logo和核心导航 */
-                /* 它会和 logo 一起尽可能占据第一行 */
-                /* 如果空间不足，nav 自身的内容可能会被压缩或需要 overflow-x: auto */
-                 margin-right: auto; /* 确保它填满logo和右侧元素之间的空间*/
+            .logo-title {
+                /* 在小屏幕上，logo自己占一些空间，右边留给导航 */
+                margin-right: auto; /* 将logo推到最左，其他内容（nav）推到右边 */
             }
+
+            .main-header nav { 
+                 /* nav现在和logo在同一行，但内容会靠右 */
+                 flex-grow: 0; /* 不再让它填满，按内容宽度 */
+                 margin-right: 0; /* 清除大屏幕的auto margin (如果有的话) */
+            }
+            /* 确保导航项之间有一定间隔 */
+            .main-header nav a {
+                padding: 8px 5px; /* 进一步缩小padding */
+                font-size: 0.85em; /* 进一步缩小字体 */
+            }
+            /* 将 "AI投资量化" 推到其容器（nav）的右边 */
+            /* 这个可能不需要了，因为nav本身不是100%宽度，而是和logo同行靠右 */
+            /* .main-header nav a:nth-child(2) {
+                margin-left: auto; 
+            } */
             
             .secondary-nav-auth-wrapper {
-                width: 100%; /* 换行后，让这个wrapper占据新的一整行 */
-                margin-left: 0; /* 移除大屏幕的auto margin */
-                margin-top: 10px; /* 与上一行的间距 */
-                justify-content: space-between; /* API设置居左，Auth区域居右 */
-                padding: 0 5px; /* 给这行左右一点padding，避免贴边 */
+                width: 100%; 
+                margin-left: 0; 
+                margin-top: 8px; /* 与上一行的间距 */
+                justify-content: flex-end; /* !!! 让整个wrapper里的内容靠右 !!! */
+                padding: 0; /* 移除左右padding，让内容自然靠右 */
             }
-            
-            /* 如果API设置链接在大屏幕时是在主nav中，小屏幕时移到secondary-nav-auth-wrapper */
-            /* 这种方案：API设置链接始终在secondary-nav-auth-wrapper中 */
-            /* 因此，主nav中不再有API设置链接 */
             
             .secondary-nav-auth-wrapper .api-settings-link {
-                margin-right: auto; /* API设置靠左 */
-                padding: 8px 10px; /* 调整padding */
+                margin-right: 8px; /* API设置和Auth区域的间距 */
+                padding: 6px 8px; 
+                font-size: 0.8em; /* 缩小字体 */
             }
+             .secondary-nav-auth-wrapper .api-settings-link i,
+             .auth-section #loginBtn i, .auth-section #logoutBtn i {
+                margin-right: 3px; /* 缩小图标右边距 */
+            }
+            
             .secondary-nav-auth-wrapper .auth-section {
-                padding-right: 0; /* 移除自身的右padding，由父级控制 */
-                 /* 它会被推到右边 */
+                padding-right: 0; 
             }
-             #githubUserName {
-                max-width: 60px; /* 进一步减小用户名宽度 */
+            .auth-section #loginBtn, .auth-section #logoutBtn {
+                font-size: 0.8em; /* 缩小登录/登出按钮字体 */
+                padding: 6px 8px; /* 缩小登录/登出按钮padding */
+            }
+            #githubUserAvatar {
+                width: 24px; height: 24px;
+            }
+            #githubUserName {
+                max-width: 50px; /* 进一步限制用户名宽度 */
+                font-size: 0.8em;
+            }
+            /* Portfolio actions 按钮调整 */
+            .portfolio-actions {
+                margin-left: 8px; /* 与Auth区域的间距 */
+            }
+            .portfolio-actions button {
+                font-size: 0.75em; /* 非常小的字体 */
+                padding: 5px 6px; /* 非常小的padding */
             }
         }
 
          @media (max-width: 480px) { /* 更小屏幕的额外调整 */
-            .main-header nav a,
-            .secondary-nav-auth-wrapper .api-settings-link {
-                font-size: 0.9em;
-                padding: 8px 8px;
+            .logo-title {
+                margin-right: 10px; /* 调整logo和导航的间距 */
             }
-            #loginBtn, #logoutBtn { /* Auth按钮 */
-                font-size: 0.8em;
-                padding: 6px 8px;
+            .logo-title h1 { font-size: 1em; } /* 进一步缩小标题 */
+            .logo-title i { font-size: 1em; }
+
+            .main-header nav a {
+                font-size: 0.8em; 
+                padding: 6px 3px; /* 非常小的padding */
             }
+            /* 在480px以下，如果导航项还是太多，考虑隐藏文字只留图标 */
+            .main-header nav a .fa-users-cog, .main-header nav a .fa-chart-line { /* 选择图标 */
+                /* font-size: 1.2em; /* 稍微放大图标 */ 
+            }
+            /* .main-header nav a span { display: none; } /* 隐藏文字，需要HTML配合 <i class="..."></i><span>文字</span> */
+
+
+            .secondary-nav-auth-wrapper .api-settings-link,
+            .auth-section #loginBtn, .auth-section #logoutBtn,
+            .portfolio-actions button {
+                font-size: 0.7em; /* 极限缩小字体 */
+                padding: 4px 5px; 
+            }
+            .secondary-nav-auth-wrapper .api-settings-link i,
+            .auth-section #loginBtn i, .auth-section #logoutBtn i,
+            .portfolio-actions button i {
+                margin-right: 2px;
+            }
+
             #githubUserAvatar {
-                width: 24px;
-                height: 24px;
+                width: 20px; height: 20px;
             }
             #githubUserName {
                  display: none; 
@@ -128,8 +179,7 @@
                 font-size: 1.1em; /* 缩小图标字号 */
             }
          }
-
-         }
+		 
          /* Portfolio actions and loading indicator (from previous R2 solution) */
         .portfolio-actions { margin-left: 10px; display:none; align-items: center; gap: 5px;}
         .portfolio-actions button { font-size: 0.8em; padding: 6px 10px; }
