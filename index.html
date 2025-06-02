@@ -619,7 +619,7 @@
 		}
 
 
-		onst clientPromise = getOSSClient(); // getOSSClient() for STS
+		const clientPromise = getOSSClient(); // getOSSClient() for STS
 
 		async function uploadPortfolioToOSS() {
 			if (!localStorage.getItem('github_access_token')) {
