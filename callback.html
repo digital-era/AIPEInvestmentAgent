@@ -6,8 +6,8 @@
     <style>
         body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; display: flex; justify-content: center; align-items: center; height: 90vh; }
         .container { text-align: center; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        #callbackMessage { margin-top: 10px; }
-        #callbackError { color: red; margin-top:10px; }
+        #callbackMessage { margin-top: 10px; font-weight: bold;}
+        #callbackError { color: red; margin-top:10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -30,14 +30,23 @@
             const errorDiv = document.getElementById('callbackError');
             const messageDiv = document.getElementById('callbackMessage');
 
+            // Clear previous messages
+            errorDiv.textContent = '';
+            messageDiv.textContent = 'Validating login attempt...';
+
             if (!code) {
-                errorDiv.textContent = 'Error: No authorization code found in URL. Redirecting...';
+                errorDiv.textContent = 'Error: No authorization code found in URL. Redirecting to main page...';
+                localStorage.removeItem('github_access_token'); // Ensure cleanup
+                localStorage.removeItem('github_user_info');
+                localStorage.removeItem('oauth_state');
                 setTimeout(() => window.location.href = MAIN_PAGE_URL, 3000);
                 return;
             }
 
             if (!receivedState || receivedState !== storedState) {
-                errorDiv.textContent = 'Error: State mismatch. Possible CSRF attack. Redirecting...';
+                errorDiv.textContent = 'Error: State mismatch. Possible security issue. Redirecting to main page...';
+                localStorage.removeItem('github_access_token'); // Ensure cleanup
+                localStorage.removeItem('github_user_info');
                 localStorage.removeItem('oauth_state'); // Clear invalid state
                 setTimeout(() => window.location.href = MAIN_PAGE_URL, 3000);
                 return;
@@ -52,12 +61,14 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ code: code, state: receivedState }) // Send code and state
+                    body: JSON.stringify({ code: code, state: receivedState }) 
                 });
 
                 const data = await response.json();
 
                 if (!response.ok || data.error) {
+                    // Log the detailed error if available from the function
+                    console.error("Token exchange error from function:", data);
                     throw new Error(data.error || data.details || `Server error during token exchange: ${response.status}`);
                 }
 
@@ -65,27 +76,35 @@
                     localStorage.setItem('github_access_token', data.access_token);
                     messageDiv.textContent = 'Access token received. Fetching user information...';
 
-                    // Fetch user info using the access token
-                    const userInfo = await fetchGitHubUserInfo(data.access_token);
+                    const userInfo = await fetchGitHubUserInfo(data.access_token); // This function handles its own errors
+                    
                     if (userInfo) {
                         localStorage.setItem('github_user_info', JSON.stringify(userInfo));
-                        messageDiv.textContent = 'Login successful! Redirecting...';
+                        messageDiv.textContent = 'Login successful! Redirecting to your dashboard...';
                     } else {
-                        // Even if user info fetch fails, token is there. Decide how to handle.
-                        // For now, we'll proceed, but you might want to log out or show an error.
-                        messageDiv.textContent = 'Access token obtained, but failed to fetch user details. Redirecting...';
-                         console.warn("Access token obtained, but GitHub user info fetch failed from callback.");
+                        // User info fetch failed, but token was obtained.
+                        // This is a partial success. The main page will try to re-fetch user info.
+                        messageDiv.textContent = 'Access token obtained. User details fetch encountered an issue. Redirecting...';
+                        console.warn("Access token obtained, but GitHub user info fetch failed from callback. Main page will attempt re-fetch.");
+                        // We still proceed with the token, index.html's updateAuthUI will handle missing user_info.
                     }
+
+                    // Clear messages before redirecting
+                    messageDiv.textContent = 'Redirecting...';
+                    errorDiv.textContent = '';
                     window.location.href = MAIN_PAGE_URL;
+
                 } else {
-                    throw new Error('Access token not found in response from function.');
+                    throw new Error('Access token not found in the response from our authentication server.');
                 }
 
             } catch (error) {
                 console.error('Error during GitHub callback processing:', error);
-                errorDiv.textContent = `Login failed: ${error.message}. Redirecting...`;
+                errorDiv.textContent = `Login failed: ${error.message}. Please try again. Redirecting to main page...`;
+                // Ensure all auth-related items are cleared on any critical failure
                 localStorage.removeItem('github_access_token');
                 localStorage.removeItem('github_user_info');
+                localStorage.removeItem('oauth_state'); // Just in case it wasn't cleared
                 setTimeout(() => window.location.href = MAIN_PAGE_URL, 5000);
             }
         }
@@ -99,17 +118,20 @@
                     }
                 });
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`GitHub API error when fetching user: ${errorData.message || response.statusText}`);
+                    const errorData = await response.json().catch(() => ({ message: "Unknown GitHub API error structure" }));
+                    console.error(`GitHub API error when fetching user: ${response.status}`, errorData);
+                    // We don't set errorDiv here directly to avoid overwriting more critical errors from handleGitHubCallback
+                    // Instead, return null and let the caller decide how to message the user.
+                    return null; 
                 }
                 return await response.json();
             } catch (error) {
-                console.error('Error fetching GitHub user info from callback.html:', error);
-                // Do not set errorDiv here as it might overwrite main error
+                console.error('Network or other error fetching GitHub user info from callback.html:', error);
                 return null;
             }
         }
 
+        // Start the process
         handleGitHubCallback();
     </script>
 </body>
