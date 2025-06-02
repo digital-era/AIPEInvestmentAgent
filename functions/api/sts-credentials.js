@@ -12,7 +12,7 @@ async function handleGetRequest(context) {
   const { OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_STS_ROLE_ARN, OSS_REGION } = env;
 
   if (!OSS_ACCESS_KEY_ID || !OSS_ACCESS_KEY_SECRET || !OSS_STS_ROLE_ARN || !OSS_REGION) {
-    return new Response(JSON.stringify({ error: 'STS 服务器配置不完整' }), {
+    return new Response(JSON.stringify({ error: 'STS 配置不完整' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -25,30 +25,43 @@ async function handleGetRequest(context) {
       RoleArn: OSS_STS_ROLE_ARN,
       RoleSessionName: 'cf-worker-session-' + Date.now(),
       DurationSeconds: 3600,
-      Format: 'JSON', // 明确要求JSON响应
+      Format: 'JSON',
       Version: '2015-04-01',
       AccessKeyId: OSS_ACCESS_KEY_ID,
       SignatureMethod: 'HMAC-SHA1',
       SignatureVersion: '1.0',
-      Timestamp: new Date().toISOString().replace(/\.\d{3}Z/, 'Z'), // ISO8601格式
+      Timestamp: new Date().toISOString().replace(/\.\d{3}Z/, 'Z'),
       SignatureNonce: Date.now() + Math.random().toString(36).substring(2, 10),
       RegionId: OSS_REGION
     };
 
-    // 2. 生成签名
-    const signature = await generateSignature(params, OSS_ACCESS_KEY_SECRET);
+    // 2. 生成签名 (使用阿里云特定的编码规则)
+    const signature = await generateAliyunSignature(params, OSS_ACCESS_KEY_SECRET);
     params.Signature = signature;
 
-    // 3. 构造请求URL
+    // 3. 构造请求URL (使用阿里云要求的编码方式)
     const endpoint = `https://sts.${OSS_REGION}.aliyuncs.com`;
-    const queryString = new URLSearchParams(params).toString();
+    const queryString = Object.keys(params)
+      .sort()
+      .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
+      .join('&');
+
+    const url = `${endpoint}/?${queryString}`;
+    console.log("请求URL:", url);  // 调试用
 
     // 4. 发送请求
-    const response = await fetch(`${endpoint}?${queryString}`, {
-      method: 'GET' // STS AssumeRole 支持GET请求
-    });
+    const response = await fetch(url, { method: 'GET' });
+    
+    // 检查响应类型
+    const contentType = response.headers.get('content-type') || '';
+    const responseText = await response.text();
+    
+    if (!contentType.includes('application/json')) {
+      console.error("非JSON响应:", responseText.substring(0, 300));
+      throw new Error(`阿里云返回错误: ${response.status} ${response.statusText}`);
+    }
 
-    const result = await response.json();
+    const result = JSON.parse(responseText);
 
     // 5. 处理响应
     if (result.Credentials) {
@@ -59,11 +72,16 @@ async function handleGetRequest(context) {
         Expiration: result.Credentials.Expiration
       }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0' 
+        }
       });
+    } else if (result.Code) {
+      console.error('STS错误响应:', result);
+      throw new Error(`${result.Code}: ${result.Message}`);
     } else {
-      console.error('STS响应异常:', result);
-      throw new Error(`STS服务错误: ${result.Code || '未知错误'}`);
+      throw new Error('无效的STS响应');
     }
   } catch (error) {
     console.error('STS请求失败:', error);
@@ -76,18 +94,31 @@ async function handleGetRequest(context) {
   }
 }
 
-// 生成阿里云签名
-async function generateSignature(params, accessKeySecret) {
-  // 1. 参数按key排序
+// 阿里云特定的百分比编码
+function percentEncode(str) {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A')
+    .replace(/%20/g, '+'); // 阿里云要求空格编码为+
+}
+
+// 符合阿里云规范的签名生成
+async function generateAliyunSignature(params, accessKeySecret) {
+  // 1. 参数排序和编码
   const sortedKeys = Object.keys(params).sort();
-  const canonicalizedQueryString = sortedKeys
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+  const canonicalized = sortedKeys
+    .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
     .join('&');
 
   // 2. 构造签名字符串
-  const stringToSign = `GET&%2F&${encodeURIComponent(canonicalizedQueryString)}`;
+  const stringToSign = 
+    'GET&%2F&' + 
+    percentEncode(canonicalized).replace(/%20/g, '+');
 
-  // 3. 计算HMAC-SHA1
+  // 3. 计算签名
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(`${accessKeySecret}&`),
