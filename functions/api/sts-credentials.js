@@ -31,8 +31,8 @@ async function handleGetRequest(context) { // 修改了函数签名以匹配 fet
         const client = new RPCClient({
             accessKeyId: OSS_ACCESS_KEY_ID,
             accessKeySecret: OSS_ACCESS_KEY_SECRET,
-            endpoint: `https://sts.${OSS_STS_ROLE_ARN || 'aliyuncs.com'}`, //  <-- 这是错误的地方
-            // endpoint: `https://sts.${OSS_REGION}.aliyuncs.com`, // <-- 正确的 Endpoint 构造方式
+            // endpoint: `https://sts.${OSS_STS_ROLE_ARN || 'aliyuncs.com'}`, //  <-- 这是错误的地方
+            endpoint: `https://sts.${OSS_REGION}.aliyuncs.com`, // <-- 正确的 Endpoint 构造方式
             apiVersion: '2015-04-01',
         });
 
