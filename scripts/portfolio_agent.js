@@ -229,49 +229,67 @@ document.addEventListener('DOMContentLoaded', async () => {
                 portfolioTitleText.contentEditable = 'true';
                 editPortfolioTitleBtn.innerHTML = '<i class="fas fa-save"></i>';
                 editPortfolioTitleBtn.title = "保存名称";
-                portfolioTitleText.focus();
-                const range = document.createRange(); range.selectNodeContents(portfolioTitleText);
-                const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+				                portfolioTitleText.focus();
+                const range = document.createRange();
+                range.selectNodeContents(portfolioTitleText);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
             }
         });
-        portfolioTitleText.addEventListener('blur', () => { if (portfolioTitleText.contentEditable === 'true') editPortfolioTitleBtn.click(); });
+
+        portfolioTitleText.addEventListener('blur', () => {
+            if (portfolioTitleText.contentEditable === 'true') {
+                editPortfolioTitleBtn.click();
+            }
+        });
+
         portfolioTitleText.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && portfolioTitleText.contentEditable === 'true') { event.preventDefault(); editPortfolioTitleBtn.click(); }
+            if (event.key === 'Enter' && portfolioTitleText.contentEditable === 'true') {
+                event.preventDefault();
+                editPortfolioTitleBtn.click();
+            }
             if (event.key === 'Escape' && portfolioTitleText.contentEditable === 'true') {
-                 portfolioTitleText.textContent = myPortfolioTitle; portfolioTitleText.contentEditable = 'false';
-                 editPortfolioTitleBtn.innerHTML = '<i class="fas fa-pencil-alt"></i>'; editPortfolioTitleBtn.title = "编辑组合名称";
+                 portfolioTitleText.textContent = myPortfolioTitle;
+                 portfolioTitleText.contentEditable = 'false';
+                 editPortfolioTitleBtn.innerHTML = '<i class="fas fa-pencil-alt"></i>';
+                 editPortfolioTitleBtn.title = "编辑组合名称";
                  portfolioTitleText.blur();
             }
         });
     }
-    // Initial check of stock data readiness, mostly for console logging.
-    // Actual operations will re-check with ensureStockDataIsReady().
-    // await ensureStockDataIsReady();
-    // console.log("Portfolio Agent JS: Initial check for stock data complete on DOMContentLoaded. isPortfolioSystemReady:", isPortfolioSystemReady);
 });
 
 // Main Tab Management
-function openMainTab(evt, tabName) { /* ... (your existing code) ... */ 
+function openMainTab(evt, tabName) {
     let i, tabcontent, tablinks;
     tabcontent = document.getElementsByClassName("main-tab-content");
-    for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; tabcontent[i].classList.remove("active"); }
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+        tabcontent[i].classList.remove("active");
+    }
     tablinks = document.getElementsByClassName("tab-link-main");
-    for (i = 0; i < tablinks.length; i++) { tablinks[i].classList.remove("active"); }
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+    }
     const currentTab = document.getElementById(tabName);
-    if (currentTab) { currentTab.style.display = "block"; currentTab.classList.add("active"); }
+    if (currentTab) {
+        currentTab.style.display = "block";
+        currentTab.classList.add("active");
+    }
     if (evt && evt.currentTarget) evt.currentTarget.classList.add("active");
 }
 
-// Helper function for stock validation using allStockData
+// Helper function for stock validation using allStockData (Improved)
 function findStockInGlobalData(searchTerm) {
-    // This function is CALLED by others AFTER ensureStockDataIsReady, so allStockData should exist.
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
-        console.warn("findStockInGlobalData called but allStockData is still not populated. This shouldn't happen if ensureStockDataIsReady was awaited.");
+        console.warn("findStockInGlobalData: allStockData is not available or empty.");
         return null;
     }
-    // ... (rest of your findStockInGlobalData logic from the provided code)
+
     let foundStock = null;
     const upperSearchTerm = searchTerm.toUpperCase();
+
     const stockMatch = searchTerm.match(/(.+?)\s*\((.*?)\)/);
     if (stockMatch && stockMatch[1] && stockMatch[2]) {
         const codeFromInput = stockMatch[2].trim().toUpperCase();
@@ -280,67 +298,91 @@ function findStockInGlobalData(searchTerm) {
              return { code: codeFromInput, name: allStockData[codeFromInput].name };
         }
     }
-    if (allStockData[searchTerm]) { return { code: searchTerm, name: allStockData[searchTerm].name }; }
-    if (allStockData[upperSearchTerm]) { return { code: upperSearchTerm, name: allStockData[upperSearchTerm].name }; }
+
+    if (allStockData[searchTerm]) {
+        return { code: searchTerm, name: allStockData[searchTerm].name };
+    }
+    if (allStockData[upperSearchTerm]) {
+         return { code: upperSearchTerm, name: allStockData[upperSearchTerm].name };
+    }
+
     const searchTermLower = searchTerm.toLowerCase();
     for (const code in allStockData) {
         if (allStockData[code].name && allStockData[code].name.toLowerCase().includes(searchTermLower)) {
-            foundStock = { code: code, name: allStockData[code].name }; break;
+            foundStock = { code: code, name: allStockData[code].name };
+            break;
         }
     }
     return foundStock;
 }
 
 
-// Agent Stock Pool Management (MODIFIED to be async and use ensureStockDataIsReady)
-async function addStockToPool(agentId) {
-    const ready = await ensureStockDataIsReady();
-    if (!ready) return; // Exit if stock data (for validation) isn't loaded
-
+// Agent Stock Pool Management
+function addStockToPool(agentId) {
     const agent = agents[agentId];
     const stockInput = document.getElementById(agent.stockInputId);
     const searchTerm = stockInput.value.trim();
 
-    if (searchTerm === "") { alert("请输入股票代码或名称。"); return; }
+    if (searchTerm === "") {
+        alert("请输入股票代码或名称。");
+        return;
+    }
 
-    const foundStock = findStockInGlobalData(searchTerm); // Uses allStockData
+    if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
+        alert("股票基础数据尚未加载。请稍候再试或刷新页面。");
+        return;
+    }
 
-    if (!foundStock) { alert(`未在股票基础数据中找到 "${searchTerm}"。`); return; }
+    const foundStock = findStockInGlobalData(searchTerm);
+
+    if (!foundStock) {
+        alert(`未在股票基础数据中找到 "${searchTerm}" 对应的股票。请检查输入。`);
+        return;
+    }
+
     if (agent.stockPoolList.find(s => s.code === foundStock.code)) {
-        alert(`股票 ${foundStock.name} (${foundStock.code}) 已在 ${agent.name} 的分析池中。`); return;
+        alert(`股票 ${foundStock.name} (${foundStock.code}) 已在 ${agent.name} 的分析池中。`);
+        return;
     }
 
     agent.stockPoolList.push({ code: foundStock.code, name: foundStock.name });
     stockInput.value = "";
     renderStockPoolList(agentId);
-    saveAgentData(); // Saves to localStorage
+    saveAgentData();
 }
 
 function removeStockFromPool(agentId, stockCode) {
-    // This function doesn't directly depend on allStockData, so no async/await needed for it.
     const agent = agents[agentId];
     agent.stockPoolList = agent.stockPoolList.filter(s => s.code !== stockCode);
     renderStockPoolList(agentId);
     saveAgentData();
 }
 
-function renderStockPoolList(agentId) { /* ... (your existing code, no changes needed here for data loading) ... */ 
+function renderStockPoolList(agentId) {
     const agent = agents[agentId];
     const stockPoolUl = document.getElementById(agent.stockPoolListId);
     const stockSelectForAnalysis = document.getElementById(agent.stockSelectId);
     const addFromPoolSelect = document.getElementById(agent.addFromPoolSelectId);
+
     if (!stockPoolUl || !stockSelectForAnalysis || !addFromPoolSelect) return;
+
     stockPoolUl.innerHTML = "";
     stockSelectForAnalysis.innerHTML = '<option value="">--- 从分析池选择 ---</option>';
     addFromPoolSelect.innerHTML = '<option value="">--- 从分析池选择添加到组合 ---</option>';
+
     agent.stockPoolList.forEach(stock => {
         const li = document.createElement('li');
-        li.innerHTML = `<span>${stock.name} (${stock.code})</span><button class="remove-stock-btn" onclick="removeStockFromPool('${agentId}', '${stock.code}')"><i class="fas fa-trash-alt"></i></button>`;
+        li.innerHTML = `
+            <span>${stock.name} (${stock.code})</span>
+            <button class="remove-stock-btn" onclick="removeStockFromPool('${agentId}', '${stock.code}')"><i class="fas fa-trash-alt"></i></button>
+        `;
         stockPoolUl.appendChild(li);
+
         const optionForAnalysis = document.createElement('option');
         optionForAnalysis.value = `${stock.name} (${stock.code})`;
         optionForAnalysis.textContent = `${stock.name} (${stock.code})`;
         stockSelectForAnalysis.appendChild(optionForAnalysis);
+
         const optionForPortfolioAdd = document.createElement('option');
         optionForPortfolioAdd.value = stock.code;
         optionForPortfolioAdd.textContent = `${stock.name} (${stock.code})`;
@@ -348,20 +390,19 @@ function renderStockPoolList(agentId) { /* ... (your existing code, no changes n
     });
 }
 
-// Stock Analysis For Agent (MODIFIED to be async and use ensureStockDataIsReady)
+// Stock Analysis For Agent (MODAL VERSION - Agent Specific Report)
 async function analyzeStockForAgent(agentId) {
-    const ready = await ensureStockDataIsReady();
-    if (!ready) return;
-
-    const agent = agents[agentId];
+    const agent = agents[agentId]; // agent 对象现在包含 latestReport
     const stockSelect = document.getElementById(agent.stockSelectId);
     const analysisInput = document.getElementById(agent.analysisInputId);
-    const analysisDisplayElement = document.getElementById(agent.analysisOutputId);
-    const analysisOutputContainer = analysisDisplayElement.parentNode;
+    const analysisDisplayElement = document.getElementById(agent.analysisOutputId); // This is the textarea
+    const analysisOutputContainer = analysisDisplayElement.parentNode; // The .analysis-output div
 
     let viewReportBtn = document.getElementById(`viewReportBtn_${agentId}`);
-    if (viewReportBtn) viewReportBtn.style.display = 'none';
-    agent.latestReport = "";
+    if (viewReportBtn) {
+        viewReportBtn.style.display = 'none';
+    }
+    agent.latestReport = ""; // <--- 清空此Agent的旧报告
 
     let stockToAnalyze = analysisInput.value.trim();
     if (stockToAnalyze === "" && stockSelect.value !== "") {
@@ -371,31 +412,44 @@ async function analyzeStockForAgent(agentId) {
     if (analysisDisplayElement) {
         analysisDisplayElement.value = analysisDisplayElement.placeholder || "分析结果将在此显示...";
         analysisDisplayElement.style.color = 'var(--text-muted)';
-        analysisDisplayElement.readOnly = true; // Keep it readOnly until content is set
+        analysisDisplayElement.readOnly = true;
     }
 
-    if (stockToAnalyze === "") { alert("请从分析池选择或输入要分析的股票。"); if(analysisDisplayElement) analysisDisplayElement.value="错误：未指定目标。"; return; }
+    if (stockToAnalyze === "") {
+        alert("请从分析池选择或输入要分析的股票。");
+        if (analysisDisplayElement) analysisDisplayElement.value = "错误：未指定分析目标。";
+        return;
+    }
 
-    if(analysisInput) analysisInput.value = ""; if(stockSelect) stockSelect.value = "";
+    if (analysisInput) analysisInput.value = "";
+    if (stockSelect) stockSelect.value = "";
     if (analysisDisplayElement) analysisDisplayElement.value = "请稍候，正在准备分析...\n";
 
-    let stockNameForDisplay = stockToAnalyze, stockCodeForData = null;
+    let stockNameForDisplay = stockToAnalyze;
+    let stockCodeForData = null;
+
     const stockNameCodeMatch = stockToAnalyze.match(/(.+?)\s*\((.*?)\)/);
-    if (stockNameCodeMatch) {
+    if (stockNameCodeMatch && stockNameCodeMatch[1] && stockNameCodeMatch[2]) {
         stockNameForDisplay = stockNameCodeMatch[1].trim();
         stockCodeForData = stockNameCodeMatch[2].trim().toUpperCase();
     } else {
-        const foundStockInfo = findStockInGlobalData(stockToAnalyze); // Uses allStockData
+        const foundStockInfo = findStockInGlobalData(stockToAnalyze);
         if (foundStockInfo) {
-            stockNameForDisplay = foundStockInfo.name; stockCodeForData = foundStockInfo.code.toUpperCase();
+            stockNameForDisplay = foundStockInfo.name;
+            stockCodeForData = foundStockInfo.code.toUpperCase();
         } else {
-            if (analysisDisplayElement) analysisDisplayElement.value += `警告: 未能从 "${stockToAnalyze}" 中识别股票代码或找到对应股票。\n`;
+            stockNameForDisplay = stockToAnalyze;
+            if (analysisDisplayElement) analysisDisplayElement.value += `警告: 未能从 "${stockToAnalyze}" 中识别股票代码或找到对应股票。将使用 "${stockNameForDisplay}" 作为名称进行分析，但量化数据可能无法获取。\n`;
         }
     }
 
-    let potScore = "[数据缺失]", totalInflow = "[数据缺失]", quantDataMessage = "";
-    // allStockData is assumed ready here due to ensureStockDataIsReady()
-    if (stockCodeForData && allStockData[stockCodeForData]) {
+    let potScore = "[数据缺失]";
+    let totalInflow = "[数据缺失]";
+    let quantDataMessage = "";
+
+    if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
+        quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
+    } else if (stockCodeForData && allStockData[stockCodeForData]) {
         const stockData = allStockData[stockCodeForData];
         potScore = stockData.currentPotScore !== undefined ? String(stockData.currentPotScore) : "[无PotScore数据]";
         totalInflow = stockData.totalInflow !== undefined ? String(stockData.totalInflow) : "[无主力资金数据]";
@@ -408,129 +462,188 @@ async function analyzeStockForAgent(agentId) {
     if (analysisDisplayElement) analysisDisplayElement.value += quantDataMessage;
 
     if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
-        if (analysisDisplayElement) { analysisDisplayElement.value += "错误：API设置未完成。"; analysisDisplayElement.style.color = 'var(--danger-color)'; }
+        if (analysisDisplayElement) {
+            analysisDisplayElement.value += "错误：API设置未完成。请前往“API设置”配置。";
+            analysisDisplayElement.style.color = 'var(--danger-color)';
+        }
         return;
     }
+
     const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
-    if (analysisDisplayElement) analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n`;
+
+    if (analysisDisplayElement) {
+        analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
+    }
 
     try {
-        // ... (Your existing API call logic - ensure it's robust)
-        let requestUrl, requestPayload;
+        let requestUrl;
+        let requestPayload;
         const headers = { 'Content-Type': 'application/json' };
+
         if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
             requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
             headers['Authorization'] = `Bearer ${apiSettings.key}`;
-            requestPayload = { model: apiSettings.model, messages: [{ role: "user", content: prompt }] };
+            requestPayload = {
+                model: apiSettings.model,
+                messages: [{ role: "user", content: prompt }],
+            };
         } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
             requestUrl = `${apiSettings.endpoint}/v1beta/models/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
-            requestPayload = { contents: [{ parts: [{ text: prompt }] }], safetySettings: [ /* ... */ ] };
-        } else { throw new Error("不支持的API接入点。"); }
+            requestPayload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                safetySettings: [
+                    { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
+                    { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
+                    { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
+                    { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" }
+                ]
+            };
+        } else {
+            if (analysisDisplayElement) {
+                 analysisDisplayElement.value += "错误: 不支持的API接入点配置。";
+                 analysisDisplayElement.style.color = 'var(--danger-color)';
+            }
+            return;
+        }
 
         const apiResponse = await fetch(requestUrl, { method: 'POST', headers: headers, body: JSON.stringify(requestPayload) });
-        if (!apiResponse.ok) { const errorBody = await apiResponse.text(); throw new Error(`API请求失败: ${apiResponse.status}. ${errorBody}`);}
+
+        if (!apiResponse.ok) {
+            const errorBody = await apiResponse.text();
+            throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}. 响应: ${errorBody}`);
+        }
+
         const responseData = await apiResponse.json();
-        let analysisReportText = "未能从API响应中提取分析报告。"; // Default/error
-        // ... (Your responseData parsing logic for different API providers)
+        let analysisReportText = "未能从API响应中提取分析报告。";
+        console.log("API Response Data:", responseData);
+
         if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
-            if (responseData.choices?.[0]?.message?.content) analysisReportText = responseData.choices[0].message.content;
-            else if (responseData.error) analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
+            if (responseData.choices && responseData.choices[0] && responseData.choices[0].message && responseData.choices[0].message.content) {
+                analysisReportText = responseData.choices[0].message.content;
+            } else if (responseData.error) {
+                analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
+            }
         } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
-            if (responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
+            if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0] && responseData.candidates[0].content.parts[0].text) {
                 analysisReportText = responseData.candidates[0].content.parts[0].text;
-                if (responseData.candidates[0].finishReason && responseData.candidates[0].finishReason !== "STOP") {
+                 if (responseData.candidates[0].finishReason && responseData.candidates[0].finishReason !== "STOP") {
                      analysisReportText += `\n\n(模型输出可能由于以下原因不完整: ${responseData.candidates[0].finishReason})`;
                 }
-            } else if (responseData.promptFeedback?.blockReason) {
-                analysisReportText = `API错误: 请求因 "${responseData.promptFeedback.blockReason}" 被阻止。`;
-            } else if (responseData.error) { analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;}
+            } else if (responseData.promptFeedback && responseData.promptFeedback.blockReason) {
+                analysisReportText = `API错误: 您的请求因 "${responseData.promptFeedback.blockReason}" 而被阻止。`;
+            } else if (responseData.error) {
+                 analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
+            }
         }
-        // ... End responseData parsing
 
-        agent.latestReport = analysisReportText;
+        agent.latestReport = analysisReportText; // <--- 存储报告到对应的 agent 对象
+
         if (analysisDisplayElement) {
             analysisDisplayElement.value = `AI为“${stockNameForDisplay}”生成的分析报告已就绪。\n点击下方按钮查看完整报告。`;
             analysisDisplayElement.style.color = 'var(--accent-color2)';
-            if (!viewReportBtn && analysisOutputContainer) {
-                viewReportBtn = document.createElement('button'); viewReportBtn.id = `viewReportBtn_${agentId}`;
-                viewReportBtn.className = 'view-report-btn'; analysisOutputContainer.appendChild(viewReportBtn);
-            }
-            if(viewReportBtn){
+
+            if (!viewReportBtn) {
+                viewReportBtn = document.createElement('button');
+                viewReportBtn.id = `viewReportBtn_${agentId}`;
+                viewReportBtn.className = 'view-report-btn';
                 viewReportBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> 查看完整报告`;
-                viewReportBtn.onclick = function() { openAnalysisReportModal(agentId, stockNameForDisplay); };
-                viewReportBtn.style.display = 'inline-block';
+                if (analysisOutputContainer) {
+                    analysisOutputContainer.appendChild(viewReportBtn);
+                }
             }
+            viewReportBtn.onclick = function() { openAnalysisReportModal(agentId, stockNameForDisplay); };
+            viewReportBtn.style.display = 'inline-block';
         }
+
     } catch (error) {
         console.error("analyzeStockForAgent API Call Error:", error);
-        agent.latestReport = "";
+        agent.latestReport = ""; // 清空报告
         if (analysisDisplayElement) {
-            analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}`;
+            analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}\n请检查控制台详情。`;
             analysisDisplayElement.style.color = 'var(--danger-color)';
         }
     }
 }
 
 
-// Agent Portfolio Management Functions (MODIFIED to be async and use ensureStockDataIsReady)
-async function addStockToAgentPortfolio(agentId) { // This is UI initiated
-    const ready = await ensureStockDataIsReady();
-    if (!ready) return;
-
+// Agent Portfolio Management Functions
+function addStockToAgentPortfolio(agentId) {
     const agent = agents[agentId];
     const inputElement = document.getElementById(agent.addToPortfolioInputId);
     const searchTerm = inputElement.value.trim();
 
-    if (!searchTerm) { alert("请输入股票代码或名称。"); return; }
-    
-    const foundStock = findStockInGlobalData(searchTerm); // Uses allStockData
-    if (!foundStock) { alert(`手动输入：未在股票基础数据中找到 "${searchTerm}"。`); return; }
+    if (!searchTerm) {
+        alert("请输入股票代码或名称进行手动添加。");
+        return;
+    }
+
+    if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
+        alert("股票基础数据尚未加载。请稍候再试或刷新页面。");
+        return;
+    }
+
+    const foundStock = findStockInGlobalData(searchTerm);
+    if (!foundStock) {
+        alert(`手动输入：未在股票基础数据中找到 "${searchTerm}" 对应的股票。请检查输入。`);
+        return;
+    }
 
     if (agent.portfolio.find(s => s.code === foundStock.code)) {
-        alert(`股票 ${foundStock.name} (${foundStock.code}) 已在 ${agent.name} 的投资组合中。`); return;
+        alert(`股票 ${foundStock.name} (${foundStock.code}) 已在 ${agent.name} 的投资组合中。`);
+        return;
     }
 
     agent.portfolio.push({ code: foundStock.code, name: foundStock.name, allocation: 0 });
     inputElement.value = "";
     renderAgentPortfolio(agentId);
-    saveAgentData(); // Saves to localStorage
+    saveAgentData();
 }
 
-async function addSelectedStockFromPoolToAgentPortfolio(agentId) { // This is UI initiated
-    // Stock pool items are already validated, so allStockData might not be strictly needed here
-    // unless findStockInGlobalData is called again, but good practice to ensure for consistency.
-    const ready = await ensureStockDataIsReady();
-    if (!ready && agent.stockPoolList.length === 0) { // If pool is empty and data not ready, it's an issue
-        alert("股票基础数据未加载，且分析池为空。"); return;
-    }
-
+function addSelectedStockFromPoolToAgentPortfolio(agentId) {
     const agent = agents[agentId];
     const selectElement = document.getElementById(agent.addFromPoolSelectId);
-    if (!selectElement) { console.error(`Select element ${agent.addFromPoolSelectId} not found.`); return; }
+
+    if (!selectElement) {
+        console.error(`Select element ${agent.addFromPoolSelectId} not found for agent ${agentId}`);
+        return;
+    }
+
     const selectedStockCode = selectElement.value;
 
-    if (!selectedStockCode) { alert("请从分析池下拉列表中选择一个股票。"); return; }
+    if (!selectedStockCode) {
+        alert("请从分析池下拉列表中选择一个股票。");
+        return;
+    }
+
     const stockInPool = agent.stockPoolList.find(s => s.code === selectedStockCode);
-    if (!stockInPool) { alert("选择的股票在分析池中未找到。"); selectElement.value = ""; return; }
+
+    if (!stockInPool) {
+        alert("选择的股票在分析池中未找到详细信息。请确保分析池是最新的。");
+        selectElement.value = "";
+        return;
+    }
 
     if (agent.portfolio.find(s => s.code === stockInPool.code)) {
         alert(`股票 ${stockInPool.name} (${stockInPool.code}) 已在 ${agent.name} 的投资组合中。`);
-        selectElement.value = ""; return;
+        selectElement.value = "";
+        return;
     }
 
     agent.portfolio.push({ code: stockInPool.code, name: stockInPool.name, allocation: 0 });
     renderAgentPortfolio(agentId);
-    saveAgentData(); // Saves to localStorage
+    saveAgentData();
     selectElement.value = "";
 }
 
-function removeStockFromAgentPortfolio(agentId, stockCode) { /* ... (your existing code, no changes) ... */ 
+
+function removeStockFromAgentPortfolio(agentId, stockCode) {
     const agent = agents[agentId];
     agent.portfolio = agent.portfolio.filter(s => s.code !== stockCode);
     renderAgentPortfolio(agentId);
     saveAgentData();
 }
-function updateAgentPortfolioAllocation(agentId, stockCode, newAllocation) { /* ... (your existing code, no changes) ... */ 
+
+function updateAgentPortfolioAllocation(agentId, stockCode, newAllocation) {
     const agent = agents[agentId];
     const stock = agent.portfolio.find(s => s.code === stockCode);
     if (stock) {
@@ -539,49 +652,73 @@ function updateAgentPortfolioAllocation(agentId, stockCode, newAllocation) { /* 
         saveAgentData();
     }
 }
-function renderAgentPortfolio(agentId) { /* ... (your existing code, no changes) ... */
+
+function renderAgentPortfolio(agentId) {
     const agent = agents[agentId];
     const portfolioTableBody = document.querySelector(`#${agent.portfolioTableId} tbody`);
     const totalAllocationEl = document.getElementById(agent.portfolioTotalAllocationId);
+
     if (!portfolioTableBody || !totalAllocationEl) return;
+
     portfolioTableBody.innerHTML = "";
     let totalAgentAllocation = 0;
+
     agent.portfolio.forEach(item => {
         const row = portfolioTableBody.insertRow();
         row.innerHTML = `
             <td>${item.name} (${item.code})</td>
-            <td><input type="number" value="${item.allocation}" min="0" max="100" step="0.01" oninput="updateAgentPortfolioAllocation('${agentId}', '${item.code}', this.value)" onchange="updateAgentPortfolioAllocation('${agentId}', '${item.code}', this.value)">%</td>
+            <td><input type="number" value="${item.allocation}" min="0" max="100" step="0.01" onchange="updateAgentPortfolioAllocation('${agentId}', '${item.code}', this.value)">%</td>
             <td><button class="remove-agent-stock-btn" onclick="removeStockFromAgentPortfolio('${agentId}', '${item.code}')"><i class="fas fa-times-circle"></i></button></td>
         `;
         totalAgentAllocation += parseFloat(item.allocation) || 0;
     });
+
     totalAllocationEl.textContent = `${totalAgentAllocation.toFixed(2)}%`;
     if (agent.portfolio.length > 0) {
         const agentAccentColor = agentId === 'agent1' ? 'var(--accent-color-value)' : 'var(--accent-color-growth)';
-        if (Math.abs(totalAgentAllocation - 100) > 0.01 && totalAgentAllocation > 0) totalAllocationEl.style.color = 'var(--danger-color)';
-        else if (Math.abs(totalAgentAllocation - 100) <= 0.01 && totalAgentAllocation > 0) totalAllocationEl.style.color = agentAccentColor;
-        else totalAllocationEl.style.color = 'var(--text-color)';
-    } else totalAllocationEl.style.color = 'var(--text-color)';
+        if (Math.abs(totalAgentAllocation - 100) > 0.01 && totalAgentAllocation > 0) {
+            totalAllocationEl.style.color = 'var(--danger-color)';
+        } else if (Math.abs(totalAgentAllocation - 100) <= 0.01 && totalAgentAllocation > 0) {
+            totalAllocationEl.style.color = agentAccentColor;
+        } else {
+            totalAllocationEl.style.color = 'var(--text-color)';
+        }
+    } else {
+        totalAllocationEl.style.color = 'var(--text-color)';
+    }
 }
-function exportAgentPortfolioToExcel(agentId) { /* ... (your existing code, no changes) ... */ 
+
+function exportAgentPortfolioToExcel(agentId) {
     const agent = agents[agentId];
-    if (agent.portfolio.length === 0) { alert(`${agent.name} 的投资组合为空。`); return; }
-    const dataToExport = agent.portfolio.map(item => ({ "股票代码": item.code, "股票名称": item.name, "配置比例 (%)": item.allocation }));
-    dataToExport.push({});
-    dataToExport.push({ "股票代码": "总计", "配置比例 (%)": agent.portfolio.reduce((sum, item) => sum + (parseFloat(item.allocation) || 0), 0).toFixed(2) });
+    if (agent.portfolio.length === 0) {
+        alert(`${agent.name} 的投资组合为空，无法导出。`);
+        return;
+    }
+    const dataToExport = agent.portfolio.map(item => ({
+        "股票代码": item.code,
+        "股票名称": item.name,
+        "配置比例 (%)": item.allocation
+    }));
+     dataToExport.push({});
+    dataToExport.push({
+        "股票代码": "总计",
+        "配置比例 (%)": agent.portfolio.reduce((sum, item) => sum + (parseFloat(item.allocation) || 0), 0).toFixed(2)
+    });
+
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${agent.name}投资组合`);
-    try { XLSX.writeFile(wb, `AIEP_${agent.name}_Portfolio.xlsx`); } 
-    catch (error) { console.error("导出Excel失败:", error); alert("导出Excel失败。"); }
+    try {
+        XLSX.writeFile(wb, `AIEP_${agent.name}_Portfolio.xlsx`);
+    } catch (error) {
+        console.error("导出Excel失败:", error);
+        alert("导出Excel失败，详情请查看控制台。");
+    }
 }
 
 
-// My Portfolio Management (MODIFIED where allStockData might be needed for validation if adding new stocks directly)
-async function syncStocksToMyPortfolio() { // Needs to be async if it adds new stocks that need validation
-    // This function primarily syncs from agent portfolios, which are assumed to have valid stocks.
-    // If it could add arbitrary new stocks, it would need ensureStockDataIsReady.
-    // For now, assuming it only syncs existing, validated agent stocks.
+// My Portfolio Management
+function syncStocksToMyPortfolio() {
     let changed = false;
     const processAgentPortfolioForSync = (sourceAgent) => {
         sourceAgent.portfolio.forEach(agentStock => {
@@ -589,185 +726,541 @@ async function syncStocksToMyPortfolio() { // Needs to be async if it adds new s
                 let existingUserPortfolioItem = myPortfolio.find(p => p.code === agentStock.code);
                 if (!existingUserPortfolioItem) {
                     myPortfolio.push({
-                        code: agentStock.code, name: agentStock.name, source: sourceAgent.name,
-                        suggestedAllocation: agentStock.allocation, userAllocation: 0
+                        code: agentStock.code,
+                        name: agentStock.name,
+                        source: sourceAgent.name,
+                        suggestedAllocation: agentStock.allocation,
+                        userAllocation: 0
                     });
                     changed = true;
-                } else { /* ... (your existing update logic) ... */ }
+                } else {
+                    if (!existingUserPortfolioItem.source.includes(sourceAgent.name)) {
+                        existingUserPortfolioItem.source += ` & ${sourceAgent.name}`;
+                        existingUserPortfolioItem.suggestedAllocation = Math.max(existingUserPortfolioItem.suggestedAllocation || 0, agentStock.allocation);
+                        changed = true;
+                    } else {
+                        if (agentStock.allocation > (existingUserPortfolioItem.suggestedAllocation || 0) ) {
+                             existingUserPortfolioItem.suggestedAllocation = agentStock.allocation;
+                             changed = true;
+                        }
+                    }
+                }
             }
         });
     };
-    processAgentPortfolioForSync(agents.agent1); processAgentPortfolioForSync(agents.agent2);
-    if (changed) { renderMyPortfolio(); saveMyPortfolio(); alert("AI智能体组合已同步。"); }
-    else { alert("无新内容从AI智能体组合同步。"); }
+
+    processAgentPortfolioForSync(agents.agent1);
+    processAgentPortfolioForSync(agents.agent2);
+
+    if (changed) {
+        renderMyPortfolio();
+        saveMyPortfolio();
+        alert("AI智能体投资组合中的已配置股票已同步至“我的投资组合”。请调整您的配置比例。");
+    } else {
+        alert("所有AI智能体已配置股票均已在“我的投资组合”中，或AI智能体组合中无新内容同步。");
+    }
 }
-function updateMyPortfolioAllocation(stockCode, newAllocation) { /* ... (your existing code, no changes) ... */ 
+
+function updateMyPortfolioAllocation(stockCode, newAllocation) {
     const stock = myPortfolio.find(s => s.code === stockCode);
-    if (stock) { stock.userAllocation = parseFloat(newAllocation) || 0; renderMyPortfolio(); saveMyPortfolio(); }
+    if (stock) {
+        stock.userAllocation = parseFloat(newAllocation) || 0;
+        renderMyPortfolio();
+        saveMyPortfolio();
+    }
 }
-function removeMyPortfolioItem(stockCode) { /* ... (your existing code, no changes) ... */ 
-    myPortfolio = myPortfolio.filter(s => s.code !== stockCode); renderMyPortfolio(); saveMyPortfolio();
+function removeMyPortfolioItem(stockCode) {
+    myPortfolio = myPortfolio.filter(s => s.code !== stockCode);
+    renderMyPortfolio();
+    saveMyPortfolio();
 }
-function renderMyPortfolio() { /* ... (your existing code, no changes) ... */ 
+
+function renderMyPortfolio() {
     const portfolioTableBody = document.querySelector("#myPortfolioTable tbody");
     const totalAllocationEl = document.getElementById("myPortfolioTotalAllocation");
     const portfolioTitleEl = document.getElementById("myPortfolioTitleText");
-    if (portfolioTitleEl) portfolioTitleEl.textContent = myPortfolioTitle;
+
+    if (portfolioTitleEl) {
+        portfolioTitleEl.textContent = myPortfolioTitle;
+    }
+
     if (!portfolioTableBody || !totalAllocationEl) return;
+
     portfolioTableBody.innerHTML = "";
     let totalUserAllocation = 0;
+
     myPortfolio.forEach(item => {
         const row = portfolioTableBody.insertRow();
         row.innerHTML = `
-            <td>${item.name} (${item.code})</td><td>${item.source}</td><td>${item.suggestedAllocation}%</td>
-            <td><input type="number" value="${item.userAllocation}" min="0" max="100" step="0.01" oninput="updateMyPortfolioAllocation('${item.code}', this.value)" onchange="updateMyPortfolioAllocation('${item.code}', this.value)">%</td>
+            <td>${item.name} (${item.code})</td>
+            <td>${item.source}</td>
+            <td>${item.suggestedAllocation}%</td>
+            <td><input type="number" value="${item.userAllocation}" min="0" max="100" step="0.01" onchange="updateMyPortfolioAllocation('${item.code}', this.value)">%</td>
             <td><button class="remove-portfolio-item-btn" onclick="removeMyPortfolioItem('${item.code}')"><i class="fas fa-times-circle"></i></button></td>
         `;
         totalUserAllocation += parseFloat(item.userAllocation) || 0;
     });
     totalAllocationEl.textContent = `${totalUserAllocation.toFixed(2)}%`;
-    // ... (styling logic for totalAllocationEl)
+
+    if (myPortfolio.length > 0) {
+        if (Math.abs(totalUserAllocation - 100) > 0.01 && totalUserAllocation > 0) {
+            totalAllocationEl.style.color = 'var(--danger-color)';
+        } else if (Math.abs(totalUserAllocation - 100) <= 0.01 && totalUserAllocation > 0) {
+             totalAllocationEl.style.color = 'var(--accent-color2)';
+        } else {
+             totalAllocationEl.style.color = 'var(--text-color)';
+        }
+    } else {
+        totalAllocationEl.style.color = 'var(--text-color)';
+    }
 }
-function exportMyPortfolioToExcel() { /* ... (your existing code, no changes) ... */ 
-    if (myPortfolio.length === 0) { alert(`“${myPortfolioTitle}”为空。`); return; }
+
+function exportMyPortfolioToExcel() {
+    if (myPortfolio.length === 0) {
+        alert(`“${myPortfolioTitle}”为空，无法导出。`);
+        return;
+    }
     const dataToExport = myPortfolio.map(item => ({
-        "股票代码": item.code, "股票名称": item.name, "来源": item.source,
-        "建议比例 (%)": item.suggestedAllocation, "我的配置 (%)": item.userAllocation
+        "股票代码": item.code,
+        "股票名称": item.name,
+        "来源": item.source,
+        "建议比例 (%)": item.suggestedAllocation,
+        "我的配置 (%)": item.userAllocation
     }));
     dataToExport.push({});
-    dataToExport.push({ "股票代码": "总计", "我的配置 (%)": myPortfolio.reduce((sum, item) => sum + (parseFloat(item.userAllocation) || 0), 0).toFixed(2) });
+    dataToExport.push({
+        "股票代码": "总计",
+        "我的配置 (%)": myPortfolio.reduce((sum, item) => sum + (parseFloat(item.userAllocation) || 0), 0).toFixed(2)
+    });
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     const safeTitle = myPortfolioTitle.replace(/[^a-zA-Z0-9_ ]/g, '').substring(0, 30) || "MyPortfolio";
     XLSX.utils.book_append_sheet(wb, ws, safeTitle);
-    try { XLSX.writeFile(wb, `AIEP_${safeTitle}.xlsx`); } 
-    catch (error) { console.error("导出Excel失败:", error); alert("导出Excel失败。"); }
+    try {
+        XLSX.writeFile(wb, `AIEP_${safeTitle}.xlsx`);
+    } catch (error) {
+        console.error("导出Excel失败:", error);
+        alert("导出Excel失败，详情请查看控制台。");
+    }
 }
 
 // Generic Auto Balance function
-function autoBalancePortfolio(targetId) { /* ... (your existing code, ensure it calls saveAgentData/saveMyPortfolio) ... */ 
-    let portfolioToBalance, allocationField;
-    if (targetId === 'myPortfolio') { portfolioToBalance = myPortfolio; allocationField = 'userAllocation'; }
-    else if (agents[targetId]) { portfolioToBalance = agents[targetId].portfolio; allocationField = 'allocation'; }
-    else { console.error("Invalid target for autoBalance:", targetId); return; }
-    if (portfolioToBalance.length === 0) { alert("目标组合为空。"); return; }
-    const unallocatedStocks = portfolioToBalance.filter(s => (s[allocationField] || 0) === 0);
-    const allocatedSum = portfolioToBalance.filter(s => (s[allocationField] || 0) > 0).reduce((sum, s) => sum + s[allocationField], 0);
+function autoBalancePortfolio(targetId) {
+    let portfolioToBalance;
+    let allocationField;
+
+    if (targetId === 'myPortfolio') {
+        portfolioToBalance = myPortfolio;
+        allocationField = 'userAllocation';
+    } else if (agents[targetId]) {
+        portfolioToBalance = agents[targetId].portfolio;
+        allocationField = 'allocation';
+    } else {
+        console.error("Invalid target for autoBalance:", targetId);
+        return;
+    }
+
+    if (portfolioToBalance.length === 0) {
+        alert("目标投资组合为空，无法平衡。");
+        return;
+    }
+
+    const unallocatedStocks = portfolioToBalance.filter(s => s[allocationField] === 0 || s[allocationField] === undefined || s[allocationField] === null);
+    const allocatedSum = portfolioToBalance
+        .filter(s => s[allocationField] > 0)
+        .reduce((sum, s) => sum + s[allocationField], 0);
     const remainingToAllocate = 100 - allocatedSum;
+
     if (unallocatedStocks.length > 0 && remainingToAllocate > 0) {
-        const perStockAllocation = parseFloat((remainingToAllocate / unallocatedStocks.length).toFixed(2));
-        unallocatedStocks.forEach(stock => stock[allocationField] = perStockAllocation);
+        const perStockAllocation = remainingToAllocate / unallocatedStocks.length;
+        unallocatedStocks.forEach(stock => {
+            stock[allocationField] = parseFloat(perStockAllocation.toFixed(2));
+        });
     } else if (unallocatedStocks.length === 0 && Math.abs(allocatedSum - 100) > 0.01 && allocatedSum > 0) {
         const factor = 100 / allocatedSum;
-        portfolioToBalance.forEach(stock => stock[allocationField] = parseFloat((stock[allocationField] * factor).toFixed(2)));
-    } else if (unallocatedStocks.length > 0 && remainingToAllocate <= 0) { alert("总配置已达100%。"); return;}
-    // Adjust rounding errors
-    let currentSum = portfolioToBalance.reduce((sum, s) => sum + (s[allocationField] || 0), 0);
-    if (portfolioToBalance.length > 0 && Math.abs(currentSum - 100) > 0.001 && Math.abs(currentSum - 100) < 1 * portfolioToBalance.length) { // Allow small diff for rounding
-        const diff = 100 - currentSum;
-        let stockToAdjust = portfolioToBalance.find(s => (s[allocationField] || 0) + diff >= 0 && (s[allocationField] || 0) + diff <=100 ) || portfolioToBalance[0];
-        if(stockToAdjust) { stockToAdjust[allocationField] = parseFloat(((stockToAdjust[allocationField] || 0) + diff).toFixed(2));}
+        portfolioToBalance.forEach(stock => {
+            stock[allocationField] = parseFloat((stock[allocationField] * factor).toFixed(2));
+        });
+    } else if (unallocatedStocks.length > 0 && remainingToAllocate <= 0) {
+        alert("总配置已达到或超过100%，无法为未配置股票自动分配。");
+        return;
     }
-    if (targetId === 'myPortfolio') { renderMyPortfolio(); saveMyPortfolio(); }
-    else { renderAgentPortfolio(targetId); saveAgentData(); }
+
+    let currentSum = portfolioToBalance.reduce((sum, s) => sum + (s[allocationField] || 0), 0);
+    if (portfolioToBalance.length > 0 && Math.abs(currentSum - 100) > 0.001 && Math.abs(currentSum - 100) < 1) {
+        const diff = 100 - currentSum;
+        let stockToAdjust = portfolioToBalance.find(s => (s[allocationField] || 0) + diff >= 0 && (s[allocationField] || 0) + diff <=100 )
+                           || portfolioToBalance.find(s => (s[allocationField] || 0) > 0)
+                           || portfolioToBalance[portfolioToBalance.length-1];
+
+        if(stockToAdjust) {
+           stockToAdjust[allocationField] = (stockToAdjust[allocationField] || 0) + diff;
+           stockToAdjust[allocationField] = parseFloat(stockToAdjust[allocationField].toFixed(2));
+           if (stockToAdjust[allocationField] < 0) stockToAdjust[allocationField] = 0;
+           if (stockToAdjust[allocationField] > 100) stockToAdjust[allocationField] = 100;
+        }
+    }
+
+    if (targetId === 'myPortfolio') {
+        renderMyPortfolio();
+        saveMyPortfolio();
+    } else {
+        renderAgentPortfolio(targetId);
+        saveAgentData();
+    }
 }
 
-// API Settings Modal Functions
+// API Settings Modal
 const apiSettingsModal = document.getElementById('apiSettingsModal');
-function openApiSettingsModal() { if(apiSettingsModal) apiSettingsModal.style.display = "block"; }
+function openApiSettingsModal() {
+    if(apiSettingsModal) apiSettingsModal.style.display = "block";
+}
 function closeApiSettingsModal() { if(apiSettingsModal) apiSettingsModal.style.display = "none"; }
-function populateApiModelDropdown(selectedEndpointUrl, selectedModelValue = null) { /* ... (your existing code) ... */ 
-    const modelSelect = document.getElementById('apiModelSelect'); if (!modelSelect) return; modelSelect.innerHTML = '';
-    if (!selectedEndpointUrl || selectedEndpointUrl === "") { modelSelect.disabled = true; return; }
-    modelSelect.disabled = false; const modelsForEndpoint = endpointModelMap[selectedEndpointUrl];
+
+function populateApiModelDropdown(selectedEndpointUrl, selectedModelValue = null) {
+    const modelSelect = document.getElementById('apiModelSelect');
+    if (!modelSelect) return;
+    modelSelect.innerHTML = '';
+
+    if (!selectedEndpointUrl || selectedEndpointUrl === "") {
+        modelSelect.disabled = true;
+        return;
+    }
+
+    modelSelect.disabled = false;
+    const modelsForEndpoint = endpointModelMap[selectedEndpointUrl];
+
     if (modelsForEndpoint && modelsForEndpoint.length > 0) {
         modelsForEndpoint.forEach(model => {
-            const option = document.createElement('option'); option.value = model.value;
+            const option = document.createElement('option');
+            option.value = model.value;
             option.textContent = modelDisplayStrings[model.labelKey] || model.value;
-            if (model.value === selectedModelValue) option.selected = true;
+            if (model.value === selectedModelValue) {
+                option.selected = true;
+            }
             modelSelect.appendChild(option);
         });
-    } else { /* ... (no models option) ... */ }
+    } else {
+        const noModelsOption = document.createElement('option');
+        noModelsOption.value = "";
+        noModelsOption.textContent = "该接入点无预设模型";
+        noModelsOption.disabled = true;
+        noModelsOption.selected = true;
+        modelSelect.appendChild(noModelsOption);
+    }
 }
-function saveApiSettings() { /* ... (your existing code) ... */ 
+
+function saveApiSettings() {
     apiSettings.endpoint = document.getElementById('apiEndpointSelect').value;
     apiSettings.key = document.getElementById('apiKey').value.trim();
     apiSettings.model = document.getElementById('apiModelSelect').value;
     localStorage.setItem('apiSettings', JSON.stringify(apiSettings));
-    const statusEl = document.getElementById('settingsStatus'); statusEl.textContent = "API设置已保存！";
-    statusEl.className = 'status-message success'; setTimeout(() => { statusEl.textContent = ""; closeApiSettingsModal(); }, 2000);
+    const statusEl = document.getElementById('settingsStatus');
+    statusEl.textContent = "API设置已保存！";
+    statusEl.className = 'status-message success';
+    setTimeout(() => { statusEl.textContent = ""; closeApiSettingsModal(); }, 2000);
 }
-function clearApiSettings() { /* ... (your existing code) ... */ 
-    if (confirm("确定要清除所有已保存的API设置吗？")) {
-        localStorage.removeItem('apiSettings'); apiSettings = { endpoint: '', key: '', model: '' };
+
+function clearApiSettings() {
+    if (confirm("确定要清除所有已保存的API设置吗？此操作不可撤销。")) {
+        localStorage.removeItem('apiSettings');
+        apiSettings = { endpoint: '', key: '', model: '' };
+
         const endpointSelect = document.getElementById('apiEndpointSelect');
         const apiKeyInput = document.getElementById('apiKey');
-        if(endpointSelect) endpointSelect.value = ""; if(apiKeyInput) apiKeyInput.value = "";
+
+        if(endpointSelect) endpointSelect.value = "";
+        if(apiKeyInput) apiKeyInput.value = "";
+
         populateApiModelDropdown("");
+
+
         const statusEl = document.getElementById('settingsStatus');
-        if (statusEl) { statusEl.textContent = "API设置已清除！"; statusEl.className = 'status-message success'; setTimeout(() => { statusEl.textContent = ""; }, 2000);}
+        if (statusEl) {
+            statusEl.textContent = "API设置已清除！";
+            statusEl.className = 'status-message success';
+            setTimeout(() => { statusEl.textContent = ""; }, 2000);
+        }
         alert("API设置已清除。");
     }
 }
-function loadApiSettings() { /* ... (your existing code) ... */ 
-    const endpointSelect = document.getElementById('apiEndpointSelect'); const modelSelect = document.getElementById('apiModelSelect'); const apiKeyInput = document.getElementById('apiKey'); if (!endpointSelect || !modelSelect || !apiKeyInput) return; endpointSelect.innerHTML = ""; let deepSeekEndpointValue = null; for (const endpointUrl in endpointModelMap) { if (endpointUrl.includes("deepseek.com")) { deepSeekEndpointValue = endpointUrl; } const option = document.createElement('option'); option.value = endpointUrl; option.textContent = endpointUrl; endpointSelect.appendChild(option); } endpointSelect.addEventListener('change', (event) => { populateApiModelDropdown(event.target.value, apiSettings.model); }); const savedSettings = localStorage.getItem('apiSettings'); let initialEndpointToSelect = null; let initialModelToSelect = null; if (savedSettings) { try { apiSettings = JSON.parse(savedSettings); if (apiSettings.endpoint && endpointModelMap[apiSettings.endpoint]) { initialEndpointToSelect = apiSettings.endpoint; if (apiSettings.model && endpointModelMap[apiSettings.endpoint].some(m => m.value === apiSettings.model)) { initialModelToSelect = apiSettings.model; } } apiKeyInput.value = apiSettings.key || ""; } catch (e) { console.error("解析API设置出错:", e); localStorage.removeItem('apiSettings'); apiSettings = { endpoint: '', key: '', model: '' }; } } if (!initialEndpointToSelect && deepSeekEndpointValue) { initialEndpointToSelect = deepSeekEndpointValue; } if (initialEndpointToSelect) { endpointSelect.value = initialEndpointToSelect; } else if (endpointSelect.options.length > 0) { endpointSelect.selectedIndex = 0; initialEndpointToSelect = endpointSelect.value; } if (initialEndpointToSelect) { if (initialEndpointToSelect === deepSeekEndpointValue && !initialModelToSelect && endpointModelMap[deepSeekEndpointValue]?.length > 0) { initialModelToSelect = endpointModelMap[deepSeekEndpointValue][0].value; } populateApiModelDropdown(initialEndpointToSelect, initialModelToSelect); } else { populateApiModelDropdown("", null); } apiSettings.endpoint = endpointSelect.value; apiSettings.model = modelSelect.value;
+
+
+function loadApiSettings() {
+    const endpointSelect = document.getElementById('apiEndpointSelect'); 
+    const modelSelect = document.getElementById('apiModelSelect');     
+    const apiKeyInput = document.getElementById('apiKey');             
+
+    if (!endpointSelect || !modelSelect || !apiKeyInput) return; 
+
+    endpointSelect.innerHTML = ""; 
+
+    let deepSeekEndpointValue = null; 
+    for (const endpointUrl in endpointModelMap) { 
+        if (endpointUrl.includes("deepseek.com")) { 
+            deepSeekEndpointValue = endpointUrl;    
+        }
+        const option = document.createElement('option'); 
+        option.value = endpointUrl;                      
+        option.textContent = endpointUrl;                
+        endpointSelect.appendChild(option);              
+    }
+
+    endpointSelect.addEventListener('change', (event) => {
+        const newSelectedEndpoint = event.target.value; 
+        populateApiModelDropdown(newSelectedEndpoint, apiSettings.model);
+    });
+
+    const savedSettings = localStorage.getItem('apiSettings'); 
+    let initialEndpointToSelect = null; 
+    let initialModelToSelect = null;    
+
+    if (savedSettings) { 
+        try {
+            apiSettings = JSON.parse(savedSettings); 
+            if (apiSettings.endpoint && endpointModelMap[apiSettings.endpoint]) {
+                initialEndpointToSelect = apiSettings.endpoint; 
+                if (apiSettings.model && endpointModelMap[apiSettings.endpoint].some(m => m.value === apiSettings.model)) {
+                    initialModelToSelect = apiSettings.model; 
+                }
+            }
+            apiKeyInput.value = apiSettings.key || ""; 
+        } catch (e) {
+            console.error("解析已存API设置时出错:", e); 
+            localStorage.removeItem('apiSettings');   
+            apiSettings = { endpoint: '', key: '', model: '' }; 
+        }
+    }
+
+    if (!initialEndpointToSelect && deepSeekEndpointValue) {
+        initialEndpointToSelect = deepSeekEndpointValue;
+    }
+
+    if (initialEndpointToSelect) {
+        endpointSelect.value = initialEndpointToSelect;
+    } else if (endpointSelect.options.length > 0) {
+        endpointSelect.selectedIndex = 0;
+        initialEndpointToSelect = endpointSelect.value; 
+    }
+
+    if (initialEndpointToSelect) {
+        if (initialEndpointToSelect === deepSeekEndpointValue && 
+            !initialModelToSelect && 
+            endpointModelMap[deepSeekEndpointValue] && 
+            endpointModelMap[deepSeekEndpointValue].length > 0) {
+            initialModelToSelect = endpointModelMap[deepSeekEndpointValue][0].value;
+        }
+        populateApiModelDropdown(initialEndpointToSelect, initialModelToSelect);
+    } else {
+        populateApiModelDropdown("", null); 
+    }
+
+    apiSettings.endpoint = endpointSelect.value; 
+    apiSettings.model = modelSelect.value;     
 }
 
-// Performance Backtest Modal Functions
+
+// Performance Backtest Modal
 const performanceModal = document.getElementById('performanceModal');
-function openPerformanceModal(target) { /* ... (your existing code) ... */ 
-    currentBacktestTarget = target; let portfolioToCheck; let title; let currentPortfolioName = myPortfolioTitle;
-    if (target === 'myPortfolio') { portfolioToCheck = myPortfolio; title = `<i class="fas fa-chart-pie"></i> ${currentPortfolioName} 收益测算`;}
-    else if (agents[target]) { portfolioToCheck = agents[target].portfolio; currentPortfolioName = `${agents[target].name} (${agents[target].role})`; title = `<i class="fas fa-chart-pie"></i> ${currentPortfolioName} 投资组合收益测算`;}
-    else { console.error("Invalid target for performance modal:", target); return; }
+
+function openPerformanceModal(target) {
+    currentBacktestTarget = target;
+    let portfolioToCheck;
+    let title;
+    let currentPortfolioName = myPortfolioTitle;
+
+    if (target === 'myPortfolio') {
+        portfolioToCheck = myPortfolio;
+        title = `<i class="fas fa-chart-pie"></i> ${currentPortfolioName} 收益测算`;
+    } else if (agents[target]) {
+        portfolioToCheck = agents[target].portfolio;
+        currentPortfolioName = `${agents[target].name} (${agents[target].role})`;
+        title = `<i class="fas fa-chart-pie"></i> ${currentPortfolioName} 投资组合收益测算`;
+    } else {
+        console.error("Invalid target for performance modal:", target);
+        return;
+    }
+
     const allocatedStocksInTarget = portfolioToCheck.filter(s => (s.allocation || s.userAllocation || 0) > 0);
-    if (allocatedStocksInTarget.length === 0) { alert(`“${currentPortfolioName}”中没有配置股票。`); return; }
+    if (allocatedStocksInTarget.length === 0) {
+        alert(`“${currentPortfolioName}”中没有配置股票，无法进行收益测算。`);
+        return;
+    }
+
     if(document.getElementById('performanceModalTitle')) document.getElementById('performanceModalTitle').innerHTML = title;
+
     if(performanceModal) performanceModal.style.display = "block";
-    if(document.getElementById('backtestResults')) document.getElementById('backtestResults').innerHTML = "<p>请选择日期范围并开始测算...</p>";
+    if(document.getElementById('backtestResults')) document.getElementById('backtestResults').innerHTML = "<p>请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。</p>";
     const chartCanvas = document.getElementById('performanceChart');
-    if (chartCanvas) { if (performanceChartInstance) performanceChartInstance.destroy(); performanceChartInstance = null; chartCanvas.style.display = 'none'; }
-}
-function closePerformanceModal() { if(performanceModal) performanceModal.style.display = "none"; }
-function runBacktest() { /* ... (your existing code, using Math.random for simulation) ... */ 
-    const startDateInput = document.getElementById('backtestStartDate'); const endDateInput = document.getElementById('backtestEndDate');
-    const resultsDiv = document.getElementById('backtestResults'); const chartCanvas = document.getElementById('performanceChart');
-    if (!startDateInput || !endDateInput || !resultsDiv || !chartCanvas) return;
-    const startDate = startDateInput.value; const endDate = endDateInput.value;
-    if (!currentBacktestTarget) { resultsDiv.innerHTML = "<p style='color:red;'>错误：未指定目标。</p>"; return; }
-    if (!startDate || !endDate || new Date(startDate) >= new Date(endDate)) { resultsDiv.innerHTML = "<p style='color:red;'>请选择有效日期范围。</p>"; return; }
-    let portfolioToBacktest, allocationField, portfolioNameForDisplay;
-    if (currentBacktestTarget === 'myPortfolio') { portfolioToBacktest = myPortfolio; allocationField = 'userAllocation'; portfolioNameForDisplay = myPortfolioTitle; }
-    else if (agents[currentBacktestTarget]) { portfolioToBacktest = agents[currentBacktestTarget].portfolio; allocationField = 'allocation'; portfolioNameForDisplay = `${agents[currentBacktestTarget].name} (${agents[currentBacktestTarget].role}) 投资组合`;}
-    else { resultsDiv.innerHTML = "<p style='color:red;'>错误：无效目标。</p>"; return; }
-    const allocatedStocks = portfolioToBacktest.filter(s => (s[allocationField] || 0) > 0);
-    if (allocatedStocks.length === 0) { resultsDiv.innerHTML = `<p style='color:red;'>“${portfolioNameForDisplay}”中无配置股票。</p>`; return; }
-    resultsDiv.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
-    setTimeout(() => { /* ... (simulation logic and chart rendering) ... */ }, 1000);
+    if (chartCanvas) {
+        if (performanceChartInstance) {
+            performanceChartInstance.destroy();
+            performanceChartInstance = null;
+        }
+        chartCanvas.style.display = 'none';
+    }
 }
 
-// Save/Load Agent Data from localStorage (for stock pools, portfolios, reports)
+function closePerformanceModal() { if(performanceModal) performanceModal.style.display = "none"; }
+
+function runBacktest() {
+    const startDateInput = document.getElementById('backtestStartDate');
+    const endDateInput = document.getElementById('backtestEndDate');
+    const resultsDiv = document.getElementById('backtestResults');
+    const chartCanvas = document.getElementById('performanceChart');
+
+    if (!startDateInput || !endDateInput || !resultsDiv || !chartCanvas) return;
+
+    const startDate = startDateInput.value;
+    const endDate = endDateInput.value;
+
+    if (!currentBacktestTarget) {
+        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：未指定测算目标组合。</p>";
+        return;
+    }
+    if (!startDate || !endDate) {
+        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>请选择开始和结束日期。</p>";
+        return;
+    }
+    if (new Date(startDate) >= new Date(endDate)) {
+        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>开始日期必须早于结束日期。</p>";
+        return;
+    }
+
+    let portfolioToBacktest;
+    let allocationField;
+    let portfolioNameForDisplay;
+
+    if (currentBacktestTarget === 'myPortfolio') {
+        portfolioToBacktest = myPortfolio;
+        allocationField = 'userAllocation';
+        portfolioNameForDisplay = myPortfolioTitle;
+    } else if (agents[currentBacktestTarget]) {
+        portfolioToBacktest = agents[currentBacktestTarget].portfolio;
+        allocationField = 'allocation';
+        portfolioNameForDisplay = `${agents[currentBacktestTarget].name} (${agents[currentBacktestTarget].role}) 投资组合`;
+    } else {
+        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
+        return;
+    }
+
+    const allocatedStocks = portfolioToBacktest.filter(s => (s[allocationField] || 0) > 0);
+    if (allocatedStocks.length === 0) {
+         resultsDiv.innerHTML = `<p style='color: var(--danger-color);'>“${portfolioNameForDisplay}”中没有配置股票，无法测算。</p>`;
+        return;
+    }
+
+    resultsDiv.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
+
+    setTimeout(() => {
+        const labels = [];
+        const dataPoints = [];
+        let currentDateLoop = new Date(startDate);
+        let currentValue = 100;
+
+        while(currentDateLoop <= new Date(endDate)) {
+            labels.push(currentDateLoop.toISOString().split('T')[0]);
+            let dailyChangeFactor = 0;
+            allocatedStocks.forEach(stock => {
+                const stockAllocation = (stock[allocationField] || 0) / 100;
+                dailyChangeFactor += stockAllocation * ( (Math.random() - 0.48) * 0.025 );
+            });
+            currentValue *= (1 + dailyChangeFactor);
+            dataPoints.push(currentValue.toFixed(2));
+
+            let nextDay = new Date(currentDateLoop);
+            nextDay.setDate(currentDateLoop.getDate() + 1);
+            currentDateLoop = nextDay;
+
+            if (labels.length > 365 * 5) break;
+        }
+
+        const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
+
+        resultsDiv.innerHTML = `
+            <p><strong>模拟测算结果 (“${portfolioNameForDisplay}”):</strong></p>
+            <ul>
+                <li>期间: ${startDate} to ${endDate}</li>
+                <li>期初价值: 100.00 (假设)</li>
+                <li>期末价值: ${dataPoints.length > 0 ? dataPoints[dataPoints.length-1] : 'N/A'}</li>
+                <li>总回报率: <span style="color: ${totalReturn >= 0 ? 'var(--accent-color2)' : 'var(--danger-color)'}; font-weight: bold;">${totalReturn.toFixed(2)}%</span></li>
+            </ul>
+            <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
+        `;
+
+        chartCanvas.style.display = 'block';
+        if (window.Chart && Chart) {
+            if (performanceChartInstance) {
+                performanceChartInstance.destroy();
+            }
+            const ctx = chartCanvas.getContext('2d');
+            performanceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '模拟组合净值',
+                        data: dataPoints,
+                        borderColor: 'var(--accent-color1)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.1,
+                        fill: true,
+                        pointRadius: dataPoints.length > 100 ? 0 : 2,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: false, ticks: { color: 'var(--text-muted)'}, grid: { color: 'var(--border-color)' } },
+                        x: { ticks: { color: 'var(--text-muted)', maxRotation: 45, minRotation: 30, autoSkip: true, maxTicksLimit: 20 }, grid: { color: 'var(--border-color)' } }
+                    },
+                    plugins: { legend: { labels: { color: 'var(--text-color)' } } }
+                }
+            });
+        } else {
+             resultsDiv.innerHTML += "<p>Chart.js 未加载，无法显示图表。</p>";
+        }
+    }, 1000);
+}
+
+
+// Save/Load Agent Data
 function saveAgentData() {
     const dataToSave = {
-        agent1StockPool: agents.agent1.stockPoolList, agent1Portfolio: agents.agent1.portfolio, agent1LatestReport: agents.agent1.latestReport,
-        agent2StockPool: agents.agent2.stockPoolList, agent2Portfolio: agents.agent2.portfolio, agent2LatestReport: agents.agent2.latestReport
+        agent1StockPool: agents.agent1.stockPoolList,
+        agent1Portfolio: agents.agent1.portfolio,
+        agent1LatestReport: agents.agent1.latestReport, // <--- 保存 report
+        agent2StockPool: agents.agent2.stockPoolList,
+        agent2Portfolio: agents.agent2.portfolio,
+        agent2LatestReport: agents.agent2.latestReport  // <--- 保存 report
     };
-    localStorage.setItem('agentsData_v3', JSON.stringify(dataToSave));
+    localStorage.setItem('agentsData_v3', JSON.stringify(dataToSave)); // Consider versioning if schema changes often
 }
+
 function loadAgentData() {
     const savedData = localStorage.getItem('agentsData_v3');
     if (savedData) {
         const parsedData = JSON.parse(savedData);
-        agents.agent1.stockPoolList = parsedData.agent1StockPool || []; agents.agent1.portfolio = parsedData.agent1Portfolio || []; agents.agent1.latestReport = parsedData.agent1LatestReport || "";
-        agents.agent2.stockPoolList = parsedData.agent2StockPool || []; agents.agent2.portfolio = parsedData.agent2Portfolio || []; agents.agent2.latestReport = parsedData.agent2LatestReport || "";
+        agents.agent1.stockPoolList = parsedData.agent1StockPool || [];
+        agents.agent1.portfolio = parsedData.agent1Portfolio || [];
+        agents.agent1.latestReport = parsedData.agent1LatestReport || ""; // <--- 加载 report
+        agents.agent2.stockPoolList = parsedData.agent2StockPool || [];
+        agents.agent2.portfolio = parsedData.agent2Portfolio || [];
+        agents.agent2.latestReport = parsedData.agent2LatestReport || ""; // <--- 加载 report
     }
-    renderStockPoolList('agent1'); renderAgentPortfolio('agent1');
-    renderStockPoolList('agent2'); renderAgentPortfolio('agent2');
+    renderStockPoolList('agent1');
+    renderAgentPortfolio('agent1');
+    renderStockPoolList('agent2');
+    renderAgentPortfolio('agent2');
 }
 
-// Save/Load MyPortfolio Data from localStorage
 function saveMyPortfolio() {
-    const dataToSave = { items: myPortfolio, title: myPortfolioTitle };
+    const dataToSave = {
+        items: myPortfolio,
+        title: myPortfolioTitle
+    };
     localStorage.setItem('myPortfolioData_v4', JSON.stringify(dataToSave));
 }
 function loadMyPortfolio() {
@@ -777,44 +1270,82 @@ function loadMyPortfolio() {
         myPortfolio = parsedData.items || [];
         myPortfolioTitle = parsedData.title || "我的投资组合";
     } else {
-        myPortfolio = []; // Ensure it's an array if no saved data
         myPortfolioTitle = "我的投资组合";
     }
     const portfolioTitleEl = document.getElementById("myPortfolioTitleText");
-    if (portfolioTitleEl) portfolioTitleEl.textContent = myPortfolioTitle;
+    if (portfolioTitleEl) {
+        portfolioTitleEl.textContent = myPortfolioTitle;
+    }
     renderMyPortfolio();
 }
 
 // Analysis Report Modal Functions
-const analysisReportModal = document.getElementById('analysisReportModal');
-function openAnalysisReportModal(agentIdForReport, stockName) { /* ... (your existing code) ... */ 
-    const modal = document.getElementById('analysisReportModal'); if (!modal) return;
-    const agentWhoseReport = agents[agentIdForReport]; if (!agentWhoseReport) { console.error("未找到Agent: ", agentIdForReport); return; }
-    const modalTitle = document.getElementById('analysisReportModalTitle'); const modalBody = document.getElementById('analysisReportModalBody');
-    if (modalTitle) modalTitle.innerHTML = `<i class="fas fa-file-alt"></i> ${agentWhoseReport.name} 对 ${stockName} 的分析报告`;
-    if (modalBody) modalBody.textContent = agentWhoseReport.latestReport || "未能加载报告或报告为空。";
+const analysisReportModal = document.getElementById('analysisReportModal'); // Already correct
+
+function openAnalysisReportModal(agentIdForReport, stockName) { // Changed parameter name for clarity
+    const modal = document.getElementById('analysisReportModal');
+    if (!modal) return;
+
+    const agentWhoseReport = agents[agentIdForReport]; // Get the specific agent object
+    if (!agentWhoseReport) {
+        console.error("无法找到 Agent 对象: ", agentIdForReport);
+        // Optionally display an error in the modal or an alert
+        const modalBody = document.getElementById('analysisReportModalBody');
+        if (modalBody) modalBody.textContent = "错误：无法加载指定智能体的报告。";
+        modal.style.display = "block";
+        return;
+    }
+
+    const modalTitle = document.getElementById('analysisReportModalTitle');
+    const modalBody = document.getElementById('analysisReportModalBody');
+
+    if (modalTitle) {
+        modalTitle.innerHTML = `<i class="fas fa-file-alt"></i> ${agentWhoseReport.name} 对 ${stockName} 的分析报告`;
+    }
+    if (modalBody) {
+        modalBody.textContent = agentWhoseReport.latestReport || "未能加载报告内容或报告为空。"; // <--- 从 agent 对象获取报告
+    }
+
     modal.style.display = "block";
 }
-function closeAnalysisReportModal() { if(analysisReportModal) analysisReportModal.style.display = "none"; }
-async function copyAnalysisReportToClipboard() { /* ... (your existing code) ... */ 
-    const modalBody = document.getElementById('analysisReportModalBody'); const reportToCopy = modalBody ? modalBody.textContent : "";
-    if (!reportToCopy || reportToCopy.startsWith("未能加载") || reportToCopy.startsWith("错误：")) { alert("无有效报告可复制。"); return; }
-    try { await navigator.clipboard.writeText(reportToCopy); alert("分析报告已复制！"); }
-    catch (err) { console.error('复制失败: ', err); alert("复制失败。"); }
+
+function closeAnalysisReportModal() {
+    const modal = document.getElementById('analysisReportModal');
+    if (modal) {
+        modal.style.display = "none";
+    }
 }
 
-// Close modal if clicked outside
-window.onclick = function(event) { /* ... (your existing code) ... */ 
-    const apiModal = document.getElementById('apiSettingsModal'); const perfModal = document.getElementById('performanceModal'); const reportModal = document.getElementById('analysisReportModal');
-    if (apiModal && event.target == apiModal) closeApiSettingsModal();
-    if (perfModal && event.target == perfModal) closePerformanceModal();
-    if (reportModal && event.target == reportModal) closeAnalysisReportModal();
+async function copyAnalysisReportToClipboard() {
+    const modalBody = document.getElementById('analysisReportModalBody');
+    const reportToCopy = modalBody ? modalBody.textContent : "";
+
+    if (!reportToCopy || reportToCopy === "未能加载报告内容或报告为空。" || reportToCopy === "错误：无法加载指定智能体的报告。") {
+        alert("没有有效的报告内容可供复制。");
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(reportToCopy);
+        alert("分析报告已复制到剪贴板！");
+    } catch (err) {
+        console.error('无法复制报告: ', err);
+        alert("复制失败。请检查浏览器控制台或手动复制。");
+    }
+}
+
+// Close modal if clicked outside - Consolidated
+window.onclick = function(event) {
+    const apiModal = document.getElementById('apiSettingsModal');
+    const perfModal = document.getElementById('performanceModal');
+    const reportModal = document.getElementById('analysisReportModal'); 
+
+    if (apiModal && event.target == apiModal) {
+        closeApiSettingsModal();
+    }
+    if (perfModal && event.target == perfModal) {
+        closePerformanceModal();
+    }
+    if (reportModal && event.target == reportModal) {
+        closeAnalysisReportModal();
+    }
 };
-
-// --- Helper: isUserLoggedIn (to be used if logic depends on login state within this file) ---
-// This function would typically be defined in index.html if it's the primary auth handler,
-// or duplicated here if portfolio_agent.js needs to independently check login state often.
-// For now, assuming primary login check and portfolio init is triggered from index.html.
-function isUserLoggedIn_portfolioContext() { 
-    return !!localStorage.getItem('github_access_token'); 
-}
