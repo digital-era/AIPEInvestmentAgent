@@ -18,9 +18,9 @@ export async function onRequestGet(context) {
 
     try {
         const client = new RPCClient({
-            accessKeyId: ALIYUN_ACCESS_KEY_ID,
-            accessKeySecret: ALIYUN_ACCESS_KEY_SECRET,
-            endpoint: `https://sts.${OSS_REGION || 'aliyuncs.com'}`, // 根据实际区域调整
+            accessKeyId: OSS_ACCESS_KEY_ID,
+            accessKeySecret: OSS_ACCESS_KEY_SECRET,
+            endpoint: `https://sts.${OSS_STS_ROLE_ARN || 'aliyuncs.com'}`, // 根据实际区域调整
             apiVersion: '2015-04-01',
         });
 
