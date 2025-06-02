@@ -258,7 +258,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+	// 调用 initializePortfoliosAfterLogin 以确保在没有云数据时，本地数据也能加载
+    if (typeof initializePortfoliosAfterLogin === "function") {
+        initializePortfoliosAfterLogin();
+    }
 });
+
+// 由 index.html 的 displayLoggedInUser 或 updateAuthUI (登出时) 调用
+function initializePortfoliosAfterLogin() {
+    console.log("portfolio_agent.js: initializePortfoliosAfterLogin called.");
+    // 这个函数现在主要负责从 localStorage 加载数据作为回退或初始状态
+    // 云端数据的加载由 index.html 中的 loadPortfolioFromCloudAndApplyToUI 触发
+    loadAgentData();
+    loadMyPortfolio();
+}
 
 // Main Tab Management
 function openMainTab(evt, tabName) {
@@ -718,7 +731,8 @@ function exportAgentPortfolioToExcel(agentId) {
 
 
 // My Portfolio Management
-function syncStocksToMyPortfolio() {
+async function syncStocksToMyPortfolio() { // 修正为 async
+    if (!await ensureStockDataIsReady()) return;
     let changed = false;
     const processAgentPortfolioForSync = (sourceAgent) => {
         sourceAgent.portfolio.forEach(agentStock => {
@@ -1349,3 +1363,160 @@ window.onclick = function(event) {
         closeAnalysisReportModal();
     }
 };
+
+// --- 新增: Excel 生成与应用函数 ---
+// 获取 YYMMDDHHMM 格式的本地时间字符串
+function getLocalTimestamp() {
+    const now = new Date();
+    const YYYY = now.getFullYear();
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const DD = String(now.getDate()).padStart(2, '0');
+    const HH = String(now.getHours()).padStart(2, '0');
+    const MIN = String(now.getMinutes()).padStart(2, '0');
+    return `${YYYY}${MM}${DD}${HH}${MIN}`;
+}
+
+async function generatePortfolioExcelBlob() {
+    await ensureStockDataIsReady(); // 确保 allStockData 可用
+    if (typeof XLSX === 'undefined') {
+        console.error("XLSX library is not loaded!");
+        alert("错误：Excel处理库未加载，无法生成文件。");
+        throw new Error("XLSX library not loaded.");
+    }
+    const wb = XLSX.utils.book_new();
+    const timestamp = getLocalTimestamp();
+
+    const createSheetData = (portfolioArray, portfolioTitleForColumn) => {
+        if (!Array.isArray(portfolioArray)) {
+            console.warn(`提供的 portfolioArray 不是数组:`, portfolioArray, `标题: ${portfolioTitleForColumn}`);
+            return [];
+        }
+        return portfolioArray.map(item => ({
+            "组合名称": portfolioTitleForColumn,
+            "股票代码": item.code,
+            "股票名称": item.name,
+            "配置比例 (%)": item.allocation !== undefined ? item.allocation : item.userAllocation,
+            "修改时间": timestamp,
+            // 如果是我的投资组合，可以额外添加来源和建议比例
+            ...(item.userAllocation !== undefined && { // 仅为我的投资组合添加
+                "来源": item.source || '',
+                "建议比例 (%)": item.suggestedAllocation || 0
+            })
+        }));
+    };
+    
+    const myPortfolioHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
+    const agentPortfolioHeader = ["组合名称", "股票代码", "股票名称", "配置比例 (%)", "修改时间"];
+
+
+    // 1. 大智投资组合
+    const agent1PortfolioName = `${agents.agent1.name} (${agents.agent1.role})`;
+    const agent1SheetData = createSheetData(agents.agent1.portfolio, agent1PortfolioName);
+    const ws1 = XLSX.utils.json_to_sheet(agent1SheetData, {header: agentPortfolioHeader});
+    XLSX.utils.book_append_sheet(wb, ws1, "大智投资组合");
+
+    // 2. 大成投资组合
+    const agent2PortfolioName = `${agents.agent2.name} (${agents.agent2.role})`;
+    const agent2SheetData = createSheetData(agents.agent2.portfolio, agent2PortfolioName);
+    const ws2 = XLSX.utils.json_to_sheet(agent2SheetData, {header: agentPortfolioHeader});
+    XLSX.utils.book_append_sheet(wb, ws2, "大成投资组合");
+
+    // 3. 我的投资组合
+    const myPortfolioSheetData = createSheetData(myPortfolio, myPortfolioTitle);
+    const ws3 = XLSX.utils.json_to_sheet(myPortfolioSheetData, {header: myPortfolioHeader});
+    XLSX.utils.book_append_sheet(wb, ws3, "我的投资组合");
+
+    const excelArrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    return excelArrayBuffer;
+}
+
+async function applyCloudPortfolioData(excelArrayBuffer) {
+    await ensureStockDataIsReady();
+    if (typeof XLSX === 'undefined') {
+        console.error("XLSX library is not loaded!");
+        alert("错误：Excel处理库未加载，无法解析文件。");
+        throw new Error("XLSX library not loaded.");
+    }
+    try {
+        const wb = XLSX.read(excelArrayBuffer, { type: 'array' });
+
+        const parseSheet = (sheetName, targetPortfolio, isMyPortfolio = false) => {
+            const ws = wb.Sheets[sheetName];
+            if (!ws) {
+                console.warn(`Excel中未找到名为 "${sheetName}" 的工作表。`);
+                return false;
+            }
+            const jsonData = XLSX.utils.sheet_to_json(ws);
+            if (jsonData.length > 0) {
+                targetPortfolio.length = 0;
+                let portfolioTitleFromSheet = "";
+
+                jsonData.forEach(row => {
+                    const stockCode = String(row["股票代码"] || "").trim();
+                    let stockName = String(row["股票名称"] || "").trim();
+                    const allocationStr = String(row["配置比例 (%)"] || "0");
+                    const allocation = parseFloat(allocationStr.replace('%',''));
+
+
+                    if (!stockCode || isNaN(allocation)) {
+                        console.warn(`跳过无效行 (代码: ${stockCode}, 原始比例: '${allocationStr}') in sheet ${sheetName}`);
+                        return;
+                    }
+
+                    if (allStockData && allStockData[stockCode] && allStockData[stockCode].name) {
+                        stockName = allStockData[stockCode].name;
+                    } else if (!stockName && stockCode) { // 如果Excel没名，代码有效，尝试从allStockData补
+                        stockName = allStockData[stockCode] ? allStockData[stockCode].name : "未知股票";
+                    } else if (!stockName && !stockCode) { //都没名没代码
+                        console.warn(`跳过无效行 (无代码无名称) in sheet ${sheetName}`);
+                        return;
+                    }
+
+
+                    const portfolioItem = { code: stockCode, name: stockName };
+                    if (isMyPortfolio) {
+                        portfolioItem.userAllocation = allocation;
+                        portfolioItem.source = String(row["来源"] || ""); // 确保是字符串
+                        const suggestedAllocStr = String(row["建议比例 (%)"] || "0");
+                        portfolioItem.suggestedAllocation = parseFloat(suggestedAllocStr.replace('%','')) || 0;
+                    } else {
+                        portfolioItem.allocation = allocation;
+                    }
+                    targetPortfolio.push(portfolioItem);
+
+                    if (isMyPortfolio && row["组合名称"] && !portfolioTitleFromSheet) {
+                         portfolioTitleFromSheet = String(row["组合名称"]).trim();
+                    }
+                });
+                if (isMyPortfolio && portfolioTitleFromSheet) {
+                    myPortfolioTitle = portfolioTitleFromSheet;
+                    const portfolioTitleEl = document.getElementById("myPortfolioTitleText");
+                    if (portfolioTitleEl) portfolioTitleEl.textContent = myPortfolioTitle;
+                }
+                return true;
+            }
+            return false;
+        };
+
+        let agent1Updated = parseSheet("大智投资组合", agents.agent1.portfolio);
+        let agent2Updated = parseSheet("大成投资组合", agents.agent2.portfolio);
+        let myPortUpdated = parseSheet("我的投资组合", myPortfolio, true);
+
+        renderAgentPortfolio('agent1');
+        renderAgentPortfolio('agent2');
+        renderMyPortfolio();
+
+        saveAgentData();
+        saveMyPortfolio();
+            
+        if (agent1Updated || agent2Updated || myPortUpdated) {
+            console.log("云端数据已应用。");
+            // alert("云端投资组合数据已成功加载并应用到页面。"); // 可选的用户提示
+        } else {
+            console.log("云端Excel文件为空或格式不符，未应用任何数据。");
+        }
+    } catch (error) {
+        console.error("解析并应用云端Excel数据时出错:", error);
+        alert("解析云端Excel文件失败，请检查文件格式。");
+    }
+}
