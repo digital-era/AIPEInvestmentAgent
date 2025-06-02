@@ -9,9 +9,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* ... (之前的 .auth-section, #loginBtn, #githubUserInfo 等样式保持不变) ... */
+	/* ... (顶部的 .auth-section, #loginBtn等通用样式可以保持，具体尺寸在媒体查询中覆盖) ... */
         .auth-section { display: flex; align-items: center; padding-right: 15px; flex-shrink: 0; gap: 8px; }
-        #loginBtn, #logoutBtn { background-color: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; display: flex; align-items: center; }
+        #loginBtn, #logoutBtn { background-color: #007bff; color: white; padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; display: flex; align-items: center; justify-content: center; /* 水平居中内容 */ box-sizing: border-box;}
         #loginBtn { background-color: #28a745; }
         #logoutBtn { background-color: #dc3545; }
         #loginBtn i, #logoutBtn i { margin-right: 5px; }
@@ -24,145 +24,172 @@
         .main-header {
             display: flex;
             align-items: center;
-            flex-wrap: nowrap; /* 大屏幕默认不换行 */
+            flex-wrap: nowrap; 
             padding: 10px 15px;
         }
         .logo-title {
-            margin-right: 20px; /* Logo 和导航之间的间距 */
-            flex-shrink: 0; /* 防止logo缩小 */
+            margin-right: 15px; 
+            flex-shrink: 0; 
         }
 
-        .main-header nav { /* 主导航，只包含核心链接 */
+        .main-header nav { 
             display: flex;
             align-items: center;
+            flex-grow: 1; 
         }
         .main-header nav a {
             white-space: nowrap;
-            padding: 10px 12px;
+            padding: 10px 8px; 
             text-decoration: none;
             color: var(--text-color);
-            font-size: 0.95em;
+            font-size: 0.9em; 
         }
-        .main-header nav a.nav-link-api-settings { /* 大屏幕时 API 设置也在这个 nav 里 */
-            /* 样式与其他导航链接一致 */
+        .main-header nav a:nth-child(2) {
+            /* margin-left: auto; (如果nav不是flex-grow:1才有效，现在是flex-grow:1) */
         }
 
-        /* 包裹 API设置 和 Auth区域 的容器，这个容器本身会在必要时换行 */
         .secondary-nav-auth-wrapper {
-            display: flex; /* 让内部的 API设置 和 Auth区域 水平排列 */
+            display: flex; 
             align-items: center;
-            margin-left: auto; /* 将这个组合推到最右边 */
+            margin-left: 15px; 
         }
-        .secondary-nav-auth-wrapper .api-settings-link { /* API 设置链接的特定样式 */
+        .secondary-nav-auth-wrapper .api-settings-link { 
             white-space: nowrap;
-            padding: 10px 12px;
+            padding: 10px 8px; 
             text-decoration: none;
             color: var(--text-color);
-            font-size: 0.95em;
-            margin-right: 15px; /* 和Auth区域的间距 */
+            font-size: 0.9em; 
+            margin-right: 10px; 
         }
          .secondary-nav-auth-wrapper .api-settings-link i {
             margin-right: 5px;
         }
+         /* Portfolio actions and loading indicator */
+        .portfolio-actions { 
+            margin-left: 5px; /* 与Auth区域的间距 */
+            display:none; /* 由JS控制显示 */
+            align-items: center; 
+            gap: 5px;
+        }
+        .portfolio-actions button { /* 通用portfolio按钮样式 */
+            font-size: 0.8em; 
+            padding: 6px 8px; /* 默认padding */
+            white-space: nowrap; 
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* 水平居中内容 */
+            box-sizing: border-box;
+        }
+        .portfolio-actions button:first-of-type { /* 下载按钮 */
+            background-color: #17a2b8; /* Info blue */
+        }
+        .portfolio-actions button:last-of-type { /* 保存按钮 */
+             background-color: #0069d9; /* Primary blue */
+        }
+        .portfolio-actions button i {
+            margin-right: 3px;
+        }
+
+        #portfolioLoadingIndicator { font-size: 0.8em; color: var(--text-muted); margin-left: 10px;}
 
 
         /* 媒体查询 - 针对小屏幕 (手机端) */
-        /* 断点调整为 768px，你可以根据需要修改 */
         @media (max-width: 768px) { 
             .main-header {
                 flex-wrap: wrap; 
             }
-
             .logo-title {
-                /* 在小屏幕上，logo自己占一些空间，右边留给导航 */
-                margin-right: auto; /* 将logo推到最左，其他内容（nav）推到右边 */
+                margin-right: auto; 
             }
-
             .main-header nav { 
-                 /* nav现在和logo在同一行，但内容会靠右 */
-                 flex-grow: 0; /* 不再让它填满，按内容宽度 */
-                 margin-right: 0; /* 清除大屏幕的auto margin (如果有的话) */
+                 flex-grow: 0; 
+                 margin-right: 0; 
             }
-            /* 确保导航项之间有一定间隔 */
             .main-header nav a {
-                padding: 8px 5px; /* 进一步缩小padding */
-                font-size: 0.85em; /* 进一步缩小字体 */
+                padding: 8px 5px; 
+                font-size: 0.85em; 
             }
-            /* 将 "AI投资量化" 推到其容器（nav）的右边 */
-            /* 这个可能不需要了，因为nav本身不是100%宽度，而是和logo同行靠右 */
-            /* .main-header nav a:nth-child(2) {
-                margin-left: auto; 
-            } */
+            /* 如果需要 "AI投资量化" 在nav内部靠右，确保nav是flex容器，并给该链接特定class设置margin-left: auto */
+            .main-header nav a.nav-link-quant { /* 假设 HTML 中有 class="nav-link-quant" */
+                 margin-left: auto;
+            }
             
             .secondary-nav-auth-wrapper {
                 width: 100%; 
                 margin-left: 0; 
-                margin-top: 8px; /* 与上一行的间距 */
-                justify-content: flex-end; /* !!! 让整个wrapper里的内容靠右 !!! */
-                padding: 0; /* 移除左右padding，让内容自然靠右 */
+                margin-top: 8px; 
+                justify-content: flex-end; 
+                padding: 0; 
+                gap: 5px; /* 增加API设置链接, Auth区域, Portfolio Actions之间的间距 */
             }
             
             .secondary-nav-auth-wrapper .api-settings-link {
-                margin-right: 8px; /* API设置和Auth区域的间距 */
+                margin-right: 0; /* 移除单独的右边距，由父级gap控制 */
                 padding: 6px 8px; 
-                font-size: 0.8em; /* 缩小字体 */
+                font-size: 0.8em; 
             }
-             .secondary-nav-auth-wrapper .api-settings-link i,
-             .auth-section #loginBtn i, .auth-section #logoutBtn i {
-                margin-right: 3px; /* 缩小图标右边距 */
+             .secondary-nav-auth-wrapper .api-settings-link i {
+                margin-right: 3px; 
             }
             
             .secondary-nav-auth-wrapper .auth-section {
                 padding-right: 0; 
+                gap: 5px; /* 登出按钮和用户信息的间距 */
             }
-            .auth-section #loginBtn, .auth-section #logoutBtn {
-                font-size: 0.8em; /* 缩小登录/登出按钮字体 */
-                padding: 6px 8px; /* 缩小登录/登出按钮padding */
+
+            /* --- 统一按钮样式的关键部分 --- */
+            .secondary-nav-auth-wrapper #logoutBtn,
+            .secondary-nav-auth-wrapper .portfolio-actions button {
+                font-size: 0.78em; /* 统一字体大小 */
+                padding: 6px 0;   /* 统一上下padding, 左右padding通过min-width控制 */
+                min-width: 55px;  /* 设置一个最小宽度，确保按钮长度相似。根据实际文字调整 */
+                text-align: center; /* 确保文字在按钮内居中 */
+                white-space: nowrap;
+                /* display: inline-flex; align-items: center; justify-content: center; (已在通用按钮设置) */
             }
+            .secondary-nav-auth-wrapper #logoutBtn i,
+            .secondary-nav-auth-wrapper .portfolio-actions button i {
+                margin-right: 3px; /* 统一图标间距 */
+            }
+            /* ----------------------------- */
+            
             #githubUserAvatar {
                 width: 24px; height: 24px;
             }
             #githubUserName {
-                max-width: 50px; /* 进一步限制用户名宽度 */
+                max-width: 45px; /* 进一步限制用户名宽度 */
                 font-size: 0.8em;
             }
-            /* Portfolio actions 按钮调整 */
             .portfolio-actions {
-                margin-left: 8px; /* 与Auth区域的间距 */
-            }
-            .portfolio-actions button {
-                font-size: 0.75em; /* 非常小的字体 */
-                padding: 5px 6px; /* 非常小的padding */
+                margin-left: 0; /* 由父级gap控制 */
             }
         }
 
-         @media (max-width: 480px) { /* 更小屏幕的额外调整 */
-            .logo-title {
-                margin-right: 10px; /* 调整logo和导航的间距 */
-            }
-            .logo-title h1 { font-size: 1em; } /* 进一步缩小标题 */
-            .logo-title i { font-size: 1em; }
+         @media (max-width: 480px) { 
+            .logo-title { margin-right: 10px; }
+            .logo-title h1, .logo-title i { font-size: 1em; }
+            .main-header nav a { font-size: 0.8em; padding: 6px 3px; }
 
-            .main-header nav a {
-                font-size: 0.8em; 
-                padding: 6px 3px; /* 非常小的padding */
+            .secondary-nav-auth-wrapper {
+                gap: 3px; /* 进一步缩小间距 */
             }
-            /* 在480px以下，如果导航项还是太多，考虑隐藏文字只留图标 */
-            .main-header nav a .fa-users-cog, .main-header nav a .fa-chart-line { /* 选择图标 */
-                /* font-size: 1.2em; /* 稍微放大图标 */ 
+            .secondary-nav-auth-wrapper .api-settings-link {
+                font-size: 0.75em;
+                padding: 5px 6px;
             }
-            /* .main-header nav a span { display: none; } /* 隐藏文字，需要HTML配合 <i class="..."></i><span>文字</span> */
-
-
-            .secondary-nav-auth-wrapper .api-settings-link,
-            .auth-section #loginBtn, .auth-section #logoutBtn,
-            .portfolio-actions button {
+            .secondary-nav-auth-wrapper #logoutBtn,
+            .secondary-nav-auth-wrapper .portfolio-actions button {
                 font-size: 0.7em; /* 极限缩小字体 */
-                padding: 4px 5px; 
+                padding: 5px 0; 
+                min-width: 48px; /* 调整最小宽度 */
             }
             .secondary-nav-auth-wrapper .api-settings-link i,
-            .auth-section #loginBtn i, .auth-section #logoutBtn i,
-            .portfolio-actions button i {
+            .secondary-nav-auth-wrapper #logoutBtn i,
+            .secondary-nav-auth-wrapper .portfolio-actions button i {
                 margin-right: 2px;
             }
 
@@ -178,12 +205,7 @@
             .logo-title i {
                 font-size: 1.1em; /* 缩小图标字号 */
             }
-         }
-		 
-         /* Portfolio actions and loading indicator (from previous R2 solution) */
-        .portfolio-actions { margin-left: 10px; display:none; align-items: center; gap: 5px;}
-        .portfolio-actions button { font-size: 0.8em; padding: 6px 10px; }
-        #portfolioLoadingIndicator { font-size: 0.8em; color: var(--text-muted); margin-left: 10px;}
+         }		 
     </style>
 </head>
 <body>
