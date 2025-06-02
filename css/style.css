@@ -886,6 +886,14 @@ footer {
         margin-bottom: 5px;
         font-size: 0.95rem;
     }
+    .main-header h1 {
+        font-size: 1.5rem; /*! 在手机屏幕上将 h1 的字体大小修改为 1.5rem !*/
+        /* 你可以根据需要同时调整其他只在手机上生效的h1属性，比如行高 */
+        /* line-height: 1.3; */
+        /* 如果在手机上标题需要居中，且它的父容器允许 */
+        /* text-align: center;  (如果h1是块级或inline-block且其父容器是flex column等) */
+        /* justify-content: center; (如果h1本身是flex容器，其内部内容居中) */
+    }
     .tabs-main { flex-direction: column; }
     .tab-link-main {
         border-bottom: none;
