@@ -58,6 +58,13 @@ export async function onRequestPost(context) {
   
       // 7. 发送请求
       const response = await fetch(url, { method: 'GET' });
+
+      return new Response(JSON.stringify({
+        error: `URL打印用来定位问题: ${url}`
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
       
       // 8. 处理响应
       const responseText = await response.text();
