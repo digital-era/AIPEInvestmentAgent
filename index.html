@@ -618,6 +618,7 @@
 					},
 					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数 */
 				});
+				console.log(`stsData.Expiration信息: ${stsData.Expiration}`);
 				ossClientInstance.options.expiration = stsData.Expiration; // 存储过期时间用于检查
 				console.log("OSS Client (STS) 初始化成功。");
 				return ossClientInstance;
