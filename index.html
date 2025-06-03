@@ -600,8 +600,8 @@
 					throw new Error(`获取OSS临时凭证错误: ${stsData.error}`);
 				}
 				
-				alert(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
-				console.log(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
+				alert(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
+				console.log(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
 				ossClientInstance = new OSS({
 					region: ossConfig.region,
 					accessKeyId: stsData.AccessKeyId,
