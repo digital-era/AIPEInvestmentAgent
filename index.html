@@ -604,15 +604,13 @@
 				
 				//alert(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
 				console.log(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
-				//<script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.18.0.min.js"></script> //浏览器环境引入阿里云 OSS SDK
-				//<script>
 				ossClientInstance = new OSS({
 					region: ossConfig.region,
 					accessKeyId: stsData.AccessKeyId,
 					accessKeySecret: stsData.AccessKeySecret,
 					stsToken: stsData.SecurityToken, // 重要！
 					bucket: ossConfig.bucket,
-					secure: true,
+					secure: true
 					/*
 					refreshSTSToken: async () => { // 可选：SDK 自动刷新 token 的回调
 					  console.log("OSS STS Token 即将过期，尝试刷新...");
@@ -621,8 +619,7 @@
 					  return await refreshResponse.json();
 					},
 					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数 */
-				});
-				//</script>				
+				});			
 				console.log(`stsData.Expiration信息: ${stsData.Expiration}`);
 				ossClientInstance.options.expiration = stsData.Expiration; // 存储过期时间用于检查
 				console.log("OSS Client (STS) 初始化成功。");
