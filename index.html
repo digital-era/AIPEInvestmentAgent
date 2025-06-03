@@ -546,6 +546,8 @@
 
     <script src="scripts/potfunddatarender.js"></script>
     <script src="scripts/portfolio_agent.js"></script>
+    //浏览器环境引入阿里云 OSS SDK
+    <script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.18.0.min.js"></script>
     <script>
         // GitHub Auth Constants
         const GITHUB_CLIENT_ID = 'Ov23liAr5gYJACq7QZ1p'; // 在部署时替换为真实ID
@@ -600,8 +602,10 @@
 					throw new Error(`获取OSS临时凭证错误: ${stsData.error}`);
 				}
 				
-				alert(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
+				//alert(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
 				console.log(`STS stsData信息: ${ossConfig.region}, ${stsData.AccessKeyId},${stsData.AccessKeySecret}, ${stsData.SecurityToken}, ${ossConfig.bucket}`);
+				//<script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.18.0.min.js"></script> //浏览器环境引入阿里云 OSS SDK
+				//<script>
 				ossClientInstance = new OSS({
 					region: ossConfig.region,
 					accessKeyId: stsData.AccessKeyId,
@@ -618,6 +622,7 @@
 					},
 					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数 */
 				});
+				//</script>				
 				console.log(`stsData.Expiration信息: ${stsData.Expiration}`);
 				ossClientInstance.options.expiration = stsData.Expiration; // 存储过期时间用于检查
 				console.log("OSS Client (STS) 初始化成功。");
