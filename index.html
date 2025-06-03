@@ -594,11 +594,12 @@
 					const errText = await response.text();
 					throw new Error(`获取OSS临时凭证失败: ${response.status} - ${errText}`);
 				}
+				alert("response.json()", response.json())
 				const stsData = await response.json();
 				if (stsData.error) {
 					throw new Error(`获取OSS临时凭证错误: ${stsData.error}`);
 				}
-
+				
 				ossClientInstance = new OSS({
 					region: ossConfig.region,
 					accessKeyId: stsData.AccessKeyId,
