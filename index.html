@@ -583,7 +583,13 @@
 			}
 			try {
 				// 从你的后端获取STS临时凭证
-				const response = await fetch('/api/sts-credentials'); // 指向你创建的STS凭证颁发函数
+				const response = await fetch('/api/sts-credentials', {
+		                    method: 'POST',
+		                    headers: {
+		                        'Content-Type': 'application/json',
+		                    } 
+		                }); // 指向你创建的STS凭证颁发函数
+				
 				if (!response.ok) {
 					const errText = await response.text();
 					throw new Error(`获取OSS临时凭证失败: ${response.status} - ${errText}`);
