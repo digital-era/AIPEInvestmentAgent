@@ -3,8 +3,6 @@
 export async function onRequestPost(context) {
     try {
       const { request, env } = context;
-      const body = await request.json();
-      const { code, state: receivedState } = body;
       const OSS_ACCESS_KEY_ID = env.OSS_ACCESS_KEY_ID;
       const OSS_ACCESS_KEY_SECRET = env.OSS_ACCESS_KEY_SECRET;
       const OSS_STS_ROLE_ARN = env.OSS_STS_ROLE_ARN;
