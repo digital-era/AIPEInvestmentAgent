@@ -609,13 +609,14 @@
 					stsToken: stsData.SecurityToken, // 重要！
 					bucket: ossConfig.bucket,
 					secure: true,
+					/*
 					refreshSTSToken: async () => { // 可选：SDK 自动刷新 token 的回调
 					  console.log("OSS STS Token 即将过期，尝试刷新...");
 					  const refreshResponse = await fetch('/api/sts-credentials');
 					  if (!refreshResponse.ok) throw new Error('刷新 STS token 失败');
 					  return await refreshResponse.json();
 					},
-					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数
+					refreshSTSTokenInterval: 3000000 // 例如，略小于token有效期的毫秒数 */
 				});
 				ossClientInstance.options.expiration = stsData.Expiration; // 存储过期时间用于检查
 				console.log("OSS Client (STS) 初始化成功。");
