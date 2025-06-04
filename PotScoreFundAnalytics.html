@@ -253,6 +253,9 @@
             <select id="top20ContinuousInflowDropdown" class="dropdown-select">
                 <option value="">Top20 5日持续净流入占比</option>
             </select>
+            <select id="top20ReboundFactorDropdown" class="dropdown-select">
+                <option value="">Top20 5日反弹因子</option>
+            </select>
         </div>
         
         <div class="stock-info">
@@ -324,15 +327,17 @@
 
             populateDropdown('top20TotalInflowDropdown', top20TotalInflowStocks, "Top20 5日总净流入占比");
             populateDropdown('top20ContinuousInflowDropdown', top20ContinuousInflowStocks, "Top20 5日持续净流入占比");
+            populateDropdown('top20ReboundFactorDropdown', top20ReboundFactorStocks, "Top20 5日反弹因子");
+
 
             if (dataLoaded && defaultStockCode) {
                 document.getElementById('stockCode').value = defaultStockCode;
-                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; // Updated placeholder
+                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
                 loadStockDataByCode(defaultStockCode); 
             } else if (dataLoaded && Object.keys(allStockData).length > 0) {
                 const firstCode = Object.keys(allStockData)[0];
                 document.getElementById('stockCode').value = firstCode;
-                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; // Updated placeholder
+                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
                 loadStockDataByCode(firstCode); 
             } else {
                  document.getElementById('stockName').textContent = "数据加载失败";
@@ -341,8 +346,8 @@
 
             document.getElementById('top20TotalInflowDropdown').addEventListener('change', handleDropdownChange);
             document.getElementById('top20ContinuousInflowDropdown').addEventListener('change', handleDropdownChange);
+            document.getElementById('top20ReboundFactorDropdown').addEventListener('change', handleDropdownChange);
             
-            // Event listener for Enter key in stockCode input
             document.getElementById('stockCode').addEventListener('keypress', function(event) {
                 if (event.key === 'Enter' || event.keyCode === 13) { 
                     event.preventDefault(); 
@@ -374,10 +379,16 @@
             if (selectedStockCode) {
                 document.getElementById('stockCode').value = selectedStockCode; 
                 loadStockDataByCode(selectedStockCode);
+                // Clear other dropdowns
                 if (event.target.id === 'top20TotalInflowDropdown') {
                     document.getElementById('top20ContinuousInflowDropdown').value = "";
-                } else {
+                    document.getElementById('top20ReboundFactorDropdown').value = "";
+                } else if (event.target.id === 'top20ContinuousInflowDropdown') {
                     document.getElementById('top20TotalInflowDropdown').value = "";
+                    document.getElementById('top20ReboundFactorDropdown').value = "";
+                } else if (event.target.id === 'top20ReboundFactorDropdown') {
+                    document.getElementById('top20TotalInflowDropdown').value = "";
+                    document.getElementById('top20ContinuousInflowDropdown').value = "";
                 }
             }
         }
@@ -388,6 +399,7 @@
                 loadStockDataByCode(searchInputValue);
                 document.getElementById('top20TotalInflowDropdown').value = "";
                 document.getElementById('top20ContinuousInflowDropdown').value = "";
+                document.getElementById('top20ReboundFactorDropdown').value = "";
             } else {
                 alert("请输入股票代码或名称。");
             }
@@ -402,18 +414,16 @@
             let stockData = null;
             let foundStockCode = null;
 
-            // Try direct match by code first
             if (allStockData[searchTerm]) {
                 stockData = allStockData[searchTerm];
                 foundStockCode = searchTerm;
             } else {
-                // If not a direct code match, try to find by name (partial, case-insensitive)
                 const searchTermLower = searchTerm.toLowerCase();
                 for (const code in allStockData) {
                     if (allStockData[code].name.toLowerCase().includes(searchTermLower)) {
                         stockData = allStockData[code];
                         foundStockCode = code;
-                        document.getElementById('stockCode').value = code; // Update input with actual code
+                        document.getElementById('stockCode').value = code; 
                         break; 
                     }
                 }
