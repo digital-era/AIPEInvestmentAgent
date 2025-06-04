@@ -4,6 +4,7 @@ let allStockData = {};
 let defaultStockCode = '';
 let top20TotalInflowStocks = []; // For "Top20 5日总净流入占比"
 let top20ContinuousInflowStocks = []; // For "Top20 5日持续净流入占比"
+let top20ReboundFactorStocks = []; // For "Top20 5日反弹因子"
 
 // --- SheetJS (xlsx) library is expected to be loaded in index.html ---
 
@@ -52,8 +53,8 @@ function getTopNUniqueStocks(jsonData, count) {
     const seenCodes = new Set();
     for (const row of jsonData) {
         if (uniqueStocks.length >= count) break;
-        const stockCode = String(row['代码'] || row['代码']).trim(); // Ensure consistent key access
-        const stockName = String(row['名称'] || row['名称'] || 'N/A'); // Ensure consistent key access
+        const stockCode = String(row['代码'] || row['代码']).trim(); 
+        const stockName = String(row['名称'] || row['名称'] || 'N/A');
 
         if (stockCode && stockCode !== 'undefined' && !seenCodes.has(stockCode)) {
             uniqueStocks.push({ code: stockCode, name: stockName });
@@ -65,11 +66,10 @@ function getTopNUniqueStocks(jsonData, count) {
 
 
 async function loadAndProcessExcelData() {
-    console.log("loadAndProcessExcelData called"); // Debug log
-    // Prevent multiple executions if called rapidly
+    console.log("loadAndProcessExcelData called"); 
     if (window.isExcelDataLoading) {
         console.log("Excel data is already being loaded. Awaiting existing promise.");
-        return window.allStockDataGlobalPromise; // Return the existing promise
+        return window.allStockDataGlobalPromise; 
     }
     window.isExcelDataLoading = true;
 
@@ -88,7 +88,28 @@ async function loadAndProcessExcelData() {
 
         if (flow5DaysSortJsonData.length === 0) throw new Error(`Sheet "${flow5DaysSortSheetName}" is empty.`);
         
+        // Populate top20TotalInflowStocks (assumes sheet might be pre-sorted or we take first unique ones)
         top20TotalInflowStocks = getTopNUniqueStocks(flow5DaysSortJsonData, 20);
+
+        // Populate top20ReboundFactorStocks
+        const reboundFactorColumnName = '反弹因子_5日总和';
+        const dataForReboundSort = [...flow5DaysSortJsonData].filter(row => row[reboundFactorColumnName] !== undefined && row[reboundFactorColumnName] !== null);
+
+        dataForReboundSort.sort((a, b) => {
+            const valAStr = String(a[reboundFactorColumnName]).replace('%', '');
+            const valBStr = String(b[reboundFactorColumnName]).replace('%', '');
+            
+            const valA = parseFloat(valAStr);
+            const valB = parseFloat(valBStr);
+
+            if (isNaN(valA) && isNaN(valB)) return 0;
+            if (isNaN(valA)) return 1; // NaNs last
+            if (isNaN(valB)) return -1; // NaNs last
+
+            return valB - valA; // Descending order
+        });
+        top20ReboundFactorStocks = getTopNUniqueStocks(dataForReboundSort, 20);
+
 
         const groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
@@ -101,10 +122,10 @@ async function loadAndProcessExcelData() {
         if (Object.keys(groupedByStockCode).length === 0) throw new Error("No valid stock data from 'Flow5DaysSort'.");
 
         let firstCodeProcessed = false;
-        allStockData = {}; // Reset global allStockData before populating
+        allStockData = {}; 
 
         for (const stockCode in groupedByStockCode) {
-            if (!firstCodeProcessed && stockCode !== "ERROR") { // Avoid setting ERROR as default
+            if (!firstCodeProcessed && stockCode !== "ERROR") { 
                 defaultStockCode = stockCode; 
                 firstCodeProcessed = true;
             }
@@ -156,8 +177,6 @@ async function loadAndProcessExcelData() {
 
     } catch (error) {
         console.error("Error loading or processing Excel data in potfunddatarender.js:", error);
-        // Alerting from here might be disruptive if both pages try to load it.
-        // Consider a more robust global error state or rely on the calling page's error handling.
         allStockData = { 
             "ERROR": {
                 name: "数据加载失败",
@@ -170,7 +189,8 @@ async function loadAndProcessExcelData() {
         defaultStockCode = "ERROR";
         top20TotalInflowStocks = [];
         top20ContinuousInflowStocks = [];
+        top20ReboundFactorStocks = []; // Ensure this is also reset on error
         window.isExcelDataLoading = false;
-        throw error; // Re-throw to allow calling script to catch it
+        throw error; 
     }
 }
