@@ -1231,10 +1231,10 @@ function runBacktest() {
                 <li>期末价值: ${dataPoints.length > 0 ? dataPoints[dataPoints.length-1] : 'N/A'}</li>
                 <li>总回报率: <span style="color: ${totalReturn >= 0 ? 'var(--accent-color2)' : 'var(--danger-color)'}; font-weight: bold;">${totalReturn.toFixed(2)}%</span></li>
             </ul>
-  	    <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>       
-           `;  
-	    infoMessageElement.style.color = ''; // Reset color if previously error
-	    infoMessageElement.style.display = 'block';
+		infoMessageElement.style.color = ''; // Reset color if previously error
+		infoMessageElement.style.display = 'block';
+  	     <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
+        `;  
      	} 
 	    
         chartCanvas.style.display = 'block';
@@ -1242,7 +1242,6 @@ function runBacktest() {
             if (performanceChartInstance) {
 		console.log("runBacktest call 6-1")
                 performanceChartInstance.destroy();
-		performanceChartInstance = null;
             }
             const ctx = chartCanvas.getContext('2d');
             performanceChartInstance = new Chart(ctx, {
@@ -1252,43 +1251,20 @@ function runBacktest() {
                     datasets: [{
                         label: '模拟组合净值',
                         data: dataPoints,
-                        borderColor: 'var(--accent-color2)',
-                        backgroundColor: 'rgba(46, 204, 113, 0.15)', //'rgba(52, 152, 219, 0.1)',
+                        borderColor: 'var(--accent-color1)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
                         tension: 0.1,
                         fill: true,
-                        pointRadius: dataPoints.length > 100 ? 0 : 3  //0 : 2,
-                        borderWidth: 2  //1.5
+                        pointRadius: dataPoints.length > 100 ? 0 : 2,
+                        borderWidth: 1.5
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        //y: { beginAtZero: false, ticks: { color: 'var(--text-muted)'}, grid: { color: 'var(--border-color)' } },			
-                        //x: { ticks: { color: 'var(--text-muted)', maxRotation: 45, minRotation: 30, autoSkip: true, maxTicksLimit: 20 }, grid: { color: 'var(--border-color)' } }
-			y: {
-	                            beginAtZero: false,
-	                            ticks: {
-	                                color: 'var(--text-color)' // 使用更亮的 --text-color (E0E0E0)
-	                                // color: '#FFFFFF' // 或者纯白
-	                            },
-	                            grid: {
-	                                color: '#6c757d' // 网格线颜色，比 var(--border-color) 亮一些
-	                            }
-                        },
-                        x: {
-	                            ticks: {
-	                                color: 'var(--text-color)', // 使用更亮的 --text-color
-	                                // color: '#FFFFFF' // 或者纯白
-	                                maxRotation: 45,
-	                                minRotation: 30,
-	                                autoSkip: true,
-	                                maxTicksLimit: 20
-	                            },
-	                            grid: {
-	                                color: '#6c757d' // 网格线颜色
-	                            }
-	                        }
+                        y: { beginAtZero: false, ticks: { color: 'var(--text-muted)'}, grid: { color: 'var(--border-color)' } },
+                        x: { ticks: { color: 'var(--text-muted)', maxRotation: 45, minRotation: 30, autoSkip: true, maxTicksLimit: 20 }, grid: { color: 'var(--border-color)' } }
                     },
                     plugins: { legend: { labels: { color: 'var(--text-color)' } } }
                 }
