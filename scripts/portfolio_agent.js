@@ -1122,9 +1122,10 @@ function runBacktest() {
     const endDateInput = document.getElementById('backtestEndDate');
     const resultsDiv = document.getElementById('backtestResults');
     const chartCanvas = document.getElementById('performanceChart');
-    console.log("runBacktest call 1")
+    console.log("runBacktest call enter")
+    console.log(`Backtest variables: startDateInput=${startDateInput}, endDateInput=${endDateInput}, resultsDiv=${resultsDiv}, chartCanvas=${chartCanvas}`);
     if (!startDateInput || !endDateInput || !resultsDiv || !chartCanvas) return;
-    console.log("runBacktest call 1-0")
+    
     const startDate = startDateInput.value;
     const endDate = endDateInput.value;
 
