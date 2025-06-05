@@ -1263,7 +1263,7 @@ function runBacktest() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        //y: { beginAtZero: false, ticks: { color: 'var(--text-muted)'}, grid: { color: 'var(--border-color)' } },			Add commentMore actions
+                        //y: { beginAtZero: false, ticks: { color: 'var(--text-muted)'}, grid: { color: 'var(--border-color)' } }, Add commentMore actions
                         //x: { ticks: { color: 'var(--text-muted)', maxRotation: 45, minRotation: 30, autoSkip: true, maxTicksLimit: 20 }, grid: { color: 'var(--border-color)' } }
 			y: {
 	                            beginAtZero: false,
@@ -1289,7 +1289,7 @@ function runBacktest() {
 	                            }
                         }                    
 		    },
-                    plugins: { legend: { labels: { color: '#EAEAEA' } } }
+                    plugins: { legend: { labels: { color: '#EAEAEA' } } },
 		    titleColor: '#B0BEC5', bodyColor: '#EAEAEA',   
                     titleFont: { size: 16 }, bodyFont: { size: 14 },
                 }
