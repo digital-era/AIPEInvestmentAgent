@@ -1122,21 +1122,24 @@ function runBacktest() {
     const endDateInput = document.getElementById('backtestEndDate');
     const resultsDiv = document.getElementById('backtestResults');
     const chartCanvas = document.getElementById('performanceChart');
-    console.log("runBacktest call 1")
+   
     if (!startDateInput || !endDateInput || !resultsDiv || !chartCanvas) return;
 
     const startDate = startDateInput.value;
     const endDate = endDateInput.value;
 
     if (!currentBacktestTarget) {
+	console.log("runBacktest call 1-1")
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：未指定测算目标组合。</p>";
         return;
     }
     if (!startDate || !endDate) {
+	console.log("runBacktest call 1-2")     
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>请选择开始和结束日期。</p>";
         return;
     }
     if (new Date(startDate) >= new Date(endDate)) {
+	console.log("runBacktest call 1-3")    
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>开始日期必须早于结束日期。</p>";
         return;
     }
@@ -1155,12 +1158,14 @@ function runBacktest() {
         portfolioNameForDisplay = `${agents[currentBacktestTarget].name} (${agents[currentBacktestTarget].role}) 投资组合`;
     } else {
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
+	console.log("runBacktest call 1-4") 
         return;
     }
 
     const allocatedStocks = portfolioToBacktest.filter(s => (s[allocationField] || 0) > 0);
     if (allocatedStocks.length === 0) {
          resultsDiv.innerHTML = `<p style='color: var(--danger-color);'>“${portfolioNameForDisplay}”中没有配置股票，无法测算。</p>`;
+	 console.log("runBacktest call 1-5") 
         return;
     }
 
