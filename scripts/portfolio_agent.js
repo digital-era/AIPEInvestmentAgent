@@ -1111,7 +1111,7 @@ function openPerformanceModal(target) {
         #infoMessageElement.style.display = 'block';
     }
     const chartCanvas = document.getElementById('performanceChart');
-    console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`)
+    console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`);
     if (chartCanvas) {
 	console.log(`chartCanvas is not null。`)
         if (performanceChartInstance) {
