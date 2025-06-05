@@ -1106,7 +1106,9 @@ function openPerformanceModal(target) {
     if(performanceModal) performanceModal.style.display = "block";
     if(document.getElementById('backtestResults')) document.getElementById('backtestResults').innerHTML = "<p>请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。</p>";
     const chartCanvas = document.getElementById('performanceChart');
+    console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`)
     if (chartCanvas) {
+	console.log(`chartCanvas is not null。`)
         if (performanceChartInstance) {
             performanceChartInstance.destroy();
             performanceChartInstance = null;
