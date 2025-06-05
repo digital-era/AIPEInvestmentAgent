@@ -1272,7 +1272,7 @@ function runBacktest() {
 	                                // color: '#FFFFFF' // 或者纯白
 	                            },
 	                            grid: {
-	                                color: rgba(255, 255, 255, 0.12) // 网格线颜色，比 var(--border-color) 亮一些
+	                                color: 'rgba(255, 255, 255, 0.12)' // 网格线颜色，比 var(--border-color) 亮一些
 	                            }
                         },
                         x: {
