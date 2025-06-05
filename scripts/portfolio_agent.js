@@ -1122,7 +1122,7 @@ function runBacktest() {
     const endDateInput = document.getElementById('backtestEndDate');
     const resultsDiv = document.getElementById('backtestResults');
     const chartCanvas = document.getElementById('performanceChart');
-
+    console.log("runBacktest call 1")
     if (!startDateInput || !endDateInput || !resultsDiv || !chartCanvas) return;
 
     const startDate = startDateInput.value;
@@ -1166,6 +1166,7 @@ function runBacktest() {
 
     resultsDiv.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
 
+    console.log("runBacktest call 2")
     setTimeout(() => {
         const labels = [];
         const dataPoints = [];
@@ -1201,7 +1202,7 @@ function runBacktest() {
             </ul>
             <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
         `;
-
+	console.log("runBacktest call 3")
         chartCanvas.style.display = 'block';
         if (window.Chart && Chart) {
             if (performanceChartInstance) {
@@ -1237,6 +1238,7 @@ function runBacktest() {
              resultsDiv.innerHTML += "<p>Chart.js 未加载，无法显示图表。</p>";
         }
     }, 1000);
+    console.log("runBacktest call 4")
 }
 
 
