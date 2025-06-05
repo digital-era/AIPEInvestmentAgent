@@ -1267,28 +1267,28 @@ function runBacktest() {
                         //y: { beginAtZero: false, ticks: { color: 'var(--text-muted)'}, grid: { color: 'var(--border-color)' } },			
                         //x: { ticks: { color: 'var(--text-muted)', maxRotation: 45, minRotation: 30, autoSkip: true, maxTicksLimit: 20 }, grid: { color: 'var(--border-color)' } }
 			y: {
-                            beginAtZero: false,
-                            ticks: {
-                                color: 'var(--text-color)' // 使用更亮的 --text-color (E0E0E0)
-                                // color: '#FFFFFF' // 或者纯白
-                            },
-                            grid: {
-                                color: '#6c757d' // 网格线颜色，比 var(--border-color) 亮一些
-                            }
+	                            beginAtZero: false,
+	                            ticks: {
+	                                color: 'var(--text-color)' // 使用更亮的 --text-color (E0E0E0)
+	                                // color: '#FFFFFF' // 或者纯白
+	                            },
+	                            grid: {
+	                                color: '#6c757d' // 网格线颜色，比 var(--border-color) 亮一些
+	                            }
                         },
                         x: {
-                            ticks: {
-                                color: 'var(--text-color)', // 使用更亮的 --text-color
-                                // color: '#FFFFFF' // 或者纯白
-                                maxRotation: 45,
-                                minRotation: 30,
-                                autoSkip: true,
-                                maxTicksLimit: 20
-                            },
-                            grid: {
-                                color: '#6c757d' // 网格线颜色
-                            }
-                        }
+	                            ticks: {
+	                                color: 'var(--text-color)', // 使用更亮的 --text-color
+	                                // color: '#FFFFFF' // 或者纯白
+	                                maxRotation: 45,
+	                                minRotation: 30,
+	                                autoSkip: true,
+	                                maxTicksLimit: 20
+	                            },
+	                            grid: {
+	                                color: '#6c757d' // 网格线颜色
+	                            }
+	                        }
                     },
                     plugins: { legend: { labels: { color: 'var(--text-color)' } } }
                 }
