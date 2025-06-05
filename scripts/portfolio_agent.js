@@ -1251,12 +1251,12 @@ function runBacktest() {
                     datasets: [{
                         label: '模拟组合净值',
                         data: dataPoints,
-                        borderColor: 'var(--accent-color2)',  //var(--accent-color1)
+                        borderColor: '#2ecc71',  //var(--accent-color1)
                         backgroundColor: 'rgba(46, 204, 113, 0.15)', //'rgba(52, 152, 219, 0.1)',
-                        tension: 0.1,
+                        tension: 0.3, //0.1
                         fill: true,
                         pointRadius: dataPoints.length > 100 ? 0 : 3,  //0 : 2,
-                        borderWidth: 2 //1.5
+                        borderWidth: 3 //1.5
                     }]
                 },
                 options: {
@@ -1268,16 +1268,16 @@ function runBacktest() {
 			y: {
 	                            beginAtZero: false,
 	                            ticks: {
-	                                color: 'var(--text-color)' // 使用更亮的 --text-color (E0E0E0)
+	                                color: '#90A4AE'// 使用更亮的 --text-color (E0E0E0)
 	                                // color: '#FFFFFF' // 或者纯白
 	                            },
 	                            grid: {
-	                                color: '#6c757d' // 网格线颜色，比 var(--border-color) 亮一些
+	                                color: rgba(255, 255, 255, 0.12) // 网格线颜色，比 var(--border-color) 亮一些
 	                            }
                         },
                         x: {
 	                            ticks: {
-	                                color: 'var(--text-color)', // 使用更亮的 --text-color
+	                                color: '#90A4AE', // 使用更亮的 --text-color
 	                                // color: '#FFFFFF' // 或者纯白
 	                                maxRotation: 45,
 	                                minRotation: 30,
@@ -1285,11 +1285,13 @@ function runBacktest() {
 	                                maxTicksLimit: 20
 	                            },
 	                            grid: {
-	                                color: '#6c757d' // 网格线颜色
+	                                color: 'rgba(255, 255, 255, 0.12)' // 网格线颜色
 	                            }
                         }                    
 		    },
-                    plugins: { legend: { labels: { color: 'var(--text-color)' } } }
+                    plugins: { legend: { labels: { color: '#EAEAEA' } } }
+		    titleColor: '#B0BEC5', bodyColor: '#EAEAEA',   
+                    titleFont: { size: 16 }, bodyFont: { size: 14 },
                 }
             });
         } else {
