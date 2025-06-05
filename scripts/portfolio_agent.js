@@ -1107,8 +1107,8 @@ function openPerformanceModal(target) {
     const infoMessageElement = document.getElementById('backtestInfoMessage');
     if (infoMessageElement) {
         infoMessageElement.innerHTML = "请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。";
-        //infoMessageElement.style.color = ''; // Reset color if previously error
-        //infoMessageElement.style.display = 'block';
+        infoMessageElement.style.color = ''; // Reset color if previously error
+        infoMessageElement.style.display = 'block';
     }
     const chartCanvas = document.getElementById('performanceChart');
     console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`);
@@ -1134,17 +1134,29 @@ function runBacktest() {
     
     const startDate = startDateInput.value;
     const endDate = endDateInput.value;
-
+    const infoMessageElement = document.getElementById('backtestInfoMessage');
     if (!currentBacktestTarget) {
-        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：未指定测算目标组合。</p>";
+	if (infoMessageElement) {
+	        infoMessageElement.innerHTML = "<p style='color: var(--danger-color);'>错误：未指定测算目标组合。</p>";
+	        infoMessageElement.style.color = ''; // Reset color if previously error
+	        infoMessageElement.style.display = 'block';
+        }
         return;
     }
     if (!startDate || !endDate) { 
-        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>请选择开始和结束日期。</p>";
+	if (infoMessageElement) {
+	        infoMessageElement.innerHTML = "<p style='color: var(--danger-color);'>请选择开始和结束日期。</p>";
+	        infoMessageElement.style.color = ''; // Reset color if previously error
+	        infoMessageElement.style.display = 'block';
+        }
         return;
     }
     if (new Date(startDate) >= new Date(endDate)) {
-        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>开始日期必须早于结束日期。</p>";
+	if (infoMessageElement) {
+	        infoMessageElement.innerHTML = "<p style='color: var(--danger-color);'>开始日期必须早于结束日期。</p>";
+	        infoMessageElement.style.color = ''; // Reset color if previously error
+	        infoMessageElement.style.display = 'block';
+        }
         return;
     }
 
@@ -1161,18 +1173,29 @@ function runBacktest() {
         allocationField = 'allocation';
         portfolioNameForDisplay = `${agents[currentBacktestTarget].name} (${agents[currentBacktestTarget].role}) 投资组合`;
     } else {
-        resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
-        return;
+	   	if (infoMessageElement) {
+		        infoMessageElement.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
+		        infoMessageElement.style.color = ''; // Reset color if previously error
+		        infoMessageElement.style.display = 'block';
+        	} 
+        	return;
     }
 
     const allocatedStocks = portfolioToBacktest.filter(s => (s[allocationField] || 0) > 0);
     if (allocatedStocks.length === 0) {
-         resultsDiv.innerHTML = `<p style='color: var(--danger-color);'>“${portfolioNameForDisplay}”中没有配置股票，无法测算。</p>`;
-	 console.log("runBacktest call 1-5") 
+	if (infoMessageElement) {
+		infoMessageElement.innerHTML = `<p style='color: var(--danger-color);'>“${portfolioNameForDisplay}”中没有配置股票，无法测算。</p>`;
+		infoMessageElement.style.color = ''; // Reset color if previously error
+		infoMessageElement.style.display = 'block';
+	} 
         return;
     }
 
-    resultsDiv.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
+    if (infoMessageElement) {
+		infoMessageElement.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
+		infoMessageElement.style.color = ''; // Reset color if previously error
+		infoMessageElement.style.display = 'block';
+     } 
 	
     setTimeout(() => {
         const labels = [];
@@ -1199,7 +1222,8 @@ function runBacktest() {
 
         const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
 
-        resultsDiv.innerHTML = `
+	if (infoMessageElement) {
+	    infoMessageElement.innerHTML = `
             <p><strong>模拟测算结果 (“${portfolioNameForDisplay}”):</strong></p>
             <ul>
                 <li>期间: ${startDate} to ${endDate}</li>
@@ -1207,8 +1231,11 @@ function runBacktest() {
                 <li>期末价值: ${dataPoints.length > 0 ? dataPoints[dataPoints.length-1] : 'N/A'}</li>
                 <li>总回报率: <span style="color: ${totalReturn >= 0 ? 'var(--accent-color2)' : 'var(--danger-color)'}; font-weight: bold;">${totalReturn.toFixed(2)}%</span></li>
             </ul>
-            <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
-        `;
+		infoMessageElement.style.color = ''; // Reset color if previously error
+		infoMessageElement.style.display = 'block';
+  	     <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
+        `;  
+     	} 
 	    
         chartCanvas.style.display = 'block';
         if (window.Chart && Chart) {
@@ -1244,7 +1271,11 @@ function runBacktest() {
             });
         } else {
 	     console.log("runBacktest call 6-4")
-             resultsDiv.innerHTML += "<p>Chart.js 未加载，无法显示图表。</p>";
+	     if (infoMessageElement) {
+		     infoMessageElement.innerHTML = "<p>Chart.js 未加载，无法显示图表。</p>";
+		     infoMessageElement.style.color = ''; // Reset color if previously error
+		     infoMessageElement.style.display = 'block';
+    	    } 
         }
     }, 1000);
     console.log("runBacktest call 7")
