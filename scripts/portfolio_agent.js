@@ -1113,8 +1113,7 @@ function openPerformanceModal(target) {
     const chartCanvas = document.getElementById('performanceChart');
     console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`);
     if (chartCanvas) {
-	console.log(`chartCanvas is not null。`)
-        if (performanceChartInstance) {
+	if (performanceChartInstance) {
             performanceChartInstance.destroy();
             performanceChartInstance = null;
         }
@@ -1137,17 +1136,14 @@ function runBacktest() {
     const endDate = endDateInput.value;
 
     if (!currentBacktestTarget) {
-	console.log("runBacktest call 1-1")
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：未指定测算目标组合。</p>";
         return;
     }
-    if (!startDate || !endDate) {
-	console.log("runBacktest call 1-2")     
+    if (!startDate || !endDate) { 
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>请选择开始和结束日期。</p>";
         return;
     }
     if (new Date(startDate) >= new Date(endDate)) {
-	console.log("runBacktest call 1-3")    
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>开始日期必须早于结束日期。</p>";
         return;
     }
@@ -1166,7 +1162,6 @@ function runBacktest() {
         portfolioNameForDisplay = `${agents[currentBacktestTarget].name} (${agents[currentBacktestTarget].role}) 投资组合`;
     } else {
         resultsDiv.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
-	console.log("runBacktest call 1-4") 
         return;
     }
 
@@ -1178,8 +1173,7 @@ function runBacktest() {
     }
 
     resultsDiv.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
-
-    console.log("runBacktest call 2")
+	
     setTimeout(() => {
         const labels = [];
         const dataPoints = [];
@@ -1215,10 +1209,11 @@ function runBacktest() {
             </ul>
             <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
         `;
-	console.log("runBacktest call 3")
+	    
         chartCanvas.style.display = 'block';
         if (window.Chart && Chart) {
             if (performanceChartInstance) {
+		console.log("runBacktest call 6-1")
                 performanceChartInstance.destroy();
             }
             const ctx = chartCanvas.getContext('2d');
@@ -1248,10 +1243,11 @@ function runBacktest() {
                 }
             });
         } else {
+	     console.log("runBacktest call 6-4")
              resultsDiv.innerHTML += "<p>Chart.js 未加载，无法显示图表。</p>";
         }
     }, 1000);
-    console.log("runBacktest call 4")
+    console.log("runBacktest call 7")
 }
 
 
