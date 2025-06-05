@@ -1107,8 +1107,8 @@ function openPerformanceModal(target) {
     const infoMessageElement = document.getElementById('backtestInfoMessage');
     if (infoMessageElement) {
         infoMessageElement.innerHTML = "请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。";
-        #infoMessageElement.style.color = ''; // Reset color if previously error
-        #infoMessageElement.style.display = 'block';
+        //infoMessageElement.style.color = ''; // Reset color if previously error
+        //infoMessageElement.style.display = 'block';
     }
     const chartCanvas = document.getElementById('performanceChart');
     console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`);
