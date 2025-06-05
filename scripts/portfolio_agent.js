@@ -1231,10 +1231,10 @@ function runBacktest() {
                 <li>期末价值: ${dataPoints.length > 0 ? dataPoints[dataPoints.length-1] : 'N/A'}</li>
                 <li>总回报率: <span style="color: ${totalReturn >= 0 ? 'var(--accent-color2)' : 'var(--danger-color)'}; font-weight: bold;">${totalReturn.toFixed(2)}%</span></li>
             </ul>
-		infoMessageElement.style.color = ''; // Reset color if previously error
-		infoMessageElement.style.display = 'block';
-  	     <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
-        `;  
+  	    <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>       
+           `;  
+	    infoMessageElement.style.color = ''; // Reset color if previously error
+	    infoMessageElement.style.display = 'block';
      	} 
 	    
         chartCanvas.style.display = 'block';
@@ -1242,6 +1242,7 @@ function runBacktest() {
             if (performanceChartInstance) {
 		console.log("runBacktest call 6-1")
                 performanceChartInstance.destroy();
+		performanceChartInstance = null;
             }
             const ctx = chartCanvas.getContext('2d');
             performanceChartInstance = new Chart(ctx, {
