@@ -1251,8 +1251,8 @@ function runBacktest() {
                     datasets: [{
                         label: '模拟组合净值',
                         data: dataPoints,
-                        borderColor: '#2ecc71',  //var(--accent-color1)
-                        backgroundColor: 'rgba(46, 204, 113, 0.15)', //'rgba(52, 152, 219, 0.1)',
+                        borderColor: '#3498db',  //var(--accent-color1)
+                        backgroundColor: 'rgba(52, 152, 219, 0.15)', //'rgba(52, 152, 219, 0.1)',
                         tension: 0.3, //0.1
                         fill: true,
                         pointRadius: dataPoints.length > 100 ? 0 : 3,  //0 : 2,
