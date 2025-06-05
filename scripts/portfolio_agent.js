@@ -1104,7 +1104,12 @@ function openPerformanceModal(target) {
     if(document.getElementById('performanceModalTitle')) document.getElementById('performanceModalTitle').innerHTML = title;
 
     if(performanceModal) performanceModal.style.display = "block";
-    if(document.getElementById('backtestResults')) document.getElementById('backtestResults').innerHTML = "<p>请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。</p>";
+    const infoMessageElement = document.getElementById('backtestInfoMessage');
+    if (infoMessageElement) {
+        infoMessageElement.innerHTML = "请选择日期范围并开始测算。注意：此功能为演示，实际回测需要历史数据和复杂计算。";
+        #infoMessageElement.style.color = ''; // Reset color if previously error
+        #infoMessageElement.style.display = 'block';
+    }
     const chartCanvas = document.getElementById('performanceChart');
     console.log(`chartCanvas variables: chartCanvas=${chartCanvas}`)
     if (chartCanvas) {
