@@ -1293,27 +1293,26 @@ function runBacktest() {
         //let currentValue = 100;
 
 	/**
-        while(currentDateLoop <= new Date(endDate)) {
-            labels.push(currentDateLoop.toISOString().split('T')[0]);
-            let dailyChangeFactor = 0;
-            allocatedStocks.forEach(stock => {
-                const stockAllocation = (stock[allocationField] || 0) / 100;
-                dailyChangeFactor += stockAllocation * ( (Math.random() - 0.48) * 0.025 );
-            });
-            currentValue *= (1 + dailyChangeFactor);
-            dataPoints.push(currentValue.toFixed(2));
-
-            let nextDay = new Date(currentDateLoop);
-            nextDay.setDate(currentDateLoop.getDate() + 1);
-            currentDateLoop = nextDay;
-
-            if (labels.length > 365 * 5) break;
-        }
+		while(currentDateLoop <= new Date(endDate)) {
+		    labels.push(currentDateLoop.toISOString().split('T')[0]);
+		    let dailyChangeFactor = 0;
+		    allocatedStocks.forEach(stock => {
+			const stockAllocation = (stock[allocationField] || 0) / 100;
+			dailyChangeFactor += stockAllocation * ( (Math.random() - 0.48) * 0.025 );
+		    });
+		    currentValue *= (1 + dailyChangeFactor);
+		    dataPoints.push(currentValue.toFixed(2));
+	
+		    let nextDay = new Date(currentDateLoop);
+		    nextDay.setDate(currentDateLoop.getDate() + 1);
+		    currentDateLoop = nextDay;
+	
+		    if (labels.length > 365 * 5) break;
+		}
 	*/
 
         //const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
 	
-
 	//定义Excel文件的URL
 	const excelFileUrl = '/data/AIPEEarningYield.xlsx';
 	// 调用新函数，并等待结果
