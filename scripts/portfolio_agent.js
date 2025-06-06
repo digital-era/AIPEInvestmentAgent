@@ -1077,6 +1077,106 @@ function loadApiSettings() {
 // Performance Backtest Modal
 const performanceModal = document.getElementById('performanceModal');
 
+/**
+ * 从指定的Excel文件和Sheet中异步获取并处理投资组合的收益数据。
+ *
+ * @param {string} excelUrl - AIPEEarningYield.xlsx文件在服务器上的URL。
+ * @param {string} sheetName - 需要处理的Sheet名称 (例如: "积极型收益")。
+ * @returns {Promise<Object>} - 一个Promise，解析后返回一个包含labels, dataPoints, 和 totalReturn 的对象。
+ *                             如果出错或无数据，则返回包含空数组和0的对象。
+ */
+async function processPortfolioEarningYieldDataFromExcel(excelUrl, sheetName, startDate, endDate ) {
+    try {
+        // 步骤 1: 从服务器获取 Excel 文件
+        const response = await fetch(excelUrl);
+        if (!response.ok) {
+            throw new Error(`无法获取Excel文件，状态码: ${response.status}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+
+        // 步骤 2: 使用 SheetJS 解析 Excel 数据
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+        // 检查Sheet是否存在
+        if (!workbook.SheetNames.includes(sheetName)) {
+            console.error(`错误: 在Excel文件中找不到名为 "${sheetName}" 的Sheet。`);
+            return { labels: [], dataPoints: [], totalReturn: 0 };
+        }
+
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonData.length === 0) {
+            console.warn(`警告: Sheet "${sheetName}" 中没有数据。`);
+            return { labels: [], dataPoints: [], totalReturn: 0 };
+        }
+        
+        // 步骤 3: 提取、转换并聚合数据
+        // 使用Map来处理每日数据，确保每个日期只有一个最终值。
+        // Python脚本保证了每日只有一个16:00的快照，但这样做更稳健。
+        const dailyData = new Map();
+
+        jsonData.forEach(row => {
+            const timestamp = String(row['修改时间']); // e.g., "202312251600"
+            const totalValue = parseFloat(row['总价值']);
+            
+            if (!timestamp || isNaN(totalValue)) {
+                return; // 跳过无效行
+            }
+
+            // 将 YYYYMMDDHHMM 格式的'修改时间'转换为 YYYY-MM-DD 格式的日期字符串
+            const dateStr = `${timestamp.substring(0, 4)}-${timestamp.substring(4, 6)}-${timestamp.substring(6, 8)}`;
+
+	    if (startDate<=dateStr) && (endDate>=dateStr) {
+            	// Map会自动处理重复的键，只保留最后一次设置的值
+            	dailyData.set(dateStr, totalValue);
+	    }
+        });
+
+        // 步骤 4: 排序并生成最终的 labels 和 dataPoints
+        // 对日期进行排序，以确保图表的时间轴是正确的
+        const sortedDates = Array.from(dailyData.keys()).sort();
+
+        const labels = [];
+        const dataPoints = [];
+
+        sortedDates.forEach(date => {
+            labels.push(date);
+            // 格式化为两位小数的字符串，与旧代码行为保持一致
+            dataPoints.push(dailyData.get(date).toFixed(2)); 
+        });
+
+        // 步骤 5: 计算 totalReturn
+        let totalReturn = 0;
+        if (dataPoints.length > 1) {
+            const initialValue = parseFloat(dataPoints[0]);
+            const finalValue = parseFloat(dataPoints[dataPoints.length - 1]);
+
+            if (initialValue > 0) { // 防止除以零
+                totalReturn = ((finalValue / initialValue) - 1) * 100;
+            }
+        }
+
+        console.log(`成功处理Sheet "${sheetName}"，获取了 ${labels.length} 天的数据。`);
+        
+        // 返回与旧代码结构完全兼容的对象
+        return {
+            labels: labels,
+            dataPoints: dataPoints,
+            totalReturn: totalReturn
+        };
+
+    } catch (error) {
+        console.error("处理Excel数据时发生错误:", error);
+        // 在发生任何错误时，都返回一个安全的空状态，防止后续代码崩溃
+        return {
+            labels: [],
+            dataPoints: [],
+            totalReturn: 0
+        };
+    }
+}
+
 function openPerformanceModal(target) {
     currentBacktestTarget = target;
     let portfolioToCheck;
@@ -1200,9 +1300,10 @@ function runBacktest() {
     setTimeout(() => {
         const labels = [];
         const dataPoints = [];
-        let currentDateLoop = new Date(startDate);
-        let currentValue = 100;
+        //let currentDateLoop = new Date(startDate);
+        //let currentValue = 100;
 
+	/*
         while(currentDateLoop <= new Date(endDate)) {
             labels.push(currentDateLoop.toISOString().split('T')[0]);
             let dailyChangeFactor = 0;
@@ -1221,7 +1322,25 @@ function runBacktest() {
         }
 
         const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
+	*/
 
+	/ 定义Excel文件的URL
+	const excelFileUrl = /data/to/AIPEEarningYield.xlsx';
+	// --- 这是新的数据获取逻辑 ---
+	if (currentBacktestTarget === 'myPortfolio') {
+	        portfolioEYSheetName = `myPortfolioTitle收益`;
+	} else if (agents[currentBacktestTarget]) {
+		portfolioEYSheetName = `${agents[currentBacktestTarget].name}投资组合收益`;
+	}
+	// 调用新函数，并等待结果
+	const { labels, dataPoints, totalReturn } = await processPortfolioEarningYieldDataFromExcel(excelFileUrl, portfolioEYSheetName, startDate, endDate );
+	    
+	// 如果没有获取到数据，可以提前退出或显示提示信息
+    	if (labels.length === 0) {
+		console.log("没有可用于生成图表的数据。");
+		// 例如：显示一个 "暂无数据" 的提示
+		return;
+    	}
 	if (infoMessageElement) {
 	    infoMessageElement.innerHTML = `
             <p><strong>模拟测算结果 (“${portfolioNameForDisplay}”):</strong></p>
