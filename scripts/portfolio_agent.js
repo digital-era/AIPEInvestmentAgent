@@ -1292,7 +1292,7 @@ function runBacktest() {
         //let currentDateLoop = new Date(startDate);
         //let currentValue = 100;
 
-	/*
+	/**
         while(currentDateLoop <= new Date(endDate)) {
             labels.push(currentDateLoop.toISOString().split('T')[0]);
             let dailyChangeFactor = 0;
@@ -1308,12 +1308,13 @@ function runBacktest() {
             currentDateLoop = nextDay;
 
             if (labels.length > 365 * 5) break;
-        }*/
+        }
+	*/
 
         //const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
 	
 
-	/ 定义Excel文件的URL
+	//定义Excel文件的URL
 	const excelFileUrl = '/data/AIPEEarningYield.xlsx';
 	// 调用新函数，并等待结果
 	const { labels, dataPoints, totalReturn } = await processPortfolioEarningYieldDataFromExcel(excelFileUrl, portfolioEYSheetName, startDate, endDate );
