@@ -1270,14 +1270,14 @@ function runBacktest() {
     }
 	
     if (currentBacktestTarget === 'myPortfolio') {
-        // [修复 2] 使用 `${myPortfolioTitle}` 插入变量
-        portfolioEYSheetName = `${myPortfolioTitle}收益`; 
+	        // [修复 2] 使用 `${myPortfolioTitle}` 插入变量
+	        portfolioEYSheetName = `${myPortfolioTitle}收益`; 
     } else if (agents[currentBacktestTarget]) {
-        portfolioEYSheetName = `${agents[currentBacktestTarget].name}投资组合收益`;
+        	portfolioEYSheetName = `${agents[currentBacktestTarget].name}投资组合收益`;
     } else {
-        infoMessageElement.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
-        infoMessageElement.style.display = 'block';
-        return;
+	        infoMessageElement.innerHTML = "<p style='color: var(--danger-color);'>错误：无效的测算目标组合。</p>";
+	        infoMessageElement.style.display = 'block';
+	        return;
     }
 
     if (infoMessageElement) {
@@ -1308,10 +1308,10 @@ function runBacktest() {
             currentDateLoop = nextDay;
 
             if (labels.length > 365 * 5) break;
-        }
+        }*/
 
-        const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
-	*/
+        //const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
+	
 
 	/ 定义Excel文件的URL
 	const excelFileUrl = '/data/AIPEEarningYield.xlsx';
