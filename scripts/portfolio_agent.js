@@ -1325,7 +1325,7 @@ function runBacktest() {
 	*/
 
 	/ 定义Excel文件的URL
-	const excelFileUrl = /data/to/AIPEEarningYield.xlsx';
+	const excelFileUrl = '/data/AIPEEarningYield.xlsx';
 	// --- 这是新的数据获取逻辑 ---
 	if (currentBacktestTarget === 'myPortfolio') {
 	        portfolioEYSheetName = `myPortfolioTitle收益`;
