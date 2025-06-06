@@ -1268,7 +1268,10 @@ function runBacktest() {
 	} 
         return;
     }
-	
+
+		
+     //定义Excel文件的URL
+    const excelFileUrl = '/data/AIPEEarningYield.xlsx';
     if (currentBacktestTarget === 'myPortfolio') {
 	        // [修复 2] 使用 `${myPortfolioTitle}` 插入变量
 	        portfolioEYSheetName = `${myPortfolioTitle}收益`; 
@@ -1309,12 +1312,9 @@ function runBacktest() {
 	
 		    if (labels.length > 365 * 5) break;
 		}
+  		const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
 	*/
 
-        //const totalReturn = dataPoints.length > 0 ? ((dataPoints[dataPoints.length-1] / 100) - 1) * 100 : 0;
-	
-	//定义Excel文件的URL
-	const excelFileUrl = '/data/AIPEEarningYield.xlsx';
 	// 调用新函数，并等待结果
 	const { labels, dataPoints, totalReturn } = await processPortfolioEarningYieldDataFromExcel(excelFileUrl, portfolioEYSheetName, startDate, endDate );
 	    
