@@ -1272,6 +1272,7 @@ function runBacktest() {
 		
      //定义Excel文件的URL
     const excelFileUrl = '/data/AIPEEarningYield.xlsx';
+    let portfolioEYSheetName;
     if (currentBacktestTarget === 'myPortfolio') {
 	        // [修复 2] 使用 `${myPortfolioTitle}` 插入变量
 	        portfolioEYSheetName = `${myPortfolioTitle}收益`; 
@@ -1290,8 +1291,8 @@ function runBacktest() {
      } 
 	
     setTimeout(async() => {
-        const labels = [];
-        const dataPoints = [];
+        //const labels = [];
+        //const dataPoints = [];
         //let currentDateLoop = new Date(startDate);
         //let currentValue = 100;
 
