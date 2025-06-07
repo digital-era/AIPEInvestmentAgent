@@ -193,4 +193,92 @@ async function loadAndProcessExcelData() {
         window.isExcelDataLoading = false;
         throw error; 
     }
+
+    const excelFilePath = 'data/AIPEFinanceDataHK.xlsx'; 
+    try {
+        const response = await fetch(excelFilePath);
+        if (!response.ok) throw new Error(`Failed to fetch Excel file: ${response.statusText} (URL: ${excelFilePath})`);
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+
+        const flow5DaysSortSheetName = "ARHK";
+        const flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
+        if (!flow5DaysSortSheet) throw new Error(`Sheet "${flow5DaysSortSheetName}" not found.`);
+        const flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+
+        if (flow5DaysSortJsonData.length === 0) throw new Error(`Sheet "${flow5DaysSortSheetName}" is empty.`);
+        
+        const groupedByStockCode = {};
+        flow5DaysSortJsonData.forEach(row => {
+            const stockCode = String(row['代码']).trim();
+            if (!stockCode || stockCode === 'undefined') return;
+            if (!groupedByStockCode[stockCode]) groupedByStockCode[stockCode] = [];
+            groupedByStockCode[stockCode].push(row);
+        });
+
+        if (Object.keys(groupedByStockCode).length === 0) throw new Error("No valid stock data from 'Flow5DaysSort'.");
+
+        let firstCodeProcessed = false;
+        allStockData = {}; 
+
+        for (const stockCode in groupedByStockCode) {
+            if (!firstCodeProcessed && stockCode !== "ERROR") { 
+                defaultStockCode = stockCode; 
+                firstCodeProcessed = true;
+            }
+            const stockEntries = groupedByStockCode[stockCode];
+            stockEntries.sort((a, b) => new Date(formatDate(b['日期'])).getTime() - new Date(formatDate(a['日期'])).getTime());
+            
+            const latestEntry = stockEntries[0];
+            if (!latestEntry) {
+                console.warn(`No entries found for stock code ${stockCode} after grouping in Flow5DaysSort.`);
+                continue;
+            }
+            
+            const dailyDataForStock = stockEntries.slice(0, 5).map(entry => ({
+                date: formatDate(entry['日期']),
+                potScore: String(entry['PotScore'] ?? '0'), 
+                superLargeInflow: String(entry['超大单净流入-净占比'] ?? '0%'),
+                largeInflow: String(entry['大单净流入-净占比'] ?? '0%'),
+                change: String(entry['涨跌幅'] ?? '0%'),
+                price: parseFloat(entry['收盘价'] ?? 0)
+            }));
+
+        }
+
+        const flow5DaysPositiveSheetName = "Flow5DaysPositive";
+        const flow5DaysPositiveSheet = workbook.Sheets[flow5DaysPositiveSheetName];
+        if (flow5DaysPositiveSheet) {
+            const flow5DaysPositiveJsonData = XLSX.utils.sheet_to_json(flow5DaysPositiveSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+            if (flow5DaysPositiveJsonData.length > 0) {
+                top20ContinuousInflowStocks = getTopNUniqueStocks(flow5DaysPositiveJsonData, 20);
+            } else {
+                console.warn(`Sheet "${flow5DaysPositiveSheetName}" is empty.`);
+                top20ContinuousInflowStocks = [];
+            }
+        } else {
+            console.warn(`Sheet "${flow5DaysPositiveSheetName}" not found. Continuous inflow dropdown will be empty.`);
+            top20ContinuousInflowStocks = []; 
+        }
+        
+        console.log('Excel data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in allStockData:', Object.keys(allStockData).length);
+        window.isExcelDataLoading = false;
+        return true;
+
+    } catch (error) {
+        console.error("Error loading or processing Excel data in potfunddatarender.js:", error);
+        allStockData = { 
+            "ERROR": {
+                name: "数据加载失败",
+                totalInflow: "N/A",
+                currentPotScore: "N/A",
+                latestDate: formatDate(new Date()),
+                dailyData: []
+            }
+        };
+        defaultStockCode = "ERROR";
+        window.isExcelDataLoading = false;
+        throw error; 
+    }
+
 }
