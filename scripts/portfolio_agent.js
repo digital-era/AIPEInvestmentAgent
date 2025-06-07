@@ -377,12 +377,12 @@ function addStockToPool(agentId) {
 
     if (typeof HKallStockData === 'undefined' || Object.keys(HKallStockData).length === 0) {
         alert("HK股票基础数据尚未加载。请稍候再试或刷新页面。");
-        return;
+        //return;
     }
 
     if (typeof ETFallStockData === 'undefined' || Object.keys(ETFallStockData).length === 0) {
         alert("ETF基础数据尚未加载。请稍候再试或刷新页面。");
-        return;
+        //return;
     }
 
     const foundStock = findStockInGlobalData(searchTerm);
