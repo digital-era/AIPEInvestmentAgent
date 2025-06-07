@@ -76,8 +76,8 @@ async function loadAndProcessExcelData() {
     window.isExcelDataLoading = true;
 
 
-    const excelFilePath = 'data/AIPEFinanceData.xlsx'; 
-    const valReturn = false;
+    let excelFilePath = 'data/AIPEFinanceData.xlsx'; 
+    let valReturn = false;
     try {
         const response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch Excel file: ${response.statusText} (URL: ${excelFilePath})`);
