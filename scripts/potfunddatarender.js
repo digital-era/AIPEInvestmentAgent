@@ -173,7 +173,7 @@ async function loadAndProcessExcelData() {
             console.warn(`Sheet "${flow5DaysPositiveSheetName}" not found. Continuous inflow dropdown will be empty.`);
             top20ContinuousInflowStocks = []; 
         }
-        
+        defaultStockCode - "600900"
         console.log('Excel data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in allStockData:', Object.keys(allStockData).length);
         window.isExcelDataLoading = false;
         //return true;
@@ -225,6 +225,7 @@ async function loadAndProcessExcelData() {
 
         let firstCodeProcessed = false;
         HKallStockData = {}; 
+        defaultStockCode - "600900"
 
         for (stockCode in groupedByStockCode) {
             if (!firstCodeProcessed && stockCode !== "ERROR") { 
@@ -253,7 +254,7 @@ async function loadAndProcessExcelData() {
             };
 
         }
-        
+        defaultStockCode - "600900"
         console.log('Excel HK data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in HKallStockData:', Object.keys(HKallStockData).length);
         window.isExcelDataLoading = false;
         //return true;
@@ -288,7 +289,7 @@ async function loadAndProcessExcelData() {
 
         if (flow5DaysSortJsonData.length === 0) throw new Error(`Sheet "${flow5DaysSortSheetName}" is empty.`);
         
-       groupedByStockCode = {};
+        groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
             let stockCode = String(row['代码']).trim();
             if (!stockCode || stockCode === 'undefined') return;
@@ -328,7 +329,7 @@ async function loadAndProcessExcelData() {
             };
 
         }
-        
+        defaultStockCode - "600900"
         console.log('Excel HK data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in ETFallStockData:', Object.keys(ETFallStockData).length);
         window.isExcelDataLoading = false;        
         return true;
