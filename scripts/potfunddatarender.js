@@ -132,10 +132,10 @@ async function loadAndProcessExcelData() {
                 defaultStockCode = stockCode; 
                 firstCodeProcessed = true;
             }
-            const stockEntries = groupedByStockCode[stockCode];
+            let stockEntries = groupedByStockCode[stockCode];
             stockEntries.sort((a, b) => new Date(formatDate(b['日期'])).getTime() - new Date(formatDate(a['日期'])).getTime());
             
-            const latestEntry = stockEntries[0];
+            let latestEntry = stockEntries[0];
             if (!latestEntry) {
                 console.warn(`No entries found for stock code ${stockCode} after grouping in Flow5DaysSort.`);
                 continue;
@@ -226,21 +226,21 @@ async function loadAndProcessExcelData() {
         let firstCodeProcessed = false;
         HKallStockData = {}; 
 
-        for (const stockCode in groupedByStockCode) {
+        for (stockCode in groupedByStockCode) {
             if (!firstCodeProcessed && stockCode !== "ERROR") { 
                 defaultStockCode = stockCode; 
                 firstCodeProcessed = true;
             }
-            const stockEntries = groupedByStockCode[stockCode];
+            stockEntries = groupedByStockCode[stockCode];
             stockEntries.sort((a, b) => new Date(formatDate(b['日期'])).getTime() - new Date(formatDate(a['日期'])).getTime());
             
-            const latestEntry = stockEntries[0];
+            latestEntry = stockEntries[0];
             if (!latestEntry) {
                 console.warn(`No entries found for HK stock code ${stockCode} after grouping in Flow5DaysSort.`);
                 continue;
             }
             
-            const dailyDataForStock = stockEntries.slice(0, 5).map(entry => ({
+            dailyDataForStock = stockEntries.slice(0, 5).map(entry => ({
                 date: formatDate(entry['日期']),
                 change: String(entry['Percent'] ?? '0%'),
                 price: parseFloat(entry['Price'] ?? 0)
@@ -309,7 +309,7 @@ async function loadAndProcessExcelData() {
                 continue;
             }
             
-            const dailyDataForStock = stockEntries.slice(0, 1).map(entry => ({
+            dailyDataForStock = stockEntries.slice(0, 1).map(entry => ({
                 date: formatDate(entry['日期']),
                 change: String(entry['Percent'] ?? '0%'),
                 price: parseFloat(entry['Price'] ?? 0)
