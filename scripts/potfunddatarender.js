@@ -320,7 +320,7 @@ async function loadAndProcessExcelData() {
         console.log('Excel HK data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in ETFallStockData:', Object.keys(ETFallStockData).length);
         window.isExcelDataLoading = false;        
         return true;
-        #valReturn = true;
+        //valReturn = true;
 
     } catch (error) {
         console.error("Error loading or processing ETF Excel data in potfunddatarender.js:", error);
