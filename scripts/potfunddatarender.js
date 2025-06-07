@@ -116,7 +116,7 @@ async function loadAndProcessExcelData() {
 
         const groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
-            const stockCode = String(row['代码']).trim();
+            let stockCode = String(row['代码']).trim();
             if (!stockCode || stockCode === 'undefined') return;
             if (!groupedByStockCode[stockCode]) groupedByStockCode[stockCode] = [];
             groupedByStockCode[stockCode].push(row);
@@ -214,7 +214,7 @@ async function loadAndProcessExcelData() {
         
         const groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
-            const stockCode = String(row['代码']).trim();
+            let stockCode = String(row['代码']).trim();
             stockCode = "HK" + stockCode;
             if (!stockCode || stockCode === 'undefined') return;
             if (!groupedByStockCode[stockCode]) groupedByStockCode[stockCode] = [];
@@ -284,7 +284,7 @@ async function loadAndProcessExcelData() {
         
         const groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
-            const stockCode = String(row['代码']).trim();
+            let stockCode = String(row['代码']).trim();
             if (!stockCode || stockCode === 'undefined') return;
             if (!groupedByStockCode[stockCode]) groupedByStockCode[stockCode] = [];
             groupedByStockCode[stockCode].push(row);
