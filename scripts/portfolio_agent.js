@@ -302,17 +302,19 @@ function findStockInGlobalData(searchTerm) {
 	
     if (typeof HKallStockData === 'undefined' || Object.keys(HKallStockData).length === 0) {
         console.warn("findStockInGlobalData: HKallStockData is not available or empty.");
-        return null;
+        //return null;
     } 
 
     if (typeof ETFallStockData === 'undefined' || Object.keys(ETFallStockData).length === 0) {
         console.warn("findStockInGlobalData: ETFallStockData is not available or empty.");
-        return null;
+        //return null;
     } 
 	
     let foundStock = null;
+    let foundStockCode = null;
+    let code;
     const upperSearchTerm = searchTerm.toUpperCase();
-
+    /**
     const stockMatch = searchTerm.match(/(.+?)\s*\((.*?)\)/);
     if (stockMatch && stockMatch[1] && stockMatch[2]) {
         const codeFromInput = stockMatch[2].trim().toUpperCase();
@@ -326,35 +328,59 @@ function findStockInGlobalData(searchTerm) {
 	} 
 	    
     }
-
-    if (allStockData[searchTerm]) {
-        return { code: searchTerm, name: allStockData[searchTerm].name };
-    }
+    */
+	
     if (allStockData[upperSearchTerm]) {
-         return { code: upperSearchTerm, name: allStockData[upperSearchTerm].name };
+	stockData = allStockData[upperSearchTerm];
+	foundStockCode = upperSearchTerm;
+    } else {
+	const searchTermLower = searchTerm.toLowerCase();
+	for (code in allStockData) {
+	    if (allStockData[code].name.toLowerCase().includes(searchTermLower)) {
+		foundStockCode = code;
+		break; 
+	    }
+	}
+    } 
+
+    if (allStockData[foundStockCode]) {
+        return { code: foundStockCode, name: allStockData[foundStockCode].name };
+    }
+
+    if (HKallStockData[upperSearchTerm]) {
+	stockData = HKallStockData[upperSearchTerm];
+	foundStockCode = upperSearchTerm;
+    } else {
+	const searchTermLower = searchTerm.toLowerCase();
+	for (code in HKallStockData) {
+	    if (HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+		foundStockCode = code;
+		break; 
+	    }
+	}
+    } 
+	
+    if (HKallStockData[foundStockCode]) {
+        return { code: foundStockCode, name: HKallStockData[foundStockCode].name };
+    }
+
+
+    if (ETFHKallStockData[upperSearchTerm]) {
+	stockData = ETFHKallStockData[upperSearchTerm];
+	foundStockCode = upperSearchTerm;
+    } else {
+	const searchTermLower = searchTerm.toLowerCase();
+	for (code in ETFHKallStockData) {
+	    if (ETFHKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+		foundStockCode = code;
+		break; 
+	    }
+	}
+    } 
+    if (ETFHKallStockData[foundStockCode]) {
+         return { code: foundStockCode, name: ETFHKallStockData[foundStockCode].name };
     }
 	
-    if (HKallStockData[searchTerm]) {
-        return { code: searchTerm, name: HKallStockData[searchTerm].name };
-    }
-    if (ETFHKallStockData[upperSearchTerm]) {
-         return { code: ETFHKallStockData, name: ETFHKallStockData[upperSearchTerm].name };
-    }
-
-
-    const searchTermLower = searchTerm.toLowerCase();
-    for (const code in allStockData) {
-        if (allStockData[code].name && allStockData[code].name.toLowerCase().includes(searchTermLower)) {
-            foundStock = { code: code, name: allStockData[code].name };
-            break;
-        }  else if (HKallStockData[code].name && HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
-            foundStock = { code: code, name: HKallStockData[code].name };
-            break;
-	}  else if (ETFallStockData[code].name && ETFallStockData[code].name.toLowerCase().includes(searchTermLower)) {
-            foundStock = { code: code, name: ETFallStockData[code].name };
-            break;
-	} 
-    }
     return foundStock;
 }
 
