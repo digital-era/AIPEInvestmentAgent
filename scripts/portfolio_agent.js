@@ -299,7 +299,17 @@ function findStockInGlobalData(searchTerm) {
         console.warn("findStockInGlobalData: allStockData is not available or empty.");
         return null;
     }
+	
+    if (typeof HKallStockData === 'undefined' || Object.keys(HKallStockData).length === 0) {
+        console.warn("findStockInGlobalData: HKallStockData is not available or empty.");
+        return null;
+    } 
 
+    if (typeof ETFallStockData === 'undefined' || Object.keys(ETFallStockData).length === 0) {
+        console.warn("findStockInGlobalData: ETFallStockData is not available or empty.");
+        return null;
+    } 
+	
     let foundStock = null;
     const upperSearchTerm = searchTerm.toUpperCase();
 
@@ -309,7 +319,12 @@ function findStockInGlobalData(searchTerm) {
         const nameFromInput = stockMatch[1].trim();
         if (allStockData[codeFromInput] && allStockData[codeFromInput].name.toLowerCase().includes(nameFromInput.toLowerCase())) {
              return { code: codeFromInput, name: allStockData[codeFromInput].name };
-        }
+        } else  if (HKallStockData[codeFromInput] && HKallStockData[codeFromInput].name.toLowerCase().includes(nameFromInput.toLowerCase())) {
+             return { code: codeFromInput, name: HKallStockData[codeFromInput].name };
+	} else  if (ETFallStockData[codeFromInput] && ETFallStockData[codeFromInput].name.toLowerCase().includes(nameFromInput.toLowerCase())) {
+             return { code: codeFromInput, name: ETFallStockData[codeFromInput].name };
+	} 
+	    
     }
 
     if (allStockData[searchTerm]) {
@@ -318,13 +333,27 @@ function findStockInGlobalData(searchTerm) {
     if (allStockData[upperSearchTerm]) {
          return { code: upperSearchTerm, name: allStockData[upperSearchTerm].name };
     }
+	
+    if (HKallStockData[searchTerm]) {
+        return { code: searchTerm, name: HKallStockData[searchTerm].name };
+    }
+    if (ETFHKallStockData[upperSearchTerm]) {
+         return { code: ETFHKallStockData, name: ETFHKallStockData[upperSearchTerm].name };
+    }
+
 
     const searchTermLower = searchTerm.toLowerCase();
     for (const code in allStockData) {
         if (allStockData[code].name && allStockData[code].name.toLowerCase().includes(searchTermLower)) {
             foundStock = { code: code, name: allStockData[code].name };
             break;
-        }
+        }  else if (HKallStockData[code].name && HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+            foundStock = { code: code, name: HKallStockData[code].name };
+            break;
+	}  else if (ETFallStockData[code].name && ETFallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+            foundStock = { code: code, name: ETFallStockData[code].name };
+            break;
+	} 
     }
     return foundStock;
 }
@@ -343,6 +372,16 @@ function addStockToPool(agentId) {
 
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
         alert("股票基础数据尚未加载。请稍候再试或刷新页面。");
+        return;
+    }
+
+    if (typeof HKallStockData === 'undefined' || Object.keys(HKallStockData).length === 0) {
+        alert("HK股票基础数据尚未加载。请稍候再试或刷新页面。");
+        return;
+    }
+
+    if (typeof ETFallStockData === 'undefined' || Object.keys(ETFallStockData).length === 0) {
+        alert("ETF基础数据尚未加载。请稍候再试或刷新页面。");
         return;
     }
 
@@ -594,6 +633,17 @@ function addStockToAgentPortfolio(agentId) {
         alert("股票基础数据尚未加载。请稍候再试或刷新页面。");
         return;
     }
+
+    if (typeof HKallStockData === 'undefined' || Object.keys(HKallStockData).length === 0) {
+        alert("HK股票基础数据尚未加载。请稍候再试或刷新页面。");
+        return;
+    }
+
+    if (typeof ETFallStockData === 'undefined' || Object.keys(ETFallStockData).length === 0) {
+        alert("ETF基础数据尚未加载。请稍候再试或刷新页面。");
+        return;
+    }
+
 
     const foundStock = findStockInGlobalData(searchTerm);
     if (!foundStock) {
