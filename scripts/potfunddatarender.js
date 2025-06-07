@@ -194,7 +194,7 @@ async function loadAndProcessExcelData() {
         throw error; 
     }
 
-    const excelFilePath = 'data/AIPEFinanceDataHK.xlsx'; 
+    excelFilePath = 'data/AIPEFinanceDataHK.xlsx'; 
     try {
         const response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch HK Excel file: ${response.statusText} (URL: ${excelFilePath})`);
@@ -262,7 +262,7 @@ async function loadAndProcessExcelData() {
         throw error; 
     }
 
-    const excelFilePath = 'data/AIPEFinanceDataETF.xlsx'; 
+    excelFilePath = 'data/AIPEFinanceDataETF.xlsx'; 
     try {
         const response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch ETF Excel file: ${response.statusText} (URL: ${excelFilePath})`);
