@@ -77,6 +77,7 @@ async function loadAndProcessExcelData() {
 
 
     const excelFilePath = 'data/AIPEFinanceData.xlsx'; 
+    const valReturn = false;
     try {
         const response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch Excel file: ${response.statusText} (URL: ${excelFilePath})`);
@@ -175,7 +176,8 @@ async function loadAndProcessExcelData() {
         
         console.log('Excel data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in allStockData:', Object.keys(allStockData).length);
         window.isExcelDataLoading = false;
-        return true;
+        //return true;
+        valReturn = true;
 
     } catch (error) {
         console.error("Error loading or processing Excel data in potfunddatarender.js:", error);
@@ -248,7 +250,8 @@ async function loadAndProcessExcelData() {
         
         console.log('Excel HK data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in HKallStockData:', Object.keys(HKallStockData).length);
         window.isExcelDataLoading = false;
-        return true;
+        //return true;
+        valReturn = true;
 
     } catch (error) {
         console.error("Error loading or processing HK Excel data in potfunddatarender.js:", error);
@@ -262,6 +265,7 @@ async function loadAndProcessExcelData() {
         defaultStockCode = "ERROR";
         window.isExcelDataLoading = false;
         throw error; 
+        return valReturn;
     }
 
     excelFilePath = 'data/AIPEFinanceDataETF.xlsx'; 
@@ -314,14 +318,15 @@ async function loadAndProcessExcelData() {
         }
         
         console.log('Excel HK data processed successfully. Default stock for quant page:', defaultStockCode, 'Total stocks in ETFallStockData:', Object.keys(ETFallStockData).length);
-        window.isExcelDataLoading = false;
+        window.isExcelDataLoading = false;        
         return true;
+        #valReturn = true;
 
     } catch (error) {
-        console.error("Error loading or processing HK Excel data in potfunddatarender.js:", error);
+        console.error("Error loading or processing ETF Excel data in potfunddatarender.js:", error);
         ETFallStockData = { 
             "ERROR": {
-                name: "HK数据加载失败",
+                name: "ETF数据加载失败",
                 totalInflow: "N/A",
                 currentPotScore: "N/A",
                 latestDate: formatDate(new Date()),
@@ -331,6 +336,7 @@ async function loadAndProcessExcelData() {
         defaultStockCode = "ERROR";
         window.isExcelDataLoading = false;
         throw error; 
+        return valReturn;
     }
 
 }
