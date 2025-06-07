@@ -245,6 +245,12 @@ async function loadAndProcessExcelData() {
                 change: String(entry['Percent'] ?? '0%'),
                 price: parseFloat(entry['Price'] ?? 0)
             }));
+            
+            HKallStockData[stockCode] = {
+                name: String(latestEntry['名称'] ?? 'N/A'),
+                latestDate: formatDate(latestEntry['日期']),
+                dailyData: dailyDataForStock
+            };
 
         }
         
@@ -314,6 +320,12 @@ async function loadAndProcessExcelData() {
                 change: String(entry['Percent'] ?? '0%'),
                 price: parseFloat(entry['Price'] ?? 0)
             }));
+            
+            ETFallStockData[stockCode] = {
+                name: String(latestEntry['名称'] ?? 'N/A'),
+                latestDate: formatDate(latestEntry['日期']),
+                dailyData: dailyDataForStock
+            };
 
         }
         
