@@ -1,6 +1,8 @@
 // scripts/potfunddatarender.js
 
 let allStockData = {};
+let HKallStockData = {};
+let ETFallStockData = {};
 let defaultStockCode = '';
 let top20TotalInflowStocks = []; // For "Top20 5日总净流入占比"
 let top20ContinuousInflowStocks = []; // For "Top20 5日持续净流入占比"
