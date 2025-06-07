@@ -414,10 +414,10 @@
 
             let stockData = null;
             let foundStockCode = null;
-
-            if (allStockData[searchTerm]) {
-                stockData = allStockData[searchTerm];
-                foundStockCode = searchTerm;
+            const upperSearchTerm = searchTerm.toUpperCase();
+            if (allStockData[upperSearchTerm]) {
+                stockData = allStockData[upperSearchTerm];
+                foundStockCode = upperSearchTerm;
             } else {
                 const searchTermLower = searchTerm.toLowerCase();
                 for (const code in allStockData) {
