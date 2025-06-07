@@ -79,15 +79,15 @@ async function loadAndProcessExcelData() {
     let excelFilePath = 'data/AIPEFinanceData.xlsx'; 
     let valReturn = false;
     try {
-        const response = await fetch(excelFilePath);
+        let response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch Excel file: ${response.statusText} (URL: ${excelFilePath})`);
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+        let arrayBuffer = await response.arrayBuffer();
+        let workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
-        const flow5DaysSortSheetName = "Flow5DaysSort";
-        const flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
+        let flow5DaysSortSheetName = "Flow5DaysSort";
+        let flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
         if (!flow5DaysSortSheet) throw new Error(`Sheet "${flow5DaysSortSheetName}" not found.`);
-        const flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+        let flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
 
         if (flow5DaysSortJsonData.length === 0) throw new Error(`Sheet "${flow5DaysSortSheetName}" is empty.`);
         
@@ -95,8 +95,8 @@ async function loadAndProcessExcelData() {
         top20TotalInflowStocks = getTopNUniqueStocks(flow5DaysSortJsonData, 20);
 
         // Populate top20ReboundFactorStocks
-        const reboundFactorColumnName = '反弹因子_5日总和';
-        const dataForReboundSort = [...flow5DaysSortJsonData].filter(row => row[reboundFactorColumnName] !== undefined && row[reboundFactorColumnName] !== null);
+        let reboundFactorColumnName = '反弹因子_5日总和';
+        let dataForReboundSort = [...flow5DaysSortJsonData].filter(row => row[reboundFactorColumnName] !== undefined && row[reboundFactorColumnName] !== null);
 
         dataForReboundSort.sort((a, b) => {
             const valAStr = String(a[reboundFactorColumnName]).replace('%', '');
@@ -114,7 +114,7 @@ async function loadAndProcessExcelData() {
         top20ReboundFactorStocks = getTopNUniqueStocks(dataForReboundSort, 20);
 
 
-        const groupedByStockCode = {};
+        let groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
             let stockCode = String(row['代码']).trim();
             if (!stockCode || stockCode === 'undefined') return;
@@ -126,8 +126,8 @@ async function loadAndProcessExcelData() {
 
         let firstCodeProcessed = false;
         allStockData = {}; 
-
-        for (const stockCode in groupedByStockCode) {
+        let stockCode;
+        for (stockCode in groupedByStockCode) {
             if (!firstCodeProcessed && stockCode !== "ERROR") { 
                 defaultStockCode = stockCode; 
                 firstCodeProcessed = true;
@@ -140,8 +140,8 @@ async function loadAndProcessExcelData() {
                 console.warn(`No entries found for stock code ${stockCode} after grouping in Flow5DaysSort.`);
                 continue;
             }
-            
-            const dailyDataForStock = stockEntries.slice(0, 5).map(entry => ({
+            let dailyDataForStock;
+            dailyDataForStock = stockEntries.slice(0, 5).map(entry => ({
                 date: formatDate(entry['日期']),
                 potScore: String(entry['PotScore'] ?? '0'), 
                 superLargeInflow: String(entry['超大单净流入-净占比'] ?? '0%'),
@@ -159,10 +159,10 @@ async function loadAndProcessExcelData() {
             };
         }
 
-        const flow5DaysPositiveSheetName = "Flow5DaysPositive";
-        const flow5DaysPositiveSheet = workbook.Sheets[flow5DaysPositiveSheetName];
+        let flow5DaysPositiveSheetName = "Flow5DaysPositive";
+        let flow5DaysPositiveSheet = workbook.Sheets[flow5DaysPositiveSheetName];
         if (flow5DaysPositiveSheet) {
-            const flow5DaysPositiveJsonData = XLSX.utils.sheet_to_json(flow5DaysPositiveSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+            let flow5DaysPositiveJsonData = XLSX.utils.sheet_to_json(flow5DaysPositiveSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
             if (flow5DaysPositiveJsonData.length > 0) {
                 top20ContinuousInflowStocks = getTopNUniqueStocks(flow5DaysPositiveJsonData, 20);
             } else {
@@ -200,19 +200,19 @@ async function loadAndProcessExcelData() {
 
     excelFilePath = 'data/AIPEFinanceDataHK.xlsx'; 
     try {
-        const response = await fetch(excelFilePath);
+        response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch HK Excel file: ${response.statusText} (URL: ${excelFilePath})`);
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+        arrayBuffer = await response.arrayBuffer();
+        workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
-        const flow5DaysSortSheetName = "ARHK";
-        const flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
+        flow5DaysSortSheetName = "ARHK";
+        flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
         if (!flow5DaysSortSheet) throw new Error(`Sheet "${flow5DaysSortSheetName}" not found.`);
-        const flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+        flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
 
         if (flow5DaysSortJsonData.length === 0) throw new Error(`Sheet "${flow5DaysSortSheetName}" is empty.`);
         
-        const groupedByStockCode = {};
+        let groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
             let stockCode = String(row['代码']).trim();
             stockCode = "HK" + stockCode;
@@ -270,19 +270,19 @@ async function loadAndProcessExcelData() {
 
     excelFilePath = 'data/AIPEFinanceDataETF.xlsx'; 
     try {
-        const response = await fetch(excelFilePath);
+        response = await fetch(excelFilePath);
         if (!response.ok) throw new Error(`Failed to fetch ETF Excel file: ${response.statusText} (URL: ${excelFilePath})`);
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+        arrayBuffer = await response.arrayBuffer();
+        workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
-        const flow5DaysSortSheetName = "ARETF";
-        const flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
+        flow5DaysSortSheetName = "ARETF";
+        flow5DaysSortSheet = workbook.Sheets[flow5DaysSortSheetName];
         if (!flow5DaysSortSheet) throw new Error(`Sheet "${flow5DaysSortSheetName}" not found.`);
-        const flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+        flow5DaysSortJsonData = XLSX.utils.sheet_to_json(flow5DaysSortSheet, { raw: false, dateNF: 'yyyy-mm-dd' });
 
         if (flow5DaysSortJsonData.length === 0) throw new Error(`Sheet "${flow5DaysSortSheetName}" is empty.`);
         
-        const groupedByStockCode = {};
+       groupedByStockCode = {};
         flow5DaysSortJsonData.forEach(row => {
             let stockCode = String(row['代码']).trim();
             if (!stockCode || stockCode === 'undefined') return;
@@ -295,15 +295,15 @@ async function loadAndProcessExcelData() {
         let firstCodeProcessed = false;
         ETFallStockData = {}; 
 
-        for (const stockCode in groupedByStockCode) {
+        for (stockCode in groupedByStockCode) {
             if (!firstCodeProcessed && stockCode !== "ERROR") { 
                 defaultStockCode = stockCode; 
                 firstCodeProcessed = true;
             }
-            const stockEntries = groupedByStockCode[stockCode];
+            stockEntries = groupedByStockCode[stockCode];
             stockEntries.sort((a, b) => new Date(formatDate(b['日期'])).getTime() - new Date(formatDate(a['日期'])).getTime());
             
-            const latestEntry = stockEntries[0];
+            latestEntry = stockEntries[0];
             if (!latestEntry) {
                 console.warn(`No entries found for ETF stock code ${stockCode} after grouping in Flow5DaysSort.`);
                 continue;
