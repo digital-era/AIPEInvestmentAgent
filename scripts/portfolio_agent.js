@@ -1351,7 +1351,8 @@ function runBacktest() {
     let portfolioEYSheetName;
     if (currentBacktestTarget === 'myPortfolio') {
 	        // [修复 2] 使用 `${myPortfolioTitle}` 插入变量
-	        portfolioEYSheetName = `${myPortfolioTitle}收益`; 
+	        //portfolioEYSheetName = `${myPortfolioTitle}收益`; 
+	    	portfolioEYSheetName = `我的投资组合收益收益`; 
     } else if (agents[currentBacktestTarget]) {
         	portfolioEYSheetName = `${agents[currentBacktestTarget].name}投资组合收益`;
     } else {
