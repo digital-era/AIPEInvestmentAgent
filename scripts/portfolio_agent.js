@@ -1411,7 +1411,6 @@ function runBacktest() {
                 <li>期末价值: ${dataPoints.length > 0 ? dataPoints[dataPoints.length-1] : 'N/A'}</li>
                 <li>总回报率: <span style="color: ${totalReturn >= 0 ? 'var(--accent-color2)' : 'var(--danger-color)'}; font-weight: bold;">${totalReturn.toFixed(2)}%</span></li>
             </ul>
-  	    // <p style="font-size:0.8em; color: var(--text-muted)">注意: 此为随机模拟数据，不代表真实投资表现。</p>
             `;  
 	    infoMessageElement.style.color = ''; // Reset color if previously error
 	    infoMessageElement.style.display = 'block';
