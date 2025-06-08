@@ -365,20 +365,20 @@ function findStockInGlobalData(searchTerm) {
     }
 
 
-    if (ETFHKallStockData[upperSearchTerm]) {
-	stockData = ETFHKallStockData[upperSearchTerm];
+    if (ETFallStockData[upperSearchTerm]) {
+	stockData = ETFallStockData[upperSearchTerm];
 	foundStockCode = upperSearchTerm;
     } else {
 	const searchTermLower = searchTerm.toLowerCase();
-	for (code in ETFHKallStockData) {
-	    if (ETFHKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+	for (code in ETFallStockData) {
+	    if (ETFallStockData[code].name.toLowerCase().includes(searchTermLower)) {
 		foundStockCode = code;
 		break; 
 	    }
 	}
     } 
-    if (ETFHKallStockData[foundStockCode]) {
-         return { code: foundStockCode, name: ETFHKallStockData[foundStockCode].name };
+    if (ETFallStockData[foundStockCode]) {
+         return { code: foundStockCode, name: ETFallStockData[foundStockCode].name };
     }
 	
     return foundStock;
