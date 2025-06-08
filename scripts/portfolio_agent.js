@@ -1361,7 +1361,7 @@ function runBacktest() {
     }
 
     if (infoMessageElement) {
-		infoMessageElement.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算 (模拟中)...</p>`;
+		infoMessageElement.innerHTML = `<p>正在为 “${portfolioNameForDisplay}” 进行 ${startDate} 至 ${endDate} 的收益测算...</p>`;
 		infoMessageElement.style.color = ''; // Reset color if previously error
 		infoMessageElement.style.display = 'block';
      } 
