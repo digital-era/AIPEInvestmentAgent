@@ -1565,6 +1565,8 @@ function openAnalysisReportModal(agentId, stockName) { // 参数名简化为 age
     currentStockNameForReport = stockName; 
 
     const agentWhoseReport = agents[agentId];
+    
+   
     if (!agentWhoseReport) {
         console.error("无法找到 Agent 对象: ", agentId);
         const modalBody = document.getElementById('analysisReportModalBody');
@@ -1572,6 +1574,8 @@ function openAnalysisReportModal(agentId, stockName) { // 参数名简化为 age
         modal.style.display = "block";
         return;
     }
+
+    console.log(`openAnalysisReportModal:agent.latestprompt=${agentWhoseReport.latestprompt}`)
 
     const modalTitle = document.getElementById('analysisReportModalTitle');
     const modalBody = document.getElementById('analysisReportModalBody');
@@ -1704,6 +1708,8 @@ async function deepSearchReport() {
     const modalBody = document.getElementById('analysisReportModalBody');
     const allButtons = modal.querySelectorAll('button');
     const originalContentBeforeSearch = modalBody.innerText; // 保存当前内容以备失败时恢复
+	
+    console.log(`deepSearchReport:agent.latestprompt=${agent.latestprompt}`)
 
     // --- 2. 构筑 Prompt ---
     const deepSearchPrompt = `${agent.name}，你好，请基于前期获取的答复信息，启动联网深度搜索，一定要获取动态及时、更深刻的深度分析报告。
