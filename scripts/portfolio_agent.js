@@ -12,7 +12,10 @@ let agents = {
         photo: "images/female_avatar.png",
         stockPoolList: [],
         portfolio: [],
+	latestPrompt: "",
         latestReport: "",
+	latestDeepSearchPrompt: "",
+        latestDeepSearcReport: "",
         stockInputId: 'agent1StockInput',
         stockPoolListId: 'agent1StockPoolList',
         stockSelectId: 'agent1StockSelect',
@@ -55,7 +58,10 @@ Warren Buffett的核心信息:
         photo: "images/male_avatar.png",
         stockPoolList: [],
         portfolio: [],
+	latestPrompt: "",
         latestReport: "",
+	latestDeepSearchPrompt: "",
+        latestDeepSearcReport: "",
         stockInputId: 'agent2StockInput',
         stockPoolListId: 'agent2StockPoolList',
         stockSelectId: 'agent2StockSelect',
@@ -98,6 +104,10 @@ let myPortfolioTitle = "我的投资组合"; // Default title, will be updated b
 let apiSettings = { endpoint: '', key: '', model: '' };
 let performanceChartInstance = null;
 let currentBacktestTarget = null;
+// 全局变量，用于在编辑报告时暂存信息
+let originalReportContent = '';
+let currentAgentIdForReport = null;
+let currentStockNameForReport = null; 
 
 // API Settings Model/Endpoint Configuration
 const endpointModelMap = {
@@ -481,6 +491,7 @@ async function analyzeStockForAgent(agentId) {
         viewReportBtn.style.display = 'none';
     }
     agent.latestReport = ""; // <--- 清空此Agent的旧报告
+    agent.latestPrompt = ""; // <--- 清空此Agent的旧Prompt
 
     let stockToAnalyze = analysisInput.value.trim();
     if (stockToAnalyze === "" && stockSelect.value !== "") {
@@ -548,6 +559,7 @@ async function analyzeStockForAgent(agentId) {
     }
 
     const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
+    agent.latestprompt = prompt; // <--- 存储prompt到对应的 agent 对象
 
     if (analysisDisplayElement) {
         analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
@@ -636,6 +648,7 @@ async function analyzeStockForAgent(agentId) {
     } catch (error) {
         console.error("analyzeStockForAgent API Call Error:", error);
         agent.latestReport = ""; // 清空报告
+	agent.latestPrompt = ""; // 清空Prompt
         if (analysisDisplayElement) {
             analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}\n请检查控制台详情。`;
             analysisDisplayElement.style.color = 'var(--danger-color)';
@@ -1549,6 +1562,7 @@ function openAnalysisReportModal(agentId, stockName) { // 参数名简化为 age
 
     // 1. 存储当前 agentId，以便“保存”功能使用
     currentAgentIdForReport = agentId; 
+    currentStockNameForReport = stockName; 
 
     const agentWhoseReport = agents[agentId];
     if (!agentWhoseReport) {
@@ -1595,9 +1609,10 @@ function closeAnalysisReportModal() {
         modalBody.setAttribute('contenteditable', 'false');
     }
 
-    // 2. 清空全局暂存变量，避免数据污染
+    // 清空所有全局暂存变量
     originalReportContent = '';
     currentAgentIdForReport = null;
+    currentStockNameForReport = null; 
 }
 
 /** * 新增函数：保存对报告的修改 */
@@ -1657,6 +1672,104 @@ async function copyAnalysisReportToClipboard() {
     } catch (err) {
         console.error('无法复制报告: ', err);
         alert("复制失败。请检查浏览器控制台或手动复制。");
+    }
+}
+
+/**
+ * 启动对当前报告的深度搜索。
+ * 1. 构造Prompt。
+ * 2. 更新UI以显示加载状态，并禁用按钮。
+ * 3. 调用后端代理API。
+ * 4. 处理成功或失败的结果。
+ * 5. 恢复UI状态。
+ */
+async function deepSearchReport() {
+    // --- 1. 数据准备和验证 ---
+    const agentId = currentAgentIdForReport;
+    const stockName = currentStockNameForReport;
+
+    if (!agentId || !stockName) {
+        alert("无法执行深度搜索：缺少智能体或股票信息。");
+        return;
+    }
+    
+    // 验证 API 设置是否存在
+    if (!apiSettings || !apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
+        alert("API设置不完整，无法执行深度搜索。请先在设置中配置。");
+        return;
+    }
+
+    const agent = agents[agentId];
+    const modal = document.getElementById('analysisReportModal');
+    const modalBody = document.getElementById('analysisReportModalBody');
+    const allButtons = modal.querySelectorAll('button');
+    const originalContentBeforeSearch = modalBody.innerText; // 保存当前内容以备失败时恢复
+
+    // --- 2. 构筑 Prompt ---
+    const deepSearchPrompt = `${agent.name}，你好，请基于前期获取的答复信息，启动联网深度搜索，一定要获取动态及时、更深刻的深度分析报告。
+
+---
+[前期问题]
+${agent.latestPrompt || '无'}
+---
+[前期答复]
+${agent.latestReport || '无'}
+---
+`;
+
+    console.log("构筑的深度搜索Prompt:", deepSearchPrompt);
+
+    // --- 3. UI 更新和 API 调用 ---
+    try {
+        // 3a. 进入加载状态：更新UI并禁用所有按钮
+        modalBody.innerText = `正在使用模型: ${apiSettings.model} 进行深度搜索...\n\n这将需要一些时间，请耐心等待。\n(联网搜索和深度分析通常需要 30-90 秒)`;
+        allButtons.forEach(btn => btn.disabled = true);
+
+        // 3b. 调用后端代理 API
+        const response = await fetch('/API/deepSearchProxy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: deepSearchPrompt,
+                settings: apiSettings // 将完整的设置对象发送给后端
+            })
+        });
+
+        // 3c. 处理后端返回的错误
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: '无法解析服务器错误信息' }));
+            throw new Error(`服务器返回错误: ${response.status} - ${errorData.message || '未知错误'}`);
+        }
+
+        // 3d. 处理成功返回的数据
+        const result = await response.json();
+        
+        if (result && result.report) {
+            // 更新报告区域为新内容
+            modalBody.innerText = result.report;
+            // 更新核心数据源
+            agent.latestReport = result.report;
+            // 将“取消修改”的还原点设置为新生成的内容
+            originalReportContent = result.report;
+            console.log("深度搜索成功，已更新报告内容。");
+        } else {
+            throw new Error("API返回的数据格式不正确，缺少 'report' 字段。");
+        }
+
+    } catch (error) {
+        // --- 4. 错误处理 ---
+        console.error('深度搜索失败:', error);
+        alert(`深度搜索失败: ${error.message}`);
+        
+        // 恢复到搜索前的内容，避免用户看到错误信息后，之前的编辑丢失
+        modalBody.innerText = originalContentBeforeSearch;
+
+    } finally {
+        // --- 5. 恢复 UI ---
+        // 无论成功还是失败，最后都要重新启用按钮
+        allButtons.forEach(btn => btn.disabled = false);
     }
 }
 
