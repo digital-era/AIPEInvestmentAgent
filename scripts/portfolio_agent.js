@@ -559,8 +559,8 @@ async function analyzeStockForAgent(agentId) {
     }
 
     const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
-    agent.latestprompt = prompt; // <--- 存储prompt到对应的 agent 对象
-    console.log(`agent.latestprompt=${agent.latestprompt}`)
+    agent.latestPrompt = prompt; // <--- 存储prompt到对应的 agent 对象
+    console.log(`agent.latestPrompt=${agent.latestPrompt}`)
     if (analysisDisplayElement) {
         analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
     }
@@ -1575,7 +1575,7 @@ function openAnalysisReportModal(agentId, stockName) { // 参数名简化为 age
         return;
     }
 
-    console.log(`openAnalysisReportModal:agent.latestprompt=${agentWhoseReport.latestprompt}`)
+    //console.log(`openAnalysisReportModal:agent.latestPrompt=${agentWhoseReport.latestPrompt}`)
 
     const modalTitle = document.getElementById('analysisReportModalTitle');
     const modalBody = document.getElementById('analysisReportModalBody');
@@ -1709,7 +1709,7 @@ async function deepSearchReport() {
     const allButtons = modal.querySelectorAll('button');
     const originalContentBeforeSearch = modalBody.innerText; // 保存当前内容以备失败时恢复
 	
-    console.log(`deepSearchReport:agent.latestprompt=${agent.latestprompt}`)
+    //console.log(`deepSearchReport:agent.latestPrompt=${agent.latestPrompt}`)
 
     // --- 2. 构筑 Prompt ---
     const deepSearchPrompt = `${agent.name}，你好，请基于前期获取的答复信息，启动联网深度搜索，一定要获取动态及时、更深刻的深度分析报告。
