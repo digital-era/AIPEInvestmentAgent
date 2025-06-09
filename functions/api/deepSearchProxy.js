@@ -56,7 +56,8 @@ export async function onRequestPost(context) {
                 use_web_search: true
             };
         } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
-            requestUrl = `${apiSettings.endpoint}/v1beta/models/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
+            #requestUrl = `${apiSettings.endpoint}/v1beta/models/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
+            requestUrl = `${apiSettings.endpoint}/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiSettings.key}`;
             requestPayload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 tools: [
