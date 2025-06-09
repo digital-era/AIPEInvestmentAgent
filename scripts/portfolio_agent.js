@@ -560,7 +560,7 @@ async function analyzeStockForAgent(agentId) {
 
     const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
     agent.latestprompt = prompt; // <--- 存储prompt到对应的 agent 对象
-
+    console.log(`agent.latestprompt=${agent.latestprompt}`)
     if (analysisDisplayElement) {
         analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
     }
