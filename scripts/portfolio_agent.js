@@ -1542,14 +1542,17 @@ function loadMyPortfolio() {
 // Analysis Report Modal Functions
 const analysisReportModal = document.getElementById('analysisReportModal'); // Already correct
 
-function openAnalysisReportModal(agentIdForReport, stockName) { // Changed parameter name for clarity
+// 修改后的 openAnalysisReportModal 函数
+function openAnalysisReportModal(agentId, stockName) { // 参数名简化为 agentId
     const modal = document.getElementById('analysisReportModal');
     if (!modal) return;
 
-    const agentWhoseReport = agents[agentIdForReport]; // Get the specific agent object
+    // 1. 存储当前 agentId，以便“保存”功能使用
+    currentAgentIdForReport = agentId; 
+
+    const agentWhoseReport = agents[agentId];
     if (!agentWhoseReport) {
-        console.error("无法找到 Agent 对象: ", agentIdForReport);
-        // Optionally display an error in the modal or an alert
+        console.error("无法找到 Agent 对象: ", agentId);
         const modalBody = document.getElementById('analysisReportModalBody');
         if (modalBody) modalBody.textContent = "错误：无法加载指定智能体的报告。";
         modal.style.display = "block";
@@ -1562,29 +1565,89 @@ function openAnalysisReportModal(agentIdForReport, stockName) { // Changed param
     if (modalTitle) {
         modalTitle.innerHTML = `<i class="fas fa-file-alt"></i> ${agentWhoseReport.name} 对 ${stockName} 的分析报告`;
     }
+    
     if (modalBody) {
-        modalBody.textContent = agentWhoseReport.latestReport || "未能加载报告内容或报告为空。"; // <--- 从 agent 对象获取报告
+        // 2. 获取报告内容，并将其存储到全局变量中，以备“取消”时使用
+        originalReportContent = agentWhoseReport.latestReport || "未能加载报告内容或报告为空。";
+        modalBody.textContent = originalReportContent;
+
+        // 3. 关键：让报告内容区域变为可编辑状态
+        modalBody.setAttribute('contenteditable', 'true');
+        
+        // (可选) 为了更好的用户体验，自动将光标聚焦到编辑区
+        modalBody.focus();
     }
 
     modal.style.display = "block";
 }
 
+// 修改后的 closeAnalysisReportModal 函数
 function closeAnalysisReportModal() {
     const modal = document.getElementById('analysisReportModal');
     if (modal) {
         modal.style.display = "none";
     }
+    
+    // 关键：在关闭模态框时，执行清理工作
+    const modalBody = document.getElementById('analysisReportModalBody');
+    if (modalBody) {
+        // 1. 恢复为不可编辑状态
+        modalBody.setAttribute('contenteditable', 'false');
+    }
+
+    // 2. 清空全局暂存变量，避免数据污染
+    originalReportContent = '';
+    currentAgentIdForReport = null;
+}
+
+/** * 新增函数：保存对报告的修改 */
+function saveReportChanges() {
+    if (currentAgentIdForReport === null) {
+        alert('保存失败：无法确定当前报告属于哪个智能体。');
+        return;
+    }
+    
+    const modalBody = document.getElementById('analysisReportModalBody');
+    // 使用 .innerText 获取内容，可以更好地保留用户输入的换行
+    const updatedReport = modalBody.innerText;
+
+    // 更新 agents 数据对象中对应智能体的报告
+    agents[currentAgentIdForReport].latestReport = updatedReport;
+
+    console.log(`Agent ${currentAgentIdForReport} 的报告已更新。`);
+    alert('修改已成功保存！');
+
+    // 保存成功后，关闭模态框
+    closeAnalysisReportModal();
+}
+
+/** 新增函数：取消对报告的修改 */
+function cancelReportChanges() {
+    const modalBody = document.getElementById('analysisReportModalBody');
+    
+    // 将报告内容恢复为打开时保存的原始版本
+    modalBody.textContent = originalReportContent;
+    
+    console.log("修改已取消，内容已恢复。");
+    // 这里可以根据需要添加提示，或直接关闭模态框
+    // 如果希望取消后也关闭模态框，可以取消下面这行的注释
+    // closeAnalysisReportModal(); 
 }
 
 async function copyAnalysisReportToClipboard() {
-    const modalBody = document.getElementById('analysisReportModalBody');
-    const reportToCopy = modalBody ? modalBody.textContent : "";
+    const modalBody = document.getElementById('analysisReportModalBody');    
+    // 修改点：使用 .innerText 而不是 .textContent
+    // .innerText 能更好地保留用户在编辑时输入的换行。
+    const reportToCopy = modalBody ? modalBody.innerText : "";
 
-    if (!reportToCopy || reportToCopy === "未能加载报告内容或报告为空。" || reportToCopy === "错误：无法加载指定智能体的报告。") {
+    // 验证逻辑保持不变，非常完善
+    if (!reportToCopy || reportToCopy.trim() === "" || reportToCopy === "未能加载报告内容或报告为空。" || reportToCopy === "错误：无法加载指定智能体的报告。") {
         alert("没有有效的报告内容可供复制。");
         return;
     }
+
     try {
+        // 核心复制逻辑保持不变，是最佳实践
         await navigator.clipboard.writeText(reportToCopy);
         alert("分析报告已复制到剪贴板！");
     } catch (err) {
