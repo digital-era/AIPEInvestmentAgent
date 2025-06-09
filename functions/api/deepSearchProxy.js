@@ -1,17 +1,42 @@
-// 正确的文件路径: /functions/API/deepSearchProxy.js
+// 完整的文件路径: /functions/API/deepSearchProxy.js
 
-// Cloudflare Pages Functions 要求固定的导出格式
+// 定义可复用的 CORS 响应头，以确保所有响应都遵循相同的跨域策略
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*', // 允许任何来源的请求
+  'Access-Control-Allow-Methods': 'POST, OPTIONS', // 明确声明允许的方法
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization', // 明确声明允许的请求头
+};
+
+/**
+ * 处理浏览器的 CORS 预检请求 (Preflight Request)。
+ * 当浏览器发送带有自定义头（如 'Content-Type: application/json'）的 POST 请求前，
+ * 会先发送一个 OPTIONS 请求来询问服务器是否允许。
+ * 我们必须正确响应这个 OPTIONS 请求，否则浏览器会阻止后续的 POST 请求。
+ */
+export async function onRequestOptions(context) {
+  // 返回一个空响应，但包含正确的 CORS 头，告诉浏览器“可以继续”。
+  return new Response(null, {
+    status: 204, // 204 No Content 是处理 OPTIONS 请求的标准方式
+    headers: {
+      ...corsHeaders,
+      'Access-Control-Max-Age': '86400', // 可选：将此预检响应缓存一天
+    },
+  });
+}
+
+/**
+ * 处理核心的 POST 请求，执行实际的 API 代理逻辑。
+ */
 export async function onRequestPost(context) {
     try {
         // 1. 解析请求体
-        // 在Cloudflare环境中，从 context.request 中获取JSON数据
         const { prompt, settings: apiSettings } = await context.request.json();
 
         if (!prompt || !apiSettings || !apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
-            // 返回一个 Response 对象
+            // 返回 400 错误，并附上 CORS 头
             return new Response(JSON.stringify({ message: '请求无效：缺少 prompt 或完整的 API 设置。' }), {
                 status: 400,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
         }
 
@@ -47,14 +72,14 @@ export async function onRequestPost(context) {
                 ]
             };
         } else {
+            // 返回不支持的配置错误，并附上 CORS 头
             return new Response(JSON.stringify({ message: '不支持的API接入点配置。' }), {
                 status: 400,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
         }
 
-        // 3. 发起 fetch 请求
-        // 在Cloudflare环境中，fetch是全局可用的，无需引入 'node-fetch'
+        // 3. 发起 fetch 请求到第三方 API
         const apiResponse = await fetch(requestUrl, {
             method: 'POST',
             headers: headers,
@@ -80,19 +105,18 @@ export async function onRequestPost(context) {
             }
         }
 
-        // 5. 返回成功的响应
-        // 必须返回一个标准的 Response 对象
+        // 5. 返回成功的响应，并附上 CORS 头
         return new Response(JSON.stringify({ report: analysisReportText }), {
             status: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, // 添加CORS头
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
     } catch (error) {
         console.error('在处理 deepSearchProxy 时发生错误:', error.message);
-        // 6. 处理异常并返回错误响应
+        // 6. 处理异常并返回 500 错误，并附上 CORS 头
         return new Response(JSON.stringify({ message: `服务器内部错误: ${error.message}` }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 }
