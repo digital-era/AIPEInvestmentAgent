@@ -798,19 +798,36 @@ button:active {
     color: var(--accent-color1); /* Example, could be different */
 }
 
+/* 1. 将主容器改为Flex布局，实现左右分离 */
 .analysis-report-modal-controls {
     margin-bottom: 15px;
-    text-align: right; /* Align copy button to the right */
+    display: flex;                 /* 启用Flexbox */
+    justify-content: space-between;  /* 关键：让左右两部分分离 */
+    align-items: center;           /* 垂直居中对齐 */
 }
 
-.analysis-report-modal-controls button {
-    background: var(--accent-color2); /* Green for copy button */
+/* 2. 为右侧的按钮组设置样式，让它们之间有间距 */
+.analysis-report-modal-controls .button-group-right {
+    display: flex;
+    gap: 10px; /* 按钮之间的间距 */
+}
+
+/* 3. 【保持原有风格】让右侧按钮组内的所有按钮，都使用原有的绿色样式 */
+.analysis-report-modal-controls .button-group-right button {
+    background: var(--accent-color2); /* 继承原有的绿色 */
     color: white;
 }
-.analysis-report-modal-controls button:hover {
-    background: #27ae60; /* Darker green */
+.analysis-report-modal-controls .button-group-right button:hover {
+    background: #27ae60; /* 继承原有的悬停颜色 */
 }
 
+/* 4. 【新增】为左侧的“深度搜索”按钮设置一个不同的、基于主色调的风格 */
+.analysis-report-modal-controls #deepSearchBtn {
+    background: var(--accent-color1); /* 使用蓝色主色调 */
+}
+.analysis-report-modal-controls #deepSearchBtn:hover {
+    background: #2980b9; /* 悬停时变暗 */
+}
 .analysis-report-body {
     background-color: var(--card-bg);
     padding: 20px;
