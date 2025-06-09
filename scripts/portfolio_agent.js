@@ -1613,12 +1613,16 @@ function saveReportChanges() {
 
     // 更新 agents 数据对象中对应智能体的报告
     agents[currentAgentIdForReport].latestReport = updatedReport;
+    // 增强将 "originalReportContent" 更新为当前已保存的版本。
+    // 这确保了在保存后，如果用户继续编辑然后点击“取消”，
+    // 内容会恢复到这次保存的状态，而不是最初打开时的状态。
+    originalReportContent = updatedReport;
 
     console.log(`Agent ${currentAgentIdForReport} 的报告已更新。`);
     alert('修改已成功保存！');
 
-    // 保存成功后，关闭模态框
-    closeAnalysisReportModal();
+    // 【核心修改】移除下面这行代码，这样窗口就不会在保存后关闭
+    // closeAnalysisReportModal();
 }
 
 /** 新增函数：取消对报告的修改 */
