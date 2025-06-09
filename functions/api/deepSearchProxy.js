@@ -1,44 +1,42 @@
-const express = require('express');
-const fetch = require('node-fetch');
-const cors = require('cors');
+// 正确的文件路径: /functions/API/deepSearchProxy.js
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
-
-app.post('/API/deepSearchProxy', async (req, res) => {
-    const { prompt, settings: apiSettings } = req.body;
-
-    if (!prompt || !apiSettings || !apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
-        return res.status(400).json({ message: '请求无效：缺少 prompt 或完整的 API 设置。' });
-    }
-
-    console.log(`收到深度搜索请求，模型: ${apiSettings.model}`);
-
+// Cloudflare Pages Functions 要求固定的导出格式
+export async function onRequestPost(context) {
     try {
+        // 1. 解析请求体
+        // 在Cloudflare环境中，从 context.request 中获取JSON数据
+        const { prompt, settings: apiSettings } = await context.request.json();
+
+        if (!prompt || !apiSettings || !apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
+            // 返回一个 Response 对象
+            return new Response(JSON.stringify({ message: '请求无效：缺少 prompt 或完整的 API 设置。' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        console.log(`收到深度搜索请求，模型: ${apiSettings.model}`);
+
         let requestUrl;
         let requestPayload;
         const headers = { 'Content-Type': 'application/json' };
 
+        // 2. 根据不同的API端点构建请求
         if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
             requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
             headers['Authorization'] = `Bearer ${apiSettings.key}`;
             requestPayload = {
                 model: apiSettings.model,
                 messages: [{ role: "user", content: prompt }],
-                use_web_search: true // Deepseek/OpenAI 的方式
+                use_web_search: true
             };
         } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
             requestUrl = `${apiSettings.endpoint}/v1beta/models/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
-            
-            // ✨ 关键修改：为 Google Gemini 添加搜索工具
             requestPayload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 tools: [
                     {
-                        "google_search_retrieval": {} // 显式启用 Google 搜索
+                        "google_search_retrieval": {}
                     }
                 ],
                 safetySettings: [
@@ -49,13 +47,18 @@ app.post('/API/deepSearchProxy', async (req, res) => {
                 ]
             };
         } else {
-            return res.status(400).json({ message: '不支持的API接入点配置。' });
+            return new Response(JSON.stringify({ message: '不支持的API接入点配置。' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
         }
 
-        const apiResponse = await fetch(requestUrl, { 
-            method: 'POST', 
-            headers: headers, 
-            body: JSON.stringify(requestPayload) 
+        // 3. 发起 fetch 请求
+        // 在Cloudflare环境中，fetch是全局可用的，无需引入 'node-fetch'
+        const apiResponse = await fetch(requestUrl, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(requestPayload)
         });
 
         if (!apiResponse.ok) {
@@ -66,7 +69,7 @@ app.post('/API/deepSearchProxy', async (req, res) => {
         const responseData = await apiResponse.json();
         let analysisReportText = "未能从API响应中提取分析报告。";
 
-        // 解析逻辑保持不变
+        // 4. 解析来自第三方API的响应
         if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
             if (responseData.choices && responseData.choices[0] && responseData.choices[0].message) {
                 analysisReportText = responseData.choices[0].message.content;
@@ -76,16 +79,20 @@ app.post('/API/deepSearchProxy', async (req, res) => {
                 analysisReportText = responseData.candidates[0].content.parts[0].text;
             }
         }
-        
-        res.status(200).json({ report: analysisReportText });
+
+        // 5. 返回成功的响应
+        // 必须返回一个标准的 Response 对象
+        return new Response(JSON.stringify({ report: analysisReportText }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, // 添加CORS头
+        });
 
     } catch (error) {
         console.error('在处理 deepSearchProxy 时发生错误:', error.message);
-        res.status(500).json({ message: `服务器内部错误: ${error.message}` });
+        // 6. 处理异常并返回错误响应
+        return new Response(JSON.stringify({ message: `服务器内部错误: ${error.message}` }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
     }
-});
-
-app.listen(PORT, () => {
-    console.log(`函数服务已启动，正在监听端口 ${PORT}`);
-    console.log(`深度搜索 API 地址: http://localhost:${PORT}/API/deepSearchProxy`);
-});
+}
