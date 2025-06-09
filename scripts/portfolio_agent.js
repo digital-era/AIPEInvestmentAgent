@@ -1708,6 +1708,7 @@ async function deepSearchReport() {
     const modalBody = document.getElementById('analysisReportModalBody');
     const allButtons = modal.querySelectorAll('button');
     const originalContentBeforeSearch = modalBody.innerText; // 保存当前内容以备失败时恢复
+    const today = new Date();
 	
     //console.log(`deepSearchReport:agent.latestPrompt=${agent.latestPrompt}`)
 
@@ -1719,7 +1720,7 @@ ${agent.name}，你好。你已基于现有知识库对 **${stockName}** 完成�
 ### 核心任务清单：
 
 1.  **联网深度搜索**：
-    *   **时间范围**：聚焦于【最近三个月】。
+    *   **时间范围**：切记：今天日期是${today}, 聚焦于【最近三个月】。
     *   **信息来源**：所有公开可信的信息渠道（如新闻、财报、公告、行业报告等）。
 
 2.  **搜索与验证目标**：
