@@ -1732,7 +1732,7 @@ ${agent.latestReport || '无'}
         allButtons.forEach(btn => btn.disabled = true);
 
         // 3b. 调用后端代理 API
-        const response = await fetch('/API/deepSearchProxy', {
+        const response = await fetch('/api/deepSearchProxy', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
