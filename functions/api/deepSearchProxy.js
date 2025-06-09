@@ -63,7 +63,8 @@ export async function onRequestPost(context) {
                 contents: [{ parts: [{ text: prompt }] }],
                 tools: [
                     {
-                        "google_search_retrieval": {}
+                        //"google_search_retrieval": {}
+                        "google_search": {}
                     }
                 ],
                 safetySettings: [
