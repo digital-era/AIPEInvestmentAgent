@@ -535,8 +535,15 @@
             <span class="close-button" onclick="closeAnalysisReportModal()">×</span>
             <h2 id="analysisReportModalTitle"><i class="fas fa-file-alt"></i> AI分析报告</h2>
             <div class="analysis-report-modal-controls">
-                <button onclick="copyAnalysisReportToClipboard()"><i class="fas fa-copy"></i> 复制报告内容</button>
-		<button onclick="searchDeep()"><i class="fas fa-copy"></i> 深度搜索</button>
+	            <!-- 左侧按钮: 深度搜索 -->
+	            <button id="deepSearchBtn" onclick="deepSearchReport()"><i class="fas fa-search-plus"></i> 深度搜索</button>
+	            
+	            <!-- 右侧按钮组 -->
+	            <div class="button-group-right">
+	                <button onclick="saveReportChanges()"><i class="fas fa-save"></i> 保存修改</button>
+	                <button onclick="cancelReportChanges()"><i class="fas fa-undo"></i> 取消修改</button>
+	                <button onclick="copyAnalysisReportToClipboard()"><i class="fas fa-copy"></i> 复制报告内容</button>
+	            </div>
             </div>
             <div id="analysisReportModalBody" class="analysis-report-body">
                 <!-- Report content will be injected here by JavaScript -->
