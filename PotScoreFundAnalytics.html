@@ -465,8 +465,9 @@
             const currentPotScoreElement = document.getElementById('currentPotScore');
             currentPotScoreElement.textContent = isEmptyData ? "--" : data.currentPotScore;
             currentPotScoreElement.className = 'value'; 
-            if (!isEmptyData) currentPotScoreElement.classList.add(getPotScoreClass(data.currentPotScore));
-            
+            if (!isNaN(data.currentPotScore)) {
+                if (!isEmptyData) currentPotScoreElement.classList.add(getPotScoreClass(data.currentPotScore));
+            }            
             const totalInflowElement = document.getElementById('totalInflow');
             totalInflowElement.textContent = isEmptyData ? "--%" : data.totalInflow;
             totalInflowElement.className = 'value'; 
