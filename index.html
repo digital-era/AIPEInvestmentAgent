@@ -567,25 +567,25 @@
 	        // 遍历所有导航链接
 	        navLinks.forEach(link => {
 	            // 当鼠标进入一个链接的区域时
-		    console.log("当鼠标进入一个链接的区域时")
+		    //console.log("当鼠标进入一个链接的区域时")
 	            link.addEventListener('mouseenter', () => {
 	                // 1. 首先移除所有链接的激活状态
 	                navLinks.forEach(l => l.classList.remove('active-nav'));
 	                // 2. 然后给当前鼠标所在的链接添加激活状态
 	                link.classList.add('active-nav');
-			console.log("当前鼠标所在的链接添加激活状态")
+			//console.log("当前鼠标所在的链接添加激活状态")
 	            });
 	        });
 	
 	        // 当鼠标离开整个导航栏区域时
 	        navContainer.addEventListener('mouseleave', () => {
 	            // 1. 再次移除所有链接的激活状态
-		     console.log("再次移除所有链接的激活状态")
+		    //console.log("再次移除所有链接的激活状态")
 	            navLinks.forEach(l => l.classList.remove('active-nav'));
 	            // 2. 然后把激活状态恢复到默认的“AI投资组合”链接上
 	            if (defaultActiveLink) {
 	                defaultActiveLink.classList.add('active-nav');
-			console.log("然后把激活状态恢复到默认的AI投资组合链接上")
+			//console.log("然后把激活状态恢复到默认的AI投资组合链接上")
 	            }
 	        });
 	    });
