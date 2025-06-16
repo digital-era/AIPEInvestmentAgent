@@ -3,10 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI氛围投资案例</title>
+    <title>AI氛围投资</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <style>
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #3A3A3A; 
+            position: relative;
+        }
+        
+        h1 { 
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .color-wave-title {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; 
+            font-size: 2.8rem; 
+            background: linear-gradient(
+                90deg,
+                #007CF0, 
+                #00DFD8, 
+                #007CF0  
+            );
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: gradientWave 6s linear infinite;
+            -webkit-animation: gradientWave 6s linear infinite;
+            display: inline-block; 
+            padding: 0 5px; 
+        }
+        
+        .color-wave-title i { 
+            background: linear-gradient(90deg, #007CF0, #00DFD8); 
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 10px; 
+        }
+
+        @keyframes gradientWave {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+        
+        .subtitle {
+            color: #a0d2eb; 
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            max-width: 800px;
+            margin: 0 auto 25px;
+            line-height: 1.6;
+        }
+        
         /* 页面专属样式 */
         .content-area {
             padding-top: 20px;
@@ -133,13 +194,13 @@
 <body>
     <div class="page-container">
         <header>
-            <h1 class="color-wave-title"><i class="fas fa-chart-network"></i> AI投资范式，氛围投资</h1>
-            <p class="subtitle">以创作者思维培育投资过程，激发创意灵感，让投资不再枯燥和寂寞</p>
+            <h1 class="color-wave-title"><i class="fas fa-chart-network"></i> AI氛围投资，激发灵感</h1>
+            <p class="subtitle">以创作者思维重塑投资过程，激发灵感，让投资生动化</p>
         </header>
         <!-- 页面主要内容 -->
         <div class="content-area">
             <div class="page-title">
-                <h1><i class="fas fa-palette"></i> AI氛围投资作品集</h1>
+                <h1><i class="fas fa-palette"></i> AI氛围投资作品展播</h1>
             </div>
             
             <div class="vibe-cards-container">
