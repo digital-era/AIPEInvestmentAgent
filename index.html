@@ -557,6 +557,36 @@
     <script src="scripts/portfolio_agent.js"></script>
     <script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.18.0.min.js"></script>
     <script>
+	    document.addEventListener('DOMContentLoaded', function() {
+	        const navContainer = document.getElementById('main-navigation');
+	        if (!navContainer) return; // 如果找不到导航栏，就什么都不做
+	
+	        const navLinks = navContainer.querySelectorAll('a');
+	        const defaultActiveLink = document.getElementById('nav-link-portfolio');
+	
+	        // 遍历所有导航链接
+	        navLinks.forEach(link => {
+	            // 当鼠标进入一个链接的区域时
+	            link.addEventListener('mouseenter', () => {
+	                // 1. 首先移除所有链接的激活状态
+	                navLinks.forEach(l => l.classList.remove('active-nav'));
+	                // 2. 然后给当前鼠标所在的链接添加激活状态
+	                link.classList.add('active-nav');
+	            });
+	        });
+	
+	        // 当鼠标离开整个导航栏区域时
+	        navContainer.addEventListener('mouseleave', () => {
+	            // 1. 再次移除所有链接的激活状态
+	            navLinks.forEach(l => l.classList.remove('active-nav'));
+	            // 2. 然后把激活状态恢复到默认的“AI投资组合”链接上
+	            if (defaultActiveLink) {
+	                defaultActiveLink.classList.add('active-nav');
+	            }
+	        });
+	    });
+    </script>
+    <script>
         // GitHub Auth Constants
         const GITHUB_CLIENT_ID = 'Ov23liAr5gYJACq7QZ1p'; // 在部署时替换为真实ID
         const REDIRECT_URI = 'https://aipeinvestmentagent.pages.dev/callback.html'; 
