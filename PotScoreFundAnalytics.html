@@ -184,6 +184,21 @@
         .info-card .value { font-size: 2.8rem; font-weight: 800; margin: 15px 0; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); color: #EAEAEA; transition: color 0.3s ease; }
         .info-card #stockName.value { background: linear-gradient(90deg, #1abc9c, #3498db); -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent; transition: none; }
         .info-card .label { color: #90A4AE; font-size: 1rem; margin-top: 10px; }
+        
+        /* NEW/MODIFIED CSS for buttons and content switching */
+        .info-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 10;}
+        .info-card-btn { background: #3a3a3a; color: #b0bec5; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 14px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        .info-card-btn:hover { background: #4f4f4f; color: #ffffff; transform: scale(1.1); }
+        .info-card-btn.return-btn { display: none; } /* Initially hide return button */
+        .card-content-wrapper { position: relative; min-height: 120px; /* Give it a minimum height to avoid layout shifts */ display: flex; align-items: center; justify-content: center;}
+        .dynamic-content, .default-content { transition: opacity 0.3s ease; width: 100%;}
+        .dynamic-content { font-size: 1.1rem; text-align: left; padding: 0 10px; }
+        .dynamic-content h3 { font-size: 1.1rem; margin-bottom: 12px; }
+        .dynamic-content .info-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1rem; }
+        .dynamic-content .info-label { color: #90A4AE; }
+        .dynamic-content .info-value { color: #EAEAEA; font-weight: 600; }
+        .dynamic-content .loading-text { font-size: 1.2rem; color: #a0d2eb; text-align: center; padding: 20px 0;}
+
         .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-bottom: 40px; }
         .card { background: #242424; border-radius: 20px; padding: 30px; backdrop-filter: blur(12px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); border: 1px solid #3A3A3A; transition: transform 0.3s ease; }
         .card:hover { transform: translateY(-5px); }
@@ -209,7 +224,7 @@
             }
             .dropdown-select, .search-box {
                 width: 100%; 
-                max-width: none; /* Allow full width on smaller screens when stacked */
+                max-width: none;
             }
         }
         @media (max-width: 1100px) {
@@ -217,7 +232,7 @@
             .stock-info { flex-direction: column; }
             .info-card { margin: 15px 0; }
             h1, .color-wave-title { font-size: 2.2rem; } 
-            .subtitle { font-size: 0.8rem; } 
+            .subtitle { font-size: 1.1rem; } 
         }
         
         .tabs { display: flex; margin-bottom: 20px; background: #282828; border-radius: 12px; overflow: hidden; }
@@ -239,7 +254,7 @@
 <body>
     <div class="container">
         <header>
-            <h1 class="color-wave-title"><i class="fas fa-chart-network"></i> AI投资范式，量化分析Agent</h1>
+            <h1 class="color-wave-title"><i class="fas fa-chart-line"></i> AI投资范式，量化分析Agent</h1>
             <p class="subtitle">深度感知标的动能，解析主力资金动向，把握市场脉搏</p>
         </header>
         
@@ -260,10 +275,23 @@
         </div>
         
         <div class="stock-info">
-            <div class="info-card">
-                <h3><i class="fas fa-signature"></i> 股票名称</h3>
-                <div class="value" id="stockName">---</div>
-                <div class="label">股票代码: <span id="stockCodeDisplay">---</span></div>
+            <div class="info-card" id="main-info-card">
+                <div class="info-card-actions" style="display: none;">
+                    <button id="btn-rt-price" class="info-card-btn" title="查询实时涨幅"><i class="fas fa-percent"></i></button>
+                    <button id="btn-basic-info" class="info-card-btn" title="查询基本面信息"><i class="fas fa-book-open"></i></button>
+                    <button id="btn-return" class="info-card-btn return-btn" title="返回"><i class="fas fa-undo-alt"></i></button>
+                </div>
+
+                <div class="card-content-wrapper">
+                    <div class="default-content">
+                        <h3><i class="fas fa-signature"></i> 股票名称</h3>
+                        <div class="value" id="stockName">---</div>
+                        <div class="label">股票代码: <span id="stockCodeDisplay">---</span></div>
+                    </div>
+                    <div class="dynamic-content" style="display: none;">
+                        <!-- API result content will be injected here by JavaScript -->
+                    </div>
+                </div>
             </div>
             <div class="info-card">
                 <h3><i class="fas fa-bolt"></i> 当前动能指数</h3>
@@ -311,7 +339,7 @@
         </div>
         
         <footer>
-            <p>© 2025 AI范式进化. 保留所有权利。
+            <p>© 2025 AI范式进化. 保留所有权利。</p>
             <p>投资有风险，入市需谨慎。本内容仅供参考，不构成任何投资建议。</p>
         </footer>
     </div>
@@ -329,7 +357,6 @@
             populateDropdown('top20TotalInflowDropdown', top20TotalInflowStocks, "Top20 5日总净流入占比");
             populateDropdown('top20ContinuousInflowDropdown', top20ContinuousInflowStocks, "Top20 5日持续净流入占比");
             populateDropdown('top20ReboundFactorDropdown', top20ReboundFactorStocks, "Top20 5日反弹因子");
-
 
             if (dataLoaded && defaultStockCode) {
                 document.getElementById('stockCode').value = defaultStockCode;
@@ -355,7 +382,105 @@
                     triggerLoadStockDataFromInput(); 
                 }
             });
+
+            // Add event listeners for new buttons
+            document.getElementById('btn-rt-price').addEventListener('click', () => handleApiButtonClick('price'));
+            document.getElementById('btn-basic-info').addEventListener('click', () => handleApiButtonClick('info'));
+            document.getElementById('btn-return').addEventListener('click', handleReturnButtonClick);
         });
+        
+        async function handleApiButtonClick(type) {
+            const stockCode = document.getElementById('stockCodeDisplay').textContent;
+            if (!stockCode || stockCode === '---') {
+                alert('请先加载一只股票。');
+                return;
+            }
+
+            const dynamicContentDiv = document.querySelector('#main-info-card .dynamic-content');
+            const defaultContentDiv = document.querySelector('#main-info-card .default-content');
+            const returnBtn = document.getElementById('btn-return');
+
+            // Show loading state
+            defaultContentDiv.style.display = 'none';
+            dynamicContentDiv.style.display = 'block';
+            returnBtn.style.display = 'inline-flex';
+            dynamicContentDiv.innerHTML = `<div class="loading-text"><i class="fas fa-spinner fa-spin"></i> 正在查询...</div>`;
+
+            try {
+                // The URL now points to our Cloudflare proxy
+                const response = await fetch(`/api/rtStockQueryProxy?code=${stockCode}&type=${type}`);
+                
+                // Always check if the response is ok
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({error: '无法解析错误信息'}));
+                    throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Check for application-level error from our backend
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                let contentHtml = '';
+                if (type === 'price') {
+                    const changeClass = data.change_percent >= 0 ? 'positive' : 'negative';
+                    const sign = data.change_percent > 0 ? '+' : '';
+                    contentHtml = `
+                        <h3><i class="fas fa-chart-line"></i> 实时行情</h3>
+                        <div class="info-item">
+                            <span class="info-label">最新价:</span>
+                            <span class="info-value ${changeClass}">${data.latest_price.toFixed(2)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">涨跌额:</span>
+                            <span class="info-value ${changeClass}">${data.change_amount.toFixed(2)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">涨跌幅:</span>
+                            <span class="info-value ${changeClass}">${sign}${data.change_percent.toFixed(2)}%</span>
+                        </div>
+                    `;
+                } else if (type === 'info') {
+                    contentHtml = `
+                        <h3><i class="fas fa-book-open"></i> 基本面信息</h3>
+                        <div class="info-item">
+                            <span class="info-label">市盈率(PE TTM):</span>
+                            <span class="info-value">${data.pe !== null ? data.pe.toFixed(2) : 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">市净率(PB):</span>
+                            <span class="info-value">${data.pb !== null ? data.pb.toFixed(2) : 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">净资产收益率(ROE):</span>
+                            <span class="info-value">${data.roe !== null ? (data.roe * 100).toFixed(2) + '%' : 'N/A'}</span>
+                        </div>
+                    `;
+                }
+                dynamicContentDiv.innerHTML = contentHtml;
+
+            } catch (error) {
+                console.error('API查询失败:', error);
+                dynamicContentDiv.innerHTML = `<div class="loading-text negative" style="font-size: 1rem;">查询失败: ${error.message}</div>`;
+            }
+        }
+
+        function handleReturnButtonClick() {
+            const mainCard = document.getElementById('main-info-card');
+            const dynamicContentDiv = mainCard.querySelector('.dynamic-content');
+            const defaultContentDiv = mainCard.querySelector('.default-content');
+            const returnBtn = document.getElementById('btn-return');
+            
+            // Restore original content from data attribute
+            document.getElementById('stockName').textContent = mainCard.dataset.stockName || '---';
+            
+            // Toggle visibility
+            dynamicContentDiv.style.display = 'none';
+            defaultContentDiv.style.display = 'block';
+            returnBtn.style.display = 'none';
+        }
 
         function populateDropdown(dropdownId, stockList, defaultOptionText) {
             const select = document.getElementById(dropdownId);
@@ -380,7 +505,6 @@
             if (selectedStockCode) {
                 document.getElementById('stockCode').value = selectedStockCode; 
                 loadStockDataByCode(selectedStockCode);
-                // Clear other dropdowns
                 if (event.target.id === 'top20TotalInflowDropdown') {
                     document.getElementById('top20ContinuousInflowDropdown').value = "";
                     document.getElementById('top20ReboundFactorDropdown').value = "";
@@ -415,6 +539,7 @@
             let stockData = null;
             let foundStockCode = null;
             const upperSearchTerm = searchTerm.toUpperCase();
+            
             if (allStockData[upperSearchTerm]) {
                 stockData = allStockData[upperSearchTerm];
                 foundStockCode = upperSearchTerm;
@@ -430,9 +555,11 @@
                 }
             }
 
+            const actionButtons = document.querySelector('.info-card-actions');
             if (!stockData) {
                 alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
                 renderStockData({}, searchTerm); 
+                actionButtons.style.display = 'none'; // Hide buttons on failure
                 if (window.flowChartInstance) { window.flowChartInstance.destroy(); window.flowChartInstance = null; }
                 if (window.doubleChartInstance) { window.doubleChartInstance.destroy(); window.doubleChartInstance = null; }
                 const flowCtx = document.getElementById('flowChart').getContext('2d');
@@ -441,6 +568,12 @@
                 if (doubleCtx) doubleCtx.clearRect(0, 0, doubleCtx.canvas.width, doubleCtx.canvas.height);
                 return;
             }
+            
+            const mainCard = document.getElementById('main-info-card');
+            mainCard.dataset.stockName = stockData.name; // Store original name for the 'return' button
+
+            handleReturnButtonClick(); // Always reset to default view when loading a new stock
+            actionButtons.style.display = 'flex'; // Show action buttons
             
             renderStockData(stockData, foundStockCode);
             renderFlowChart(stockData); 
@@ -465,9 +598,10 @@
             const currentPotScoreElement = document.getElementById('currentPotScore');
             currentPotScoreElement.textContent = isEmptyData ? "--" : data.currentPotScore;
             currentPotScoreElement.className = 'value'; 
-            if (!isNaN(data.currentPotScore) && data.currentPotScore!='') {
-                if (!isEmptyData) currentPotScoreElement.classList.add(getPotScoreClass(data.currentPotScore));
+            if (!isEmptyData && !isNaN(data.currentPotScore) && data.currentPotScore !== '') {
+                currentPotScoreElement.classList.add(getPotScoreClass(data.currentPotScore));
             }            
+            
             const totalInflowElement = document.getElementById('totalInflow');
             totalInflowElement.textContent = isEmptyData ? "--%" : data.totalInflow;
             totalInflowElement.className = 'value'; 
@@ -638,7 +772,7 @@
                                     let label = context.dataset.label || '';
                                     if (label) label += ': ';
                                     if (context.parsed.y !== null) {
-                                        label += context.parsed.y.toFixed(2);
+                                        label += context.dataset.yAxisID === 'y1' ? context.parsed.y.toFixed(2) : context.parsed.y;
                                     }
                                     return label;
                                 }
@@ -659,7 +793,7 @@
                         y1: { 
                             type: 'linear', display: true, position: 'right',
                             grid: { drawOnChartArea: false, },
-                            ticks: { color: '#e67e22', font: { size: 13 }},
+                            ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '¥' + value.toFixed(2); }},
                             title: { display: true, text: '收盘价格', color: '#e67e22', font: { size: 14, weight: 'bold' }}
                         }
                     },
