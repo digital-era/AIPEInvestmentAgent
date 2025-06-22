@@ -425,21 +425,21 @@
 
                 let contentHtml = '';
                 if (type === 'price') {
-                    const changeClass = data.change_percent >= 0 ? 'positive' : 'negative';
-                    const sign = data.change_percent > 0 ? '+' : '';
+                    const changeClass = data.changePercent >= 0 ? 'positive' : 'negative';
+                    const sign = data.changePercent > 0 ? '+' : '';
                     contentHtml = `
                         <h3><i class="fas fa-chart-line"></i> 实时行情</h3>
                         <div class="info-item">
                             <span class="info-label">最新价:</span>
-                            <span class="info-value ${changeClass}">${data.latest_price.toFixed(2)}</span>
+                            <span class="info-value ${changeClass}">${data.latestPrice.toFixed(2)}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">涨跌额:</span>
-                            <span class="info-value ${changeClass}">${data.change_amount.toFixed(2)}</span>
+                            <span class="info-value ${changeClass}">${data.changeAmount.toFixed(2)}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">涨跌幅:</span>
-                            <span class="info-value ${changeClass}">${sign}${data.change_percent.toFixed(2)}%</span>
+                            <span class="info-value ${changeClass}">${sign}${data.changePercent.toFixed(2)}%</span>
                         </div>
                     `;
                 } else if (type === 'info') {
