@@ -574,6 +574,25 @@
                 }
             }
 
+            if (!stockData){
+                if (ETFallStockData[upperSearchTerm]) {
+                    stockData = ETFallStockData[upperSearchTerm];
+                    foundStockCode = upperSearchTerm;
+                    console.log(`${upperSearchTerm}, ${stockData}`);
+                } else {
+                            const searchTermLower = searchTerm.toLowerCase();
+                            for (const code in ETFallStockData) {
+                                if (ETFallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+                                    stockData = ETFallStockData[code];
+                                    foundStockCode = code;
+                                    document.getElementById('stockCode').value = code; 
+                                    console.log(`${searchTermLower}, ${stockData}`);
+                                    break; 
+                                }
+                            }
+                }
+            }
+
             const actionButtons = document.querySelector('.info-card-actions');
             if (!stockData) {
                 alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
