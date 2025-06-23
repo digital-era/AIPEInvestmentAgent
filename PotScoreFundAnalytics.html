@@ -557,18 +557,20 @@
 
             if (!stockData){
                 if (HKallStockData[upperSearchTerm]) {
-                stockData = HKallStockData[upperSearchTerm];
-                foundStockCode = upperSearchTerm;
+                    stockData = HKallStockData[upperSearchTerm];
+                    foundStockCode = upperSearchTerm;
+                    console.log(`${upperSearchTerm}, ${stockData}`);
                 } else {
-                    const searchTermLower = searchTerm.toLowerCase();
-                    for (const code in HKallStockData) {
-                        if (HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
-                            stockData = HKallStockData[code];
-                            foundStockCode = code;
-                            document.getElementById('stockCode').value = code; 
-                            break; 
-                        }
-                    }
+                            const searchTermLower = searchTerm.toLowerCase();
+                            for (const code in HKallStockData) {
+                                if (HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+                                    stockData = HKallStockData[code];
+                                    foundStockCode = code;
+                                    document.getElementById('stockCode').value = code; 
+                                    console.log(`${searchTermLower}, ${stockData}`);
+                                    break; 
+                                }
+                            }
                 }
             }
 
