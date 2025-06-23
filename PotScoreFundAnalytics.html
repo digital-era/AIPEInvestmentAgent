@@ -460,7 +460,7 @@
                         };                        
                         // 在控制台打印存储的数据（调试用）
                         console.log(`已存储ETF数据: ${stockCode}`, ETFallStockData[stockCode]);
-                        renderStockData(ETFallStockData[stockCode], foundStockCode);
+                        renderStockData(ETFallStockData[stockCode], stockCode);
                         renderDoubleChart(ETFallStockData[stockCode]);
                     }
                 } else if (type === 'info') {
