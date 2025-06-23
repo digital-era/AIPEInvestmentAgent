@@ -442,6 +442,27 @@
                             <span class="info-value ${changeClass}">${sign}${data.changePercent.toFixed(2)}%</span>
                         </div>
                     `;
+                    // 检查是否为ETF
+                    const isETF = stockCode.startsWith('58') || 
+                                   stockCode.startsWith('56') || 
+                                   stockCode.startsWith('51') || 
+                                   stockCode.startsWith('15');
+                    
+                    // 如果是ETF且有dailydata数据
+                    if (isETF && data.dailydata && data.dailydata.length > 0) {
+                        // 保留已有的名称（如果存在），否则使用API返回的名称
+                        const existingName = ETFallStockData[stockCode]?.name || data.name;
+                        
+                        // 存储到ETFallStockData
+                        ETFallStockData[stockCode] = {
+                            name: existingName,  // 使用保留的已有名称
+                            latestDate: data.dailydata[0].date,
+                            dailyData: data.dailydata
+                        };
+                        
+                        // 在控制台打印存储的数据（调试用）
+                        console.log(`已存储ETF数据: ${stockCode}`, ETFallStockData[stockCode]);
+
                 } else if (type === 'info') {
                     contentHtml = `
                         <h3><i class="fas fa-book-open"></i> 基本面信息</h3>
