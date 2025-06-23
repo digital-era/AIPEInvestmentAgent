@@ -555,6 +555,23 @@
                 }
             }
 
+            if (!stockData){
+                if (HKallStockData[upperSearchTerm]) {
+                stockData = HKallStockData[upperSearchTerm];
+                foundStockCode = upperSearchTerm;
+                } else {
+                    const searchTermLower = searchTerm.toLowerCase();
+                    for (const code in HKallStockData) {
+                        if (HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
+                            stockData = HKallStockData[code];
+                            foundStockCode = code;
+                            document.getElementById('stockCode').value = code; 
+                            break; 
+                        }
+                    }
+                }
+            }
+
             const actionButtons = document.querySelector('.info-card-actions');
             if (!stockData) {
                 alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
