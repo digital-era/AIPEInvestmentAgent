@@ -954,7 +954,8 @@
                         y1: { 
                             type: 'linear', display: true, position: 'right',
                             grid: { drawOnChartArea: false, },
-                            ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '¥' + value.toFixed(2); }},
+                            #ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '¥' + value.toFixed(2); }},
+                            ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '' + value.toFixed(2); }},  ##也有可能是HK/USD，所以默认不带单位
                             title: { display: true, text: '收盘价格', color: '#e67e22', font: { size: 14, weight: 'bold' }}
                         }
                     },
