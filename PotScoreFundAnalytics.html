@@ -560,7 +560,7 @@
             let stockData = null;
             let foundStockCode = null;
             const upperSearchTerm = searchTerm.toUpperCase();
-            
+
             if (allStockData[upperSearchTerm]) {
                 stockData = allStockData[upperSearchTerm];
                 foundStockCode = upperSearchTerm;
@@ -570,8 +570,8 @@
                     if (allStockData[code].name.toLowerCase().includes(searchTermLower)) {
                         stockData = allStockData[code];
                         foundStockCode = code;
-                        document.getElementById('stockCode').value = code; 
-                        break; 
+                        document.getElementById('stockCode').value = code;
+                        break;
                     }
                 }
             }
@@ -587,9 +587,9 @@
                                 if (HKallStockData[code].name.toLowerCase().includes(searchTermLower)) {
                                     stockData = HKallStockData[code];
                                     foundStockCode = code;
-                                    document.getElementById('stockCode').value = code; 
+                                    document.getElementById('stockCode').value = code;
                                     console.log(`${searchTermLower}, ${stockData}`);
-                                    break; 
+                                    break;
                                 }
                             }
                 }
@@ -606,37 +606,137 @@
                                 if (ETFallStockData[code].name.toLowerCase().includes(searchTermLower)) {
                                     stockData = ETFallStockData[code];
                                     foundStockCode = code;
-                                    document.getElementById('stockCode').value = code; 
+                                    document.getElementById('stockCode').value = code;
                                     console.log(`${searchTermLower}, ${stockData}`);
-                                    break; 
+                                    break;
                                 }
                             }
                 }
             }
+            // 定义渲染函数
+            const renderData = () => {
+                const actionButtons = document.querySelector('.info-card-actions');
+                if (!stockData) {
+                    alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
+                    renderStockData({}, searchTerm);
+                    actionButtons.style.display = 'none';
+                    if (window.flowChartInstance) { 
+                        window.flowChartInstance.destroy(); 
+                        window.flowChartInstance = null; 
+                    }
+                    if (window.doubleChartInstance) { 
+                        window.doubleChartInstance.destroy(); 
+                        window.doubleChartInstance = null; 
+                    }
+                    const flowCtx = document.getElementById('flowChart').getContext('2d');
+                    if (flowCtx) flowCtx.clearRect(0, 0, flowCtx.canvas.width, flowCtx.canvas.height);
+                    const doubleCtx = document.getElementById('doubleChart').getContext('2d');
+                    if (doubleCtx) doubleCtx.clearRect(0, 0, doubleCtx.canvas.width, doubleCtx.canvas.height);
+                    return;
+                }
 
-            const actionButtons = document.querySelector('.info-card-actions');
-            if (!stockData) {
-                alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
-                renderStockData({}, searchTerm); 
-                actionButtons.style.display = 'none'; // Hide buttons on failure
-                if (window.flowChartInstance) { window.flowChartInstance.destroy(); window.flowChartInstance = null; }
-                if (window.doubleChartInstance) { window.doubleChartInstance.destroy(); window.doubleChartInstance = null; }
-                const flowCtx = document.getElementById('flowChart').getContext('2d');
-                if (flowCtx) flowCtx.clearRect(0, 0, flowCtx.canvas.width, flowCtx.canvas.height);
-                const doubleCtx = document.getElementById('doubleChart').getContext('2d');
-                if (doubleCtx) doubleCtx.clearRect(0, 0, doubleCtx.canvas.width, doubleCtx.canvas.height);
-                return;
-            }
-            
-            const mainCard = document.getElementById('main-info-card');
-            mainCard.dataset.stockName = stockData.name; // Store original name for the 'return' button
+                const mainCard = document.getElementById('main-info-card');
+                mainCard.dataset.stockName = stockData.name;
+                handleReturnButtonClick();
+                actionButtons.style.display = 'flex';
 
-            handleReturnButtonClick(); // Always reset to default view when loading a new stock
-            actionButtons.style.display = 'flex'; // Show action buttons
+                renderStockData(stockData, foundStockCode || upperSearchTerm);
+                renderFlowChart(stockData);
+                renderDoubleChart(stockData);
+            };
             
-            renderStockData(stockData, foundStockCode);
-            renderFlowChart(stockData); 
-            renderDoubleChart(stockData);
+            //检查是否为ETF
+            const isETF = upperSearchTerm.startsWith('58') ||
+                          upperSearchTerm.startsWith('56') ||
+                          upperSearchTerm.startsWith('51') ||
+                          upperSearchTerm.startsWith('15');
+            //检查是否为US
+            const isUS = upperSearchTerm.startsWith('US');
+            
+            if (isUS && (!stockData)) {
+                const type = "price";
+                // 修复1: 移除分号，使用正确的变量
+                fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(errorData => {
+                                throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
+                            }).catch(() => {
+                                throw new Error(`服务器响应错误: ${response.status}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        // 修复2: 正确的条件判断
+                        if (data.dailydata && data.dailydata.length > 0) {
+                            foundStockCode = upperSearchTerm;
+                            const existingName = USDallStockData[upperSearchTerm]?.name || data.name;
+                            USDallStockData[upperSearchTerm] = {
+                                name: existingName,
+                                latestDate: data.dailydata[0].date,
+                                dailyData: data.dailydata
+                            };
+                            console.log(`已存储USD数据: ${upperSearchTerm}`, USDallStockData[upperSearchTerm]);
+                            stockData = USDallStockData[upperSearchTerm];
+                            // 修复3: 调用渲染
+                            renderData();
+                        } else {
+                            console.error("API请求无dailydata:");
+                            renderData(); // 仍然需要渲染
+                        }
+                    })
+                    .catch(error => { // 修复4: 使用 .catch() 替代 try-catch
+                        console.error("API请求失败:", error);
+                        alert(`数据获取失败: ${error.message}`);
+                        renderData(); // 错误时也需要渲染
+                    });
+            } else if (isETF && (!stockData)) {
+                const type = "price";
+                fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(errorData => {
+                                throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
+                            }).catch(() => {
+                                throw new Error(`服务器响应错误: ${response.status}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        // 修复5: ETF分支不需要检查isUS
+                        if (data.dailydata && data.dailydata.length > 0) {
+                            foundStockCode = upperSearchTerm;
+                            const existingName = ETFallStockData[upperSearchTerm]?.name || data.name;
+                            ETFallStockData[upperSearchTerm] = {
+                                name: existingName,
+                                latestDate: data.dailydata[0].date,
+                                dailyData: data.dailydata
+                            };
+                            console.log(`已存储ETF数据: ${upperSearchTerm}`, ETFallStockData[upperSearchTerm]);
+                            stockData = ETFallStockData[upperSearchTerm];
+                            renderData();
+                        } else {
+                            console.error("API请求无dailydata:");
+                            renderData();
+                        }
+                    })
+                    .catch(error => {
+                        console.error("API请求失败:", error);
+                        alert(`数据获取失败: ${error.message}`);
+                        renderData();
+                    });
+            } else {
+                // 如果不需要API请求，直接渲染
+                renderData();
+            }          
         }
 
         function getPotScoreClass(potScoreValue) {
