@@ -614,56 +614,6 @@
                 }
             }
 
-            if (upperSearchTerm以US开头) { #则直接调用yfinance API获取股票名称
-                type = "price"
-                try {                    
-                        // The URL now points to our Cloudflare proxy
-                        const response = await fetch(`/api/rtStockQueryProxy?code=${stockCode}&type=${type}`);
-                        // 检查是否为ETF
-                        const isETF = stockCode.startsWith('58') || 
-                                       stockCode.startsWith('56') || 
-                                       stockCode.startsWith('51') || 
-                                       stockCode.startsWith('15');
-                        
-                        const isUS = stockCode.startsWith('US');
-                        
-                        // 如果是ETF且有dailydata数据
-                        if (isETF && data.dailydata && data.dailydata.length > 0) {
-                            // 保留已有的名称（如果存在），否则使用API返回的名称
-                            const existingName = ETFallStockData[stockCode]?.name || data.name;                        
-                            // 存储到ETFallStockData
-                            ETFallStockData[stockCode] = {
-                                name: existingName,  // 使用保留的已有名称
-                                latestDate: data.dailydata[0].date,
-                                dailyData: data.dailydata
-                            };                        
-                            // 在控制台打印存储的数据（调试用）
-                            console.log(`已存储ETF数据: ${stockCode}`, ETFallStockData[stockCode]);
-                            renderStockData(ETFallStockData[stockCode], stockCode);
-                            renderDoubleChart(ETFallStockData[stockCode]);
-                        }
-                        
-                        // Always check if the response is ok
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({error: '无法解析错误信息'}));
-                            throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
-                        }
-        
-                        const data = await response.json();
-        
-                        // Check for application-level error from our backend
-                        if (data.error) {
-                            throw new Error(data.error);
-                        }
-        
-                        let contentHtml = '';
-                        const changeClass = data.changePercent >= 0 ? 'positive' : 'negative';
-                        const mainCard = document.getElementById('main-info-card');
-                        mainCard.dataset.stockName = data.name; // Store original name for the 'return' button
-            
-                        handleReturnButtonClick(); // Always reset to default view when loading a new stock
-                        actionButtons.style.display = 'flex'; // Show action buttons
-
             const actionButtons = document.querySelector('.info-card-actions');
             if (!stockData) {
                 alert(`未找到股票代码或名称 "${searchTerm}" 对应的数据。请检查输入或Excel文件。`);
