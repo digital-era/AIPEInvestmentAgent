@@ -449,7 +449,7 @@
                                    stockCode.startsWith('15');
 
                     // 检查是否为ETF
-                    const isUS = stockCode.startsWith('US) ;
+                    const isUS = stockCode.startsWith('US') ;
                     // 如果是ETF且有dailydata数据
                     if ((isETF || isUS) && data.dailydata && data.dailydata.length > 0) {
                         // 保留已有的名称（如果存在），否则使用API返回的名称
