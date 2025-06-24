@@ -674,14 +674,14 @@
                         // 修复2: 正确的条件判断
                         if (data.dailydata && data.dailydata.length > 0) {
                             foundStockCode = upperSearchTerm;
-                            const existingName = USDallStockData[upperSearchTerm]?.name || data.name;
-                            USDallStockData[upperSearchTerm] = {
+                            const existingName = USallStockData[upperSearchTerm]?.name || data.name;
+                            USallStockData[upperSearchTerm] = {
                                 name: existingName,
                                 latestDate: data.dailydata[0].date,
                                 dailyData: data.dailydata
                             };
-                            console.log(`已存储USD数据: ${upperSearchTerm}`, USDallStockData[upperSearchTerm]);
-                            stockData = USDallStockData[upperSearchTerm];
+                            console.log(`已存储USD数据: ${upperSearchTerm}`, USallStockData[upperSearchTerm]);
+                            stockData = USallStockData[upperSearchTerm];
                             // 修复3: 调用渲染
                             renderData();
                         } else {
