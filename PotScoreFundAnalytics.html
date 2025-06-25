@@ -358,19 +358,39 @@
             populateDropdown('top20ContinuousInflowDropdown', top20ContinuousInflowStocks, "Top20 5日持续净流入占比");
             populateDropdown('top20ReboundFactorDropdown', top20ReboundFactorStocks, "Top20 5日反弹因子");
 
-            if (dataLoaded && defaultStockCode) {
-                document.getElementById('stockCode').value = defaultStockCode;
+            // ================== 新增/修改逻辑开始 ==================
+            // 1. 检查URL中是否有'stock'参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const stockNameToSearch = urlParams.get('stock');
+
+            if (stockNameToSearch) {
+                // 如果URL中传入了股票名称
+                const decodedStockName = decodeURIComponent(stockNameToSearch);
+                document.getElementById('stockCode').value = decodedStockName;
                 document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
-                loadStockDataByCode(defaultStockCode); 
-            } else if (dataLoaded && Object.keys(allStockData).length > 0) {
-                const firstCode = Object.keys(allStockData)[0];
-                document.getElementById('stockCode').value = firstCode;
-                document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
-                loadStockDataByCode(firstCode); 
+                if (dataLoaded) {
+                    // 触发查询
+                    triggerLoadStockDataFromInput();
+                } else {
+                    console.error("数据尚未加载，无法根据URL参数进行查询。");
+                }
             } else {
-                 document.getElementById('stockName').textContent = "数据加载失败";
-                 document.getElementById('stockCode').placeholder = "加载失败";
+                // 如果URL中没有参数，执行原来的默认加载逻辑
+                if (dataLoaded && defaultStockCode) {
+                    document.getElementById('stockCode').value = defaultStockCode;
+                    document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
+                    loadStockDataByCode(defaultStockCode); 
+                } else if (dataLoaded && Object.keys(allStockData).length > 0) {
+                    const firstCode = Object.keys(allStockData)[0];
+                    document.getElementById('stockCode').value = firstCode;
+                    document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
+                    loadStockDataByCode(firstCode); 
+                } else {
+                     document.getElementById('stockName').textContent = "数据加载失败";
+                     document.getElementById('stockCode').placeholder = "加载失败";
+                }
             }
+            // ================== 新增/修改逻辑结束 ==================
 
             document.getElementById('top20TotalInflowDropdown').addEventListener('change', handleDropdownChange);
             document.getElementById('top20ContinuousInflowDropdown').addEventListener('change', handleDropdownChange);
