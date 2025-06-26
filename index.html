@@ -677,38 +677,65 @@
 		//const clientPromise = getOSSClient(); // getOSSClient() for STS
 
 		async function uploadPortfolioToOSS() {
-			if (!localStorage.getItem('github_access_token')) {
-				alert("请先登录以保存投资组合。");
-				return;
-			}
-			if (!portfolioLoadingIndicator || !portfolioActionsDiv) return;
-
-			portfolioLoadingIndicator.textContent = "正在生成并上传组合...";
-			portfolioLoadingIndicator.style.display = 'inline';
-			const buttons = portfolioActionsDiv.querySelectorAll('button');
-			buttons.forEach(b => b.disabled = true);
-
-			try {
-				const client = await getOSSClient(); // 使用STS
-				// const client = getOSSClientDirect(); // 如果不使用STS (不推荐)
-
-				if (typeof generatePortfolioExcelBlob !== "function") {
-					throw new Error("generatePortfolioExcelBlob 函数未定义。");
-				}
-				const excelArrayBuffer = await generatePortfolioExcelBlob(); // 这个函数将在 portfolio_agent.js 中定义
-				const excelBlob = new Blob([excelArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-				// OSS SDK 的 put 方法接受 Blob 或 File
-				await client.put(OSS_FILE_KEY, excelBlob);
-
-				alert("投资组合已成功保存到云端！");
-			} catch (error) {
-				console.error("上传投资组合到云端失败:", error);
-				alert(`上传投资组合失败: ${error.message}`);
-			} finally {
-				portfolioLoadingIndicator.style.display = 'none';
-				buttons.forEach(b => b.disabled = false);
-			}
+		    if (!localStorage.getItem('github_access_token')) {
+		        alert("请先登录以保存投资组合。");
+		        return;
+		    }
+		    if (!portfolioLoadingIndicator || !portfolioActionsDiv) return;
+		
+		    portfolioLoadingIndicator.textContent = "正在保存组合到云端...";
+		    portfolioLoadingIndicator.style.display = 'inline';
+		    const buttons = portfolioActionsDiv.querySelectorAll('button');
+		    buttons.forEach(b => b.disabled = true);
+		
+		    try {
+		        const client = await getOSSClient();
+		
+		        // --- 新增逻辑：首先尝试读取OSS上的现有文件 ---
+		        let existingWorkbook = null;
+		        try {
+		            portfolioLoadingIndicator.textContent = "正在读取云端历史记录...";
+		            const result = await client.get(OSS_FILE_KEY);
+		            // 如果文件存在，使用 'buffer' 类型读取并解析
+		            const existingData = result.content;
+		            if (typeof XLSX === 'undefined') {
+		                 throw new Error("XLSX library is not loaded!");
+		            }
+		            existingWorkbook = XLSX.read(existingData, { type: 'buffer' });
+		            console.log("成功读取到云端的现有文件。");
+		        } catch (error) {
+		            // 如果错误是 'NoSuchKey'，说明文件不存在，这是正常情况，我们将创建一个新文件
+		            if (error.code === 'NoSuchKey') {
+		                console.log("云端文件不存在，将创建新文件。");
+		                existingWorkbook = null; // 确保 workbook 为 null
+		            } else {
+		                // 如果是其他错误（如网络问题），则抛出异常
+		                throw error;
+		            }
+		        }
+		        // --- 新增逻辑结束 ---
+		
+		        portfolioLoadingIndicator.textContent = "正在生成最新组合数据...";
+		        if (typeof generatePortfolioExcelBlob !== "function") {
+		            throw new Error("generatePortfolioExcelBlob 函数未定义。");
+		        }
+		
+		        // 将读取到的工作簿（或null）传递给生成函数
+		        const excelArrayBuffer = await generatePortfolioExcelBlob(existingWorkbook);
+		        const excelBlob = new Blob([excelArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+		
+		        portfolioLoadingIndicator.textContent = "正在上传至云端...";
+		        // 使用 put 方法覆盖上传更新后的文件
+		        await client.put(OSS_FILE_KEY, excelBlob);
+		
+		        alert("投资组合已成功追加保存到云端！");
+		    } catch (error) {
+		        console.error("上传投资组合到云端失败:", error);
+		        alert(`上传投资组合失败: ${error.message}`);
+		    } finally {
+		        portfolioLoadingIndicator.style.display = 'none';
+		        buttons.forEach(b => b.disabled = false);
+		    }
 		}
 
 		async function downloadPortfolioFromOSS() {
