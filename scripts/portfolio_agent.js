@@ -1830,16 +1830,19 @@ function getLocalTimestamp() {
     return `${YYYY}${MM}${DD}${HH}${MIN}`;
 }
 
-async function generatePortfolioExcelBlob() {
+async function generatePortfolioExcelBlob(existingWorkbook) {
     await ensureStockDataIsReady(); // 确保 allStockData 可用
     if (typeof XLSX === 'undefined') {
         console.error("XLSX library is not loaded!");
         alert("错误：Excel处理库未加载，无法生成文件。");
         throw new Error("XLSX library not loaded.");
     }
-    const wb = XLSX.utils.book_new();
+
+    // --- 修改点：如果传入了现有工作簿则使用，否则创建一个新的 ---
+    const wb = existingWorkbook || XLSX.utils.book_new();
     const timestamp = getLocalTimestamp();
 
+    // 数据生成逻辑保持不变
     const createSheetData = (portfolioArray, portfolioTitleForColumn) => {
         if (!Array.isArray(portfolioArray)) {
             console.warn(`提供的 portfolioArray 不是数组:`, portfolioArray, `标题: ${portfolioTitleForColumn}`);
@@ -1851,35 +1854,49 @@ async function generatePortfolioExcelBlob() {
             "股票名称": item.name,
             "配置比例 (%)": item.allocation !== undefined ? item.allocation : item.userAllocation,
             "修改时间": timestamp,
-            // 如果是我的投资组合，可以额外添加来源和建议比例
-            ...(item.userAllocation !== undefined && { // 仅为我的投资组合添加
+            ...(item.userAllocation !== undefined && {
                 "来源": item.source || '',
                 "建议比例 (%)": item.suggestedAllocation || 0
             })
         }));
     };
-    
+
     const myPortfolioHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
     const agentPortfolioHeader = ["组合名称", "股票代码", "股票名称", "配置比例 (%)", "修改时间"];
 
+    // --- 新增辅助函数：用于向工作簿中追加数据 ---
+    const appendDataToSheet = (workbook, sheetName, data, header) => {
+        // 检查sheet是否已存在
+        const ws = workbook.Sheets[sheetName];
+        if (ws) {
+            // 如果存在，追加数据
+            // skipHeader: true - 不重复添加表头
+            // origin: -1 - 从表格末尾开始添加
+            XLSX.utils.sheet_add_json(ws, data, { skipHeader: true, origin: -1 });
+            console.log(`向现有Sheet "${sheetName}" 中追加了 ${data.length} 行数据。`);
+        } else {
+            // 如果不存在，创建新sheet
+            const newWs = XLSX.utils.json_to_sheet(data, { header: header });
+            XLSX.utils.book_append_sheet(workbook, newWs, sheetName);
+            console.log(`创建了新的Sheet "${sheetName}" 并添加了 ${data.length} 行数据。`);
+        }
+    };
 
     // 1. 大智投资组合
     const agent1PortfolioName = `${agents.agent1.name} (${agents.agent1.role})`;
     const agent1SheetData = createSheetData(agents.agent1.portfolio, agent1PortfolioName);
-    const ws1 = XLSX.utils.json_to_sheet(agent1SheetData, {header: agentPortfolioHeader});
-    XLSX.utils.book_append_sheet(wb, ws1, "大智投资组合");
+    appendDataToSheet(wb, "大智投资组合", agent1SheetData, agentPortfolioHeader);
 
     // 2. 大成投资组合
     const agent2PortfolioName = `${agents.agent2.name} (${agents.agent2.role})`;
     const agent2SheetData = createSheetData(agents.agent2.portfolio, agent2PortfolioName);
-    const ws2 = XLSX.utils.json_to_sheet(agent2SheetData, {header: agentPortfolioHeader});
-    XLSX.utils.book_append_sheet(wb, ws2, "大成投资组合");
+    appendDataToSheet(wb, "大成投资组合", agent2SheetData, agentPortfolioHeader);
 
     // 3. 我的投资组合
     const myPortfolioSheetData = createSheetData(myPortfolio, myPortfolioTitle);
-    const ws3 = XLSX.utils.json_to_sheet(myPortfolioSheetData, {header: myPortfolioHeader});
-    XLSX.utils.book_append_sheet(wb, ws3, "我的投资组合");
+    appendDataToSheet(wb, "我的投资组合", myPortfolioSheetData, myPortfolioHeader);
 
+    // 将最终的工作簿转换为 ArrayBuffer 并返回
     const excelArrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     return excelArrayBuffer;
 }
