@@ -919,12 +919,14 @@
 		            // 步骤 3: 数据合并
 		            const localDataMap = new Map();
 		            for (const row of latestLocalData) {
-		                 const key = `${row['修改时间']}|${row['组合名称']}|${row['股票代码']}`;
+		                 //const key = `${row['修改时间']}|${row['组合名称']}|${row['股票代码']}`;
+				 const key = `${row['组合名称']}|${row['股票代码']}`;
 		                 localDataMap.set(key, row['配置比例 (%)']);
 		            }
 		
 		            const mergedData = latestOssData.map(ossRow => {
-		                const key = `${ossRow['修改时间']}|${ossRow['组合名称']}|${ossRow['股票代码']}`;
+		                //const key = `${ossRow['修改时间']}|${ossRow['组合名称']}|${ossRow['股票代码']}`;
+				const key = `${ossRow['组合名称']}|${ossRow['股票代码']}`;
 		                if (localDataMap.has(key)) {
 		                    return { ...ossRow, '配置比例 (%)': localDataMap.get(key) };
 		                }
@@ -1016,12 +1018,8 @@
             }
         }
 
-	// `displayLoggedInUser` 和 `updateAuthUI` 的逻辑与上一个回答中类似，
-	// 确保它们在合适的时机调用 `loadPortfolioFromCloudAndApplyToUI`。
-	// `DOMContentLoaded` 的逻辑也类似。
-	// ... (粘贴上一个回答中 displayLoggedInUser, updateAuthUI, DOMContentLoaded 相关部分，
-	// 确保它们现在调用的是基于 OSS SDK 的 loadPortfolioFromCloudAndApplyToUI) ...
-	function displayLoggedInUser(userData) { // 示例，确保与上一个回答的结构一致
+
+	function displayLoggedInUser(userData) { 
 		if (userData && githubUserAvatarImg && githubUserNameSpan && githubUserInfoDiv && loginBtn && logoutBtn) {
 			githubUserAvatarImg.src = userData.avatar_url || 'images/default_avatar.png';
 			githubUserNameSpan.textContent = userData.name || userData.login;
