@@ -787,52 +787,186 @@
 			}
 		}
 
-		async function loadPortfolioFromCloudAndApplyToUI() {
-			if (!localStorage.getItem('github_access_token')) {
-				if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-				return;
-			}
-			if (!portfolioLoadingIndicator) return;
-
-			console.log("尝试从云端加载投资组合数据 (OSS)...");
-			portfolioLoadingIndicator.textContent = "正在加载云端组合...";
-			portfolioLoadingIndicator.style.display = 'inline';
-
-			try {
-				const client = await getOSSClient(); // 使用STS
-				// const client = getOSSClientDirect(); // 如果不使用STS
-
-				const result = await client.get(OSS_FILE_KEY);
-				if (!result || !result.content) {
-					console.log("云端未找到投资组合文件 (OSS)，将使用本地/默认数据。");
-					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-					return;
-				}
-
-				const excelArrayBuffer = result.content; // result.content 应该是 Buffer 或 ArrayBuffer
-				if (typeof applyCloudPortfolioData === "function") {
-					// 如果 result.content 是 Node.js Buffer，需要转为 ArrayBuffer
-					const finalArrayBuffer = (excelArrayBuffer instanceof ArrayBuffer) ? excelArrayBuffer : excelArrayBuffer.buffer.slice(excelArrayBuffer.byteOffset, excelArrayBuffer.byteOffset + excelArrayBuffer.byteLength);
-					await applyCloudPortfolioData(finalArrayBuffer);
-					console.log("云端投资组合数据 (OSS) 已成功应用到UI。");
-				} else {
-					throw new Error("applyCloudPortfolioData 函数未定义。");
-				}
-			} catch (error) {
-				if (error.status === 404 || (error.code && error.code.includes('NoSuchKey'))) {
-					console.log("云端未找到投资组合文件 (OSS)，将使用本地/默认数据。");
-					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-				} else {
-					console.error("加载并应用云端投资组合数据 (OSS) 失败:", error);
-					alert(`加载云端投资组合数据时出错: ${error.message}\n将尝试使用本地数据。`);
-					if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
-				}
-			} finally {
-				portfolioLoadingIndicator.style.display = 'none';
-			}
+		// --- 辅助函数 1: 解析 Excel Buffer 为按 Sheet 名组织的 JSON 对象 ---
+		function parseExcelData(arrayBuffer) {
+		    if (!arrayBuffer) return null;
+		    try {
+		        if (typeof XLSX === 'undefined') throw new Error("XLSX library not loaded.");
+		        const wb = XLSX.read(arrayBuffer, { type: 'array' });
+		        const sheetsData = {};
+		        wb.SheetNames.forEach(sheetName => {
+		            // 将工作表转换为JSON，header: 1 生成数组的数组，然后手动处理
+		            const sheetAsJson = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+		            sheetsData[sheetName] = sheetAsJson;
+		        });
+		        return sheetsData;
+		    } catch (error) {
+		        console.error("解析Excel文件失败:", error);
+		        return null;
+		    }
+		}
+		
+		// --- 辅助函数 2: 过滤每个组合中每个股票的最新记录 ---
+		function filterLatestEntries(sheetData) {
+		    if (!sheetData || sheetData.length === 0) return [];
+		    
+		    const latestEntriesMap = new Map();
+		    
+		    for (const row of sheetData) {
+		        // 确保关键字段存在
+		        if (!row['组合名称'] || !row['股票代码'] || !row['修改时间']) {
+		            continue;
+		        }
+		        const key = `${row['组合名称']}|${row['股票代码']}`;
+		        const existingEntry = latestEntriesMap.get(key);
+		
+		        if (!existingEntry || new Date(row['修改时间']) > new Date(existingEntry['修改时间'])) {
+		            latestEntriesMap.set(key, row);
+		        }
+		    }
+		    return Array.from(latestEntriesMap.values());
 		}
 
 
+		async function loadPortfolioFromCloudAndApplyToUI() {
+		    // --- 新增：定义Sheet名称映射关系 ---
+		    // 您需要将 '本地Sheet名1', '本地Sheet名2', '本地Sheet名3' 替换为
+		    // /data/AIPEEarningYield.xlsx 文件中实际对应的Sheet页面名称。
+		    // 键(key)是OSS文件中的Sheet名（也是我们最终想要的Sheet名），值(value)是本地文件中的对应Sheet名。
+		    const SHEET_NAME_MAPPING = {
+		        "大智投资组合": "本地Sheet名1",  // 例如 "Agent1_AIP_Data"
+		        "大成投资组合": "本地Sheet名2",  // 例如 "Agent2_AIP_Data"
+		        "我的投资组合": "本地Sheet名3"   // 例如 "MyPortfolio_AIP_Data"
+		    };
+		    // 最终输出的Excel中，我们希望的Sheet顺序
+		    const OUTPUT_SHEET_ORDER = ["大智投资组合", "大成投资组合", "我的投资组合"];
+		
+		    if (!localStorage.getItem('github_access_token')) {
+		        if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+		        return;
+		    }
+		    if (!portfolioLoadingIndicator) return;
+		
+		    console.log("尝试从云端和本地加载投资组合数据...");
+		    portfolioLoadingIndicator.textContent = "正在加载组合数据...";
+		    portfolioLoadingIndicator.style.display = 'inline';
+		
+		    try {
+		        // 步骤 1: 并行获取两个文件 (此部分逻辑不变)
+		        const [ossResult, localResult] = await Promise.allSettled([
+		             getOSSClient().then(client => client.get(OSS_FILE_KEY)),
+		             fetch('/data/AIPEEarningYield.xlsx').then(res => {
+		                 if (!res.ok) throw new Error(`无法加载本地文件，状态: ${res.status}`);
+		                 return res.arrayBuffer();
+		             })
+		        ]);
+		        
+		        let ossData = null;
+		        let localAipData = null;
+		
+		        if (ossResult.status === 'fulfilled' && ossResult.value && ossResult.value.content) {
+		            console.log("成功从OSS获取文件。");
+		            const ossBuffer = ossResult.value.content;
+		            ossData = parseExcelData(ossBuffer.buffer.slice(ossBuffer.byteOffset, ossBuffer.byteOffset + ossBuffer.byteLength));
+		        } else { /* ... 错误处理不变 ... */ }
+		
+		        if (localResult.status === 'fulfilled' && localResult.value) {
+		            console.log("成功从本地路径 /data/AIPEEarningYield.xlsx 获取文件。");
+		            localAipData = parseExcelData(localResult.value);
+		        } else { /* ... 错误处理不变 ... */ }
+		
+		        if (!ossData) { // 以OSS数据为主，如果OSS没有，则无需合并
+		            console.log("OSS无数据，将使用默认组合。");
+		            if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+		            portfolioLoadingIndicator.style.display = 'none';
+		            return;
+		        }
+		        
+		        portfolioLoadingIndicator.textContent = "正在整合数据...";
+		        
+		        const finalSheetsData = {};
+		
+		        // --- 修改：循环和数据获取逻辑 ---
+		        // 我们遍历最终想要的Sheet名称顺序 (来自OSS的名称)
+		        for (const ossSheetName of OUTPUT_SHEET_ORDER) {
+		            // 从映射关系中找到本地文件对应的Sheet名称
+		            const localSheetName = SHEET_NAME_MAPPING[ossSheetName];
+		
+		            // 确保OSS数据和本地映射都存在
+		            if (!ossData[ossSheetName] || (localAipData && !localAipData[localSheetName])) {
+		                console.warn(`跳过处理：OSS的Sheet "${ossSheetName}" 或其在本地对应的Sheet "${localSheetName}" 不存在。`);
+		                if (ossData[ossSheetName]) {
+		                    // 如果只有OSS数据，直接使用过滤后的OSS数据
+		                    finalSheetsData[ossSheetName] = filterLatestEntries(ossData[ossSheetName]);
+		                }
+		                continue;
+		            }
+		
+		            // 步骤 2: 对每个来源的数据进行过滤，只保留最新条目
+		            const latestOssData = filterLatestEntries(ossData[ossSheetName]);
+		            const latestLocalData = filterLatestEntries(localAipData ? localAipData[localSheetName] : []);
+		
+		            if (latestOssData.length === 0) {
+		                 // 如果OSS过滤后没数据了，就没必要合并了
+		                continue;
+		            }
+		            if (latestLocalData.length === 0) {
+		                // 如果本地文件没有数据，直接使用OSS数据
+		                finalSheetsData[ossSheetName] = latestOssData;
+		                continue;
+		            }
+		
+		            // 步骤 3: 数据合并
+		            const localDataMap = new Map();
+		            for (const row of latestLocalData) {
+		                 const key = `${row['修改时间']}|${row['组合名称']}|${row['股票代码']}`;
+		                 localDataMap.set(key, row['配置比例 (%)']);
+		            }
+		
+		            const mergedData = latestOssData.map(ossRow => {
+		                const key = `${ossRow['修改时间']}|${ossRow['组合名称']}|${ossRow['股票代码']}`;
+		                if (localDataMap.has(key)) {
+		                    return { ...ossRow, '配置比例 (%)': localDataMap.get(key) };
+		                }
+		                return ossRow;
+		            });
+		            
+		            finalSheetsData[ossSheetName] = mergedData;
+		        }
+		        
+		        // 步骤 4: 重构 Excel ArrayBuffer (此部分逻辑基本不变)
+		        const newWb = XLSX.utils.book_new();
+		        const myPortfolioHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
+		        const agentPortfolioHeader = ["组合名称", "股票代码", "股票名称", "配置比例 (%)", "修改时间"];
+		
+		        for(const sheetName of OUTPUT_SHEET_ORDER) {
+		            if (finalSheetsData[sheetName] && finalSheetsData[sheetName].length > 0) {
+		                const header = sheetName === '我的投资组合' ? myPortfolioHeader : agentPortfolioHeader;
+		                const ws = XLSX.utils.json_to_sheet(finalSheetsData[sheetName], {header: header});
+		                XLSX.utils.book_append_sheet(newWb, ws, sheetName);
+		            }
+		        }
+		
+		        if (newWb.SheetNames.length === 0) { /* ... 空数据处理不变 ... */ }
+		
+		        const finalExcelArrayBuffer = XLSX.write(newWb, { bookType: 'xlsx', type: 'array' });
+		
+		        // 步骤 5: 调用UI应用函数 (此部分逻辑不变)
+		        if (typeof applyCloudPortfolioData === "function") {
+		            await applyCloudPortfolioData(finalExcelArrayBuffer);
+		            console.log("整合后的投资组合数据已成功应用到UI。");
+		        } else {
+		            throw new Error("applyCloudPortfolioData 函数未定义。");
+		        }
+		
+		    } catch (error) {
+			        console.error("加载并应用组合数据时发生未知错误:", error);
+			        alert(`加载组合数据时出错: ${error.message}\n将尝试使用本地数据。`);
+			        if (typeof initializePortfoliosAfterLogin === "function") initializePortfoliosAfterLogin();
+		    } finally {
+		        portfolioLoadingIndicator.style.display = 'none';
+		    }
+		}
 
 
         let siteCoreDataReady = false; // Flag for Excel data (allStockData)
