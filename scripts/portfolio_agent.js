@@ -324,6 +324,7 @@ function findStockInGlobalData(searchTerm) {
     let foundStockCode = null;
     let code;
     const upperSearchTerm = searchTerm.toUpperCase();
+    let stockData = null;
     /**
     const stockMatch = searchTerm.match(/(.+?)\s*\((.*?)\)/);
     if (stockMatch && stockMatch[1] && stockMatch[2]) {
@@ -401,6 +402,7 @@ function findStockInGlobalData(searchTerm) {
     
     if (isUS && (!stockData)) {
 	const type = "price";
+	console.log(“trigger US api query”)
 	// 修复1: 移除分号，使用正确的变量
 	fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
 	    .then(response => {
@@ -439,6 +441,7 @@ function findStockInGlobalData(searchTerm) {
 	    });
     } else if (isETF && (!stockData)) {
 	const type = "price";
+	console.log(“trigger ETF api query”)
 	fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
 	    .then(response => {
 		if (!response.ok) {
