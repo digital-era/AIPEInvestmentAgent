@@ -429,7 +429,7 @@ function findStockInGlobalData(searchTerm) {
 		    };
 		    console.log(`已存储USD数据: ${upperSearchTerm}`, USallStockData[upperSearchTerm]);
 		    stockData = USallStockData[upperSearchTerm];
-		    return { code: foundStockCode, name: USallStockData[foundStockCode].name };
+		    //return { code: foundStockCode, name: USallStockData[foundStockCode].name };
 		} else {
 		    console.error("API请求无dailydata:");
 		}
@@ -466,7 +466,7 @@ function findStockInGlobalData(searchTerm) {
 		    };
 		    console.log(`已存储ETF数据: ${upperSearchTerm}`, ETFallStockData[upperSearchTerm]);
 		    stockData = ETFallStockData[upperSearchTerm];
-		    return { code: foundStockCode, name: ETFallStockData[foundStockCode].name };
+		    //return { code: foundStockCode, name: ETFallStockData[foundStockCode].name };
 		} else {
 		    console.error("API请求无dailydata:");
 		}
@@ -477,8 +477,13 @@ function findStockInGlobalData(searchTerm) {
 		renderData();
 	    });
     }
-	
-    return foundStock;
+
+   if ((!foundStockCode) && (!stockData)) {
+	return { code: foundStockCode, name: stockData.name };
+   }
+   else {
+    	return foundStock;
+   }	
 }
 
 
