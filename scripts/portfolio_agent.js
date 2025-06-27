@@ -1830,6 +1830,92 @@ function getLocalTimestamp() {
     return `${YYYY}${MM}${DD}${HH}${MIN}`;
 }
 
+/**
+ * 修正一个【XLSX.WorkBook 对象】中"我的投资组合"工作表的列错位问题，
+ * 并将修正后的工作簿转换为 ArrayBuffer 返回。
+ * @param {XLSX.WorkBook | null | undefined} workbook - 包含潜在错误数据的工作簿对象。
+ * @returns {ArrayBuffer | null} - 返回修正后的Excel文件的ArrayBuffer。如果输入为空或发生严重错误，返回null。
+ */
+function generatePortfolioExcelBlob(workbook) {
+    // 如果输入为空，说明没有可修正的内容，返回 null 表示无需操作或无内容。
+    if (!workbook) {
+        console.log("输入的工作簿为空，无法修正。");
+        return null;
+    }
+    
+    if (typeof XLSX === 'undefined') {
+        console.error("XLSX library is not loaded!");
+        alert("错误：Excel处理库未加载，无法执行修正。");
+        return null;
+    }
+
+    let modifiedWorkbook = workbook; // 先创建一个引用，指向原始workbook
+    let needsCorrection = false;     // 标记是否进行了实际修改
+
+    try {
+        const sheetName = '我的投资组合';
+        const ws = modifiedWorkbook.Sheets[sheetName];
+
+        if (!ws) {
+            console.warn(`工作簿中未找到名为 "${sheetName}" 的工作表，无需修正。`);
+            // 直接进入最后一步，将原始 workbook 转换为 buffer 返回
+        } else {
+            const jsonData = XLSX.utils.sheet_to_json(ws);
+
+            if (jsonData.length > 0) {
+                let maxTimestamp = '';
+                let hasPotentialError = false;
+                jsonData.forEach(row => {
+                    const potentialTimestamp = row['建议比例 (%)'];
+                    if (typeof potentialTimestamp === 'string' && potentialTimestamp > maxTimestamp) {
+                        maxTimestamp = potentialTimestamp;
+                        hasPotentialError = true;
+                    }
+                });
+                
+                if (hasPotentialError) {
+                    console.log(`识别到可能需要修正的记录，它们的共同时间戳为: ${maxTimestamp}`);
+                    needsCorrection = true; // 确认需要修正
+
+                    const correctedData = jsonData.map(row => {
+                        if (row['建议比例 (%)'] === maxTimestamp) {
+                            const correctedRow = { ...row };
+                            // 执行交换
+                            [correctedRow['来源'], correctedRow['配置比例 (%)']] = [correctedRow['配置比例 (%)'], correctedRow['来源']];
+                            [correctedRow['建议比例 (%)'], correctedRow['修改时间']] = [correctedRow['修改时间'], correctedRow['建议比例 (%)']];
+                            return correctedRow;
+                        }
+                        return row;
+                    });
+
+                    const correctHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
+                    const newWs = XLSX.utils.json_to_sheet(correctedData, { header: correctHeader });
+                    
+                    // 在工作簿对象上替换掉旧的工作表
+                    modifiedWorkbook.Sheets[sheetName] = newWs;
+                    console.log('修正完成，已在内存中更新工作簿对象。');
+                } else {
+                    console.log(`在"我的投资组合"中未找到需要修正的记录。`);
+                }
+            }
+        }
+
+        // --- 核心变化：无论是否修正，都将最终的 workbook 对象转换为 ArrayBuffer ---
+        // 如果没有进行修正，这里转换的就是原始的 workbook
+        // 如果进行了修正，这里转换的就是修改后的 workbook
+        console.log(needsCorrection ? "正在生成修正后的 Excel 文件 Buffer..." : "文件无需修正，正在生成原始文件的 Buffer...");
+        const finalExcelArrayBuffer = XLSX.write(modifiedWorkbook, { bookType: 'xlsx', type: 'array' });
+        
+        return finalExcelArrayBuffer;
+
+    } catch (error) {
+        console.error("修正并生成Buffer时发生错误:", error);
+        alert("处理文件失败，请查看控制台日志。");
+        return null;
+    }
+}
+
+/*
 async function generatePortfolioExcelBlob(existingWorkbook) {
     await ensureStockDataIsReady(); // 确保 allStockData 可用
     if (typeof XLSX === 'undefined') {
@@ -1900,6 +1986,7 @@ async function generatePortfolioExcelBlob(existingWorkbook) {
     const excelArrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     return excelArrayBuffer;
 }
+*/
 
 async function applyCloudPortfolioData(excelArrayBuffer) {
     await ensureStockDataIsReady();
