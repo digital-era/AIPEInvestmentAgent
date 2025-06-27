@@ -820,7 +820,8 @@
 		        const key = `${row['组合名称']}|${row['股票代码']}`;
 		        const existingEntry = latestEntriesMap.get(key);
 		
-		        if (!existingEntry || new Date(row['修改时间']) > new Date(existingEntry['修改时间'])) {
+		        //if (!existingEntry || new Date(row['修改时间']) > new Date(existingEntry['修改时间'])) {
+			if (!existingEntry || row['修改时间'] > existingEntry['修改时间']) {
 		            latestEntriesMap.set(key, row);
 		        }
 		    }
