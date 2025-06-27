@@ -456,7 +456,7 @@ async function findStockInGlobalData(searchTerm) {
 
 
 // Agent Stock Pool Management
-function addStockToPool(agentId) {
+async function addStockToPool(agentId) {
     const agent = agents[agentId];
     const stockInput = document.getElementById(agent.stockInputId);
     const searchTerm = stockInput.value.trim();
@@ -718,7 +718,7 @@ async function analyzeStockForAgent(agentId) {
 
 
 // Agent Portfolio Management Functions
-function addStockToAgentPortfolio(agentId) {
+async function addStockToAgentPortfolio(agentId) {
     const agent = agents[agentId];
     const inputElement = document.getElementById(agent.addToPortfolioInputId);
     const searchTerm = inputElement.value.trim();
