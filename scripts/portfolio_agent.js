@@ -304,7 +304,7 @@ function openMainTab(evt, tabName) {
 }
 
 // Helper function for stock validation using allStockData (Improved)
-function findStockInGlobalData(searchTerm) {
+async function findStockInGlobalData(searchTerm) {
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
         console.warn("findStockInGlobalData: allStockData is not available or empty.");
         return null;
@@ -392,94 +392,66 @@ function findStockInGlobalData(searchTerm) {
          return { code: foundStockCode, name: ETFallStockData[foundStockCode].name };
     }
 
-    //检查是否为ETF
-    const isETF = upperSearchTerm.startsWith('58') ||
-		  upperSearchTerm.startsWith('56') ||
-		  upperSearchTerm.startsWith('51') ||
-		  upperSearchTerm.startsWith('15');
-    //检查是否为US
+    // 2. 如果本地数据没有找到，检查是否需要进行API请求
+    const isETF = upperSearchTerm.startsWith('58') || upperSearchTerm.startsWith('56') || upperSearchTerm.startsWith('51') || upperSearchTerm.startsWith('15');
     const isUS = upperSearchTerm.startsWith('US');
     
-    if (isUS && (!stockData)) {
-	const type = "price";
-	// 修复1: 移除分号，使用正确的变量
-	fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
-	    .then(response => {
-		if (!response.ok) {
-		    return response.json().then(errorData => {
-			throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
-		    }).catch(() => {
-			throw new Error(`服务器响应错误: ${response.status}`);
-		    });
-		}
-		return response.json();
-	    })
-	    .then(data => {
-		if (data.error) {
-		    throw new Error(data.error);
-		}
-		// 修复2: 正确的条件判断
-		if (data.dailydata && data.dailydata.length > 0) {
-		    foundStockCode = upperSearchTerm;
-		    const existingName = USallStockData[upperSearchTerm]?.name || data.name;
-		    USallStockData[upperSearchTerm] = {
-			name: existingName,
-			latestDate: data.dailydata[0].date,
-			dailyData: data.dailydata
-		    };
-		    console.log(`已存储USD数据: ${upperSearchTerm}`, USallStockData[upperSearchTerm]);
-		    stockData = USallStockData[upperSearchTerm];
-		    return { code: foundStockCode, name: USallStockData[foundStockCode].name };
-		} else {
-		    console.error("API请求无dailydata:");
-		}
-	    })
-	    .catch(error => { // 修复4: 使用 .catch() 替代 try-catch
-		console.error("API请求失败:", error);
-		alert(`数据获取失败: ${error.message}`);
-	    });
-    } else if (isETF && (!stockData)) {
-	const type = "price";
-	fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
-	    .then(response => {
-		if (!response.ok) {
-		    return response.json().then(errorData => {
-			throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
-		    }).catch(() => {
-			throw new Error(`服务器响应错误: ${response.status}`);
-		    });
-		}
-		return response.json();
-	    })
-	    .then(data => {
-		if (data.error) {
-		    throw new Error(data.error);
-		}
-		// 修复5: ETF分支不需要检查isUS
-		if (data.dailydata && data.dailydata.length > 0) {
-		    foundStockCode = upperSearchTerm;
-		    const existingName = ETFallStockData[upperSearchTerm]?.name || data.name;
-		    ETFallStockData[upperSearchTerm] = {
-			name: existingName,
-			latestDate: data.dailydata[0].date,
-			dailyData: data.dailydata
-		    };
-		    console.log(`已存储ETF数据: ${upperSearchTerm}`, ETFallStockData[upperSearchTerm]);
-		    stockData = ETFallStockData[upperSearchTerm];
-		    return { code: foundStockCode, name: ETFallStockData[foundStockCode].name };
-		} else {
-		    console.error("API请求无dailydata:");
-		}
-	    })
-	    .catch(error => {
-		console.error("API请求失败:", error);
-		alert(`数据获取失败: ${error.message}`);
-		return foundStock;
-	    });
-    }  else {
-    	return foundStock;
-   }	
+    if (isUS || isETF) {
+        console.log(`本地未找到 ${upperSearchTerm}，尝试进行API查询...`);
+        try {
+            const response = await fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=price`);
+            
+            if (!response.ok) {
+                // 尝试解析错误体，否则使用状态文本
+                let errorMsg = `服务器响应错误: ${response.status} ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorMsg;
+                } catch (e) {
+                    // JSON解析失败，使用原始错误信息
+                }
+                throw new Error(errorMsg);
+            }
 
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            if (data.dailydata && data.dailydata.length > 0) {
+                // 根据类型决定存到哪个全局对象
+                const targetData = isUS ? USallStockData : ETFallStockData;
+                const stockType = isUS ? 'US' : 'ETF';
+                
+                // 更新或创建股票数据
+                const existingName = targetData[upperSearchTerm]?.name || data.name;
+                targetData[upperSearchTerm] = {
+                    name: existingName,
+                    latestDate: data.dailydata[0].date,
+                    dailyData: data.dailydata
+                };
+                
+                console.log(`已通过API获取并存储${stockType}数据: ${upperSearchTerm}`, targetData[upperSearchTerm]);
+                
+                // **关键：API成功后，从这里返回结果**
+                return { code: upperSearchTerm, name: targetData[upperSearchTerm].name };
+            } else {
+                console.warn(`API请求成功，但返回的数据中没有 'dailydata':`, data);
+                // 没有有效数据，也视为找不到
+                return null;
+            }
+
+        } catch (error) {
+            console.error("API请求或处理失败:", error);
+            alert(`数据获取失败: ${error.message}`);
+            return null; // API失败，返回null
+        }
+    }
+
+    // 3. 如果所有方法都试过，仍然没找到，返回null
+    console.log(`在所有数据源中都未找到 '${searchTerm}'`);
+    return null;
 }
 
 
@@ -509,7 +481,7 @@ function addStockToPool(agentId) {
         //return;
     }
 
-    const foundStock = findStockInGlobalData(searchTerm);
+    const foundStock = await findStockInGlobalData(searchTerm);
 
     if (!foundStock) {
         alert(`未在股票基础数据中找到 "${searchTerm}" 对应的股票。请检查输入。`);
@@ -610,7 +582,7 @@ async function analyzeStockForAgent(agentId) {
         stockNameForDisplay = stockNameCodeMatch[1].trim();
         stockCodeForData = stockNameCodeMatch[2].trim().toUpperCase();
     } else {
-        const foundStockInfo = findStockInGlobalData(stockToAnalyze);
+        const foundStockInfo = await findStockInGlobalData(stockToAnalyze);
         if (foundStockInfo) {
             stockNameForDisplay = foundStockInfo.name;
             stockCodeForData = foundStockInfo.code.toUpperCase();
@@ -772,7 +744,7 @@ function addStockToAgentPortfolio(agentId) {
     }
 
 
-    const foundStock = findStockInGlobalData(searchTerm);
+    const foundStock = await findStockInGlobalData(searchTerm);
     if (!foundStock) {
         alert(`手动输入：未在股票基础数据中找到 "${searchTerm}" 对应的股票。请检查输入。`);
         return;
