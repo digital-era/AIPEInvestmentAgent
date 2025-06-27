@@ -931,10 +931,10 @@
 		            const mergedData = latestOssData.map(ossRow => {
 		                //const key = `${ossRow['修改时间']}|${ossRow['组合名称']}|${ossRow['股票代码']}`;
 				const key = `${ossRow['组合名称']}|${ossRow['股票代码']}`;
-		                if (localDataMap.has(key)) {
+		                if (localDataMap.has(key)) {					
+				    console.log("log-ossRow:", ossRow);
+				    console.log("log-localDataMap1:", localDataMap);
 		                    return { ...ossRow, '配置比例 (%)': localDataMap.get(key) };
-				    console.log("ossRow:", ossRow);
-				    console.log("localDataMap:", localDataMap);
 		                }
 		                return ossRow;
 		            });
