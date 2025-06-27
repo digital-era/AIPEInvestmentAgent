@@ -929,6 +929,8 @@
 				const key = `${ossRow['组合名称']}|${ossRow['股票代码']}`;
 		                if (localDataMap.has(key)) {
 		                    return { ...ossRow, '配置比例 (%)': localDataMap.get(key) };
+				    console.log("ossRow:", ossRow);
+				    console.log("localDataMap:", localDataMap);
 		                }
 		                return ossRow;
 		            });
