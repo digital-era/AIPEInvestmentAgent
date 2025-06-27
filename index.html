@@ -934,8 +934,9 @@
 		            });
 		            
 		            finalSheetsData[ossSheetName] = mergedData;
+			    console.log("finalSheetsData[ossSheetName]:",ossSheetName, finalSheetsData[ossSheetName])
 		        }
-		        
+		        console.log("finalSheetsData:",finalSheetsData)
 		        // 步骤 4: 重构 Excel ArrayBuffer (此部分逻辑基本不变)
 		        const newWb = XLSX.utils.book_new();
 		        const myPortfolioHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
