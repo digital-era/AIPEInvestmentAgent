@@ -923,8 +923,10 @@
 				 const key = `${row['组合名称']}|${row['股票代码']}`;
 		                 localDataMap.set(key, row['配置比例 (%)']);
 		            }
-
-			    console.log("localDataMap:", localDataMap);
+			    
+			    console.log("latestOssData:", latestOssData);
+			    console.log("latestLocalData:", latestLocalData);
+			    console.log("localDataMap:", localDataMap);			
 				
 		            const mergedData = latestOssData.map(ossRow => {
 		                //const key = `${ossRow['修改时间']}|${ossRow['组合名称']}|${ossRow['股票代码']}`;
