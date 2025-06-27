@@ -402,7 +402,7 @@ function findStockInGlobalData(searchTerm) {
     
     if (isUS && (!stockData)) {
 	const type = "price";
-	console.log(“trigger US api query”)
+	console.log(“trigger US api query”);
 	// 修复1: 移除分号，使用正确的变量
 	fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
 	    .then(response => {
@@ -441,7 +441,7 @@ function findStockInGlobalData(searchTerm) {
 	    });
     } else if (isETF && (!stockData)) {
 	const type = "price";
-	console.log(“trigger ETF api query”)
+	console.log(“trigger ETF api query”);
 	fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
 	    .then(response => {
 		if (!response.ok) {
