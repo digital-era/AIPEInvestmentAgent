@@ -1830,92 +1830,6 @@ function getLocalTimestamp() {
     return `${YYYY}${MM}${DD}${HH}${MIN}`;
 }
 
-/**
- * 修正一个【XLSX.WorkBook 对象】中"我的投资组合"工作表的列错位问题，
- * 并将修正后的工作簿转换为 ArrayBuffer 返回。
- * @param {XLSX.WorkBook | null | undefined} workbook - 包含潜在错误数据的工作簿对象。
- * @returns {ArrayBuffer | null} - 返回修正后的Excel文件的ArrayBuffer。如果输入为空或发生严重错误，返回null。
- */
-function generatePortfolioExcelBlob(workbook) {
-    // 如果输入为空，说明没有可修正的内容，返回 null 表示无需操作或无内容。
-    if (!workbook) {
-        console.log("输入的工作簿为空，无法修正。");
-        return null;
-    }
-    
-    if (typeof XLSX === 'undefined') {
-        console.error("XLSX library is not loaded!");
-        alert("错误：Excel处理库未加载，无法执行修正。");
-        return null;
-    }
-
-    let modifiedWorkbook = workbook; // 先创建一个引用，指向原始workbook
-    let needsCorrection = false;     // 标记是否进行了实际修改
-
-    try {
-        const sheetName = '我的投资组合';
-        const ws = modifiedWorkbook.Sheets[sheetName];
-
-        if (!ws) {
-            console.warn(`工作簿中未找到名为 "${sheetName}" 的工作表，无需修正。`);
-            // 直接进入最后一步，将原始 workbook 转换为 buffer 返回
-        } else {
-            const jsonData = XLSX.utils.sheet_to_json(ws);
-
-            if (jsonData.length > 0) {
-                let maxTimestamp = '';
-                let hasPotentialError = false;
-                jsonData.forEach(row => {
-                    const potentialTimestamp = row['建议比例 (%)'];
-                    if (typeof potentialTimestamp === 'string' && potentialTimestamp > maxTimestamp) {
-                        maxTimestamp = potentialTimestamp;
-                        hasPotentialError = true;
-                    }
-                });
-                
-                if (hasPotentialError) {
-                    console.log(`识别到可能需要修正的记录，它们的共同时间戳为: ${maxTimestamp}`);
-                    needsCorrection = true; // 确认需要修正
-
-                    const correctedData = jsonData.map(row => {
-                        if (row['建议比例 (%)'] === maxTimestamp) {
-                            const correctedRow = { ...row };
-                            // 执行交换
-                            [correctedRow['来源'], correctedRow['配置比例 (%)']] = [correctedRow['配置比例 (%)'], correctedRow['来源']];
-                            [correctedRow['建议比例 (%)'], correctedRow['修改时间']] = [correctedRow['修改时间'], correctedRow['建议比例 (%)']];
-                            return correctedRow;
-                        }
-                        return row;
-                    });
-
-                    const correctHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
-                    const newWs = XLSX.utils.json_to_sheet(correctedData, { header: correctHeader });
-                    
-                    // 在工作簿对象上替换掉旧的工作表
-                    modifiedWorkbook.Sheets[sheetName] = newWs;
-                    console.log('修正完成，已在内存中更新工作簿对象。');
-                } else {
-                    console.log(`在"我的投资组合"中未找到需要修正的记录。`);
-                }
-            }
-        }
-
-        // --- 核心变化：无论是否修正，都将最终的 workbook 对象转换为 ArrayBuffer ---
-        // 如果没有进行修正，这里转换的就是原始的 workbook
-        // 如果进行了修正，这里转换的就是修改后的 workbook
-        console.log(needsCorrection ? "正在生成修正后的 Excel 文件 Buffer..." : "文件无需修正，正在生成原始文件的 Buffer...");
-        const finalExcelArrayBuffer = XLSX.write(modifiedWorkbook, { bookType: 'xlsx', type: 'array' });
-        
-        return finalExcelArrayBuffer;
-
-    } catch (error) {
-        console.error("修正并生成Buffer时发生错误:", error);
-        alert("处理文件失败，请查看控制台日志。");
-        return null;
-    }
-}
-
-/*
 async function generatePortfolioExcelBlob(existingWorkbook) {
     await ensureStockDataIsReady(); // 确保 allStockData 可用
     if (typeof XLSX === 'undefined') {
@@ -1924,11 +1838,10 @@ async function generatePortfolioExcelBlob(existingWorkbook) {
         throw new Error("XLSX library not loaded.");
     }
 
-    // --- 修改点：如果传入了现有工作簿则使用，否则创建一个新的 ---
     const wb = existingWorkbook || XLSX.utils.book_new();
     const timestamp = getLocalTimestamp();
 
-    // 数据生成逻辑保持不变
+    // createSheetData 函数保持不变，它生成对象的方式没有问题
     const createSheetData = (portfolioArray, portfolioTitleForColumn) => {
         if (!Array.isArray(portfolioArray)) {
             console.warn(`提供的 portfolioArray 不是数组:`, portfolioArray, `标题: ${portfolioTitleForColumn}`);
@@ -1950,35 +1863,41 @@ async function generatePortfolioExcelBlob(existingWorkbook) {
     const myPortfolioHeader = ["组合名称", "股票代码", "股票名称", "来源", "建议比例 (%)", "配置比例 (%)", "修改时间"];
     const agentPortfolioHeader = ["组合名称", "股票代码", "股票名称", "配置比例 (%)", "修改时间"];
 
-    // --- 新增辅助函数：用于向工作簿中追加数据 ---
+    // --- 核心修改点：修改 appendDataToSheet 函数 ---
     const appendDataToSheet = (workbook, sheetName, data, header) => {
-        // 检查sheet是否已存在
         const ws = workbook.Sheets[sheetName];
+
         if (ws) {
-            // 如果存在，追加数据
-            // skipHeader: true - 不重复添加表头
-            // origin: -1 - 从表格末尾开始添加
-            XLSX.utils.sheet_add_json(ws, data, { skipHeader: true, origin: -1 });
+            // --- 如果工作表已存在，则追加数据 ---
+            // 1. 将对象数组 (data) 转换为 数组的数组 (dataAsArrayOfArrays)
+            //    确保数据顺序与 header 顺序严格一致
+            const dataAsArrayOfArrays = data.map(rowObject => 
+                header.map(h => rowObject[h] !== undefined ? rowObject[h] : null) // 使用 null 或 '' 作为默认值
+            );
+
+            // 2. 使用 sheet_add_aoa 来追加数据，它按数组顺序添加，非常可靠
+            XLSX.utils.sheet_add_aoa(ws, dataAsArrayOfArrays, { origin: -1 });
             console.log(`向现有Sheet "${sheetName}" 中追加了 ${data.length} 行数据。`);
         } else {
-            // 如果不存在，创建新sheet
+            // --- 如果工作表不存在，创建新表 ---
+            // 首次创建时，使用 json_to_sheet 并传入 header 来保证顺序
             const newWs = XLSX.utils.json_to_sheet(data, { header: header });
             XLSX.utils.book_append_sheet(workbook, newWs, sheetName);
             console.log(`创建了新的Sheet "${sheetName}" 并添加了 ${data.length} 行数据。`);
         }
     };
 
-    // 1. 大智投资组合
+    // 1. 大智投资组合 (调用方式不变)
     const agent1PortfolioName = `${agents.agent1.name} (${agents.agent1.role})`;
     const agent1SheetData = createSheetData(agents.agent1.portfolio, agent1PortfolioName);
     appendDataToSheet(wb, "大智投资组合", agent1SheetData, agentPortfolioHeader);
 
-    // 2. 大成投资组合
+    // 2. 大成投资组合 (调用方式不变)
     const agent2PortfolioName = `${agents.agent2.name} (${agents.agent2.role})`;
     const agent2SheetData = createSheetData(agents.agent2.portfolio, agent2PortfolioName);
     appendDataToSheet(wb, "大成投资组合", agent2SheetData, agentPortfolioHeader);
 
-    // 3. 我的投资组合
+    // 3. 我的投资组合 (调用方式不变)
     const myPortfolioSheetData = createSheetData(myPortfolio, myPortfolioTitle);
     appendDataToSheet(wb, "我的投资组合", myPortfolioSheetData, myPortfolioHeader);
 
@@ -1986,7 +1905,6 @@ async function generatePortfolioExcelBlob(existingWorkbook) {
     const excelArrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     return excelArrayBuffer;
 }
-*/
 
 async function applyCloudPortfolioData(excelArrayBuffer) {
     await ensureStockDataIsReady();
