@@ -428,8 +428,13 @@
                 button.innerHTML = '<i class="fas fa-chart-simple"></i>';
                 return;
             }
-            
-            popup.document.write(`<html><head><title>加载中...</title><style>body{background:#181818;color:#EAEAEA;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:1.5rem;}.fas{margin-right:15px;}</style><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"></head><body><i class="fas fa-spinner fa-spin fa-2x"></i> 正在加载数据...</body></html>`);
+        
+            popup.document.write(`
+                <html><head><title>加载中...</title>
+                <style>body{background:#181818;color:#EAEAEA;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:1.5rem;}.fas{margin-right:15px;}</style>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+                </head><body><i class="fas fa-spinner fa-spin fa-2x"></i> 正在加载数据...</body></html>
+            `);
             popup.document.close();
         
             try {
@@ -438,26 +443,22 @@
                     const errorData = await response.json().catch(() => ({ detail: '服务器错误' }));
                     throw new Error(errorData.detail || `请求失败: ${response.status}`);
                 }
+        
                 const apiData = await response.json();
-                
                 if (!Array.isArray(apiData) || apiData.length === 0) {
                     throw new Error("API未返回有效的均线数据。");
                 }
-                
+        
                 const chartInitData = {
                     stockName: stockName,
                     stockCode: stockCode,
                     plotData: apiData
                 };
         
-                // 修复关键：正确转义JSON数据并确保无语法错误
                 const chartDataJson = JSON.stringify(chartInitData)
-                    .replace(/</g, '\\u003c') // 转义<
-                    .replace(/\//g, '\\/')   // 转义/
-                    .replace(/\\/g, '\\\\')  // 转义反斜杠
-                    .replace(/'/g, "\\'");   // 转义单引号
+                    .replace(/</g, '\\u003c')
+                    .replace(/\//g, '\\/');
         
-                // 修复关键：使用单引号构建HTML字符串避免冲突
                 const chartHtml = `<!DOCTYPE html>
                 <html lang="zh-CN">
                 <head>
@@ -482,12 +483,11 @@
                         </div>
                     </div>
                     <script>
-                        // 修复关键：正确解析嵌入的数据
                         const initData = ${chartDataJson};
-                        
+        
                         document.title = '均线分析 - ' + initData.stockName + ' (' + initData.stockCode + ')';
                         document.getElementById('chartTitle').textContent = '均线分析: ' + initData.stockName + ' (' + initData.stockCode + ')';
-                        
+        
                         function renderMaChart() {
                             try {
                                 const canvas = document.getElementById('popupMaChart');
@@ -495,30 +495,25 @@
                                     console.error('Canvas not found');
                                     return;
                                 }
-                                
+        
                                 const data = initData.plotData;
-                                // 修复关键：确保箭头函数正确闭合
-                                const candlestickData = data.map(function(d) { 
-                                    return { 
-                                        x: luxon.DateTime.fromISO(d.Date).valueOf(), 
-                                        o: d.Open, 
-                                        h: d.High, 
-                                        l: d.Low, 
-                                        c: d.Close 
-                                    };
-                                });
-                                
-                                const volumeData = data.map(function(d) { 
-                                    return { 
-                                        x: luxon.DateTime.fromISO(d.Date).valueOf(), 
-                                        y: d.Volume 
-                                    };
-                                });
-                                
-                                const volumeColors = data.map(function(d) {
-                                    return d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)';
-                                });
-                                
+                                const candlestickData = data.map(d => ({
+                                    x: luxon.DateTime.fromISO(d.Date).valueOf(),
+                                    o: d.Open,
+                                    h: d.High,
+                                    l: d.Low,
+                                    c: d.Close
+                                }));
+        
+                                const volumeData = data.map(d => ({
+                                    x: luxon.DateTime.fromISO(d.Date).valueOf(),
+                                    y: d.Volume
+                                }));
+        
+                                const volumeColors = data.map(d =>
+                                    d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)'
+                                );
+        
                                 const maConfigs = [
                                     { period: 5, color: '#e67e22' },
                                     { period: 10, color: '#3498db' },
@@ -528,18 +523,16 @@
                                     { period: 120, color: '#e74c3c' },
                                     { period: 250, color: '#bdc3c7' }
                                 ];
-                                
+        
                                 const maDatasets = [];
                                 for (const config of maConfigs) {
                                     const key = 'MA_' + config.period;
-                                    if (data.some(function(d) { return d[key] != null; })) {
-                                        const maData = data.map(function(d) {
-                                            return {
-                                                x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                                                y: d[key]
-                                            };
-                                        }).filter(function(d) { return d.y != null; });
-                                        
+                                    if (data.some(d => d[key] != null)) {
+                                        const maData = data.map(d => ({
+                                            x: luxon.DateTime.fromISO(d.Date).valueOf(),
+                                            y: d[key]
+                                        })).filter(d => d.y != null);
+        
                                         maDatasets.push({
                                             type: 'line',
                                             label: 'MA' + config.period,
@@ -551,27 +544,27 @@
                                         });
                                     }
                                 }
-                                
+        
                                 const chartAreaSplitter = {
                                     id: 'chartAreaSplitter',
-                                    beforeDraw: function(chart) {
+                                    beforeDraw(chart) {
                                         const ctx = chart.ctx;
                                         const chartArea = chart.chartArea;
                                         const scales = chart.scales;
-                                        
+        
                                         if (!scales.y || !scales.yVolume) return;
-                                        
+        
                                         const priceChartRatio = 0.7;
                                         const gap = 20;
-                                        
+        
                                         scales.y.height = chartArea.height * priceChartRatio;
                                         scales.y.bottom = chartArea.top + scales.y.height;
-                                        
+        
                                         scales.yVolume.height = chartArea.height * (1 - priceChartRatio) - gap;
                                         scales.yVolume.top = scales.y.bottom + gap;
                                     }
                                 };
-                                
+        
                                 new Chart(canvas, {
                                     type: 'bar',
                                     data: {
@@ -581,8 +574,8 @@
                                                 label: 'K线',
                                                 data: candlestickData,
                                                 yAxisID: 'y'
-                                            }
-                                        ].concat(maDatasets).concat([
+                                            },
+                                            ...maDatasets,
                                             {
                                                 type: 'bar',
                                                 label: '成交量',
@@ -590,7 +583,7 @@
                                                 backgroundColor: volumeColors,
                                                 yAxisID: 'yVolume'
                                             }
-                                        ])
+                                        ]
                                     },
                                     options: {
                                         maintainAspectRatio: false,
@@ -610,21 +603,21 @@
                                                     label: function(context) {
                                                         const raw = context.raw;
                                                         const label = context.dataset.label || '';
-                                                        
+        
                                                         if (context.dataset.type === 'bar') {
                                                             let value = raw.y;
-                                                            if (value >= 1e8) return label + ': ' + (value/1e8).toFixed(2) + '亿';
-                                                            if (value >= 1e4) return label + ': ' + (value/1e4).toFixed(2) + '万';
+                                                            if (value >= 1e8) return label + ': ' + (value / 1e8).toFixed(2) + '亿';
+                                                            if (value >= 1e4) return label + ': ' + (value / 1e4).toFixed(2) + '万';
                                                             return label + ': ' + value;
                                                         }
-                                                        
+        
                                                         if (raw && raw.c !== undefined) {
-                                                            return ' 开:' + raw.o.toFixed(2) + 
-                                                                   ' 高:' + raw.h.toFixed(2) + 
-                                                                   ' 低:' + raw.l.toFixed(2) + 
-                                                                   ' 收:' + raw.c.toFixed(2);
+                                                            return ' 开:' + raw.o.toFixed(2) +
+                                                                ' 高:' + raw.h.toFixed(2) +
+                                                                ' 低:' + raw.l.toFixed(2) +
+                                                                ' 收:' + raw.c.toFixed(2);
                                                         }
-                                                        
+        
                                                         return label + ': ' + context.formattedValue;
                                                     }
                                                 }
@@ -645,11 +638,11 @@
                                             yVolume: {
                                                 position: 'right',
                                                 grid: { drawOnChartArea: false },
-                                                ticks: { 
+                                                ticks: {
                                                     color: '#90A4AE',
                                                     callback: function(value) {
-                                                        if (value >= 1e8) return (value/1e8).toFixed(0) + '亿';
-                                                        if (value >= 1e4) return (value/1e4).toFixed(0) + '万';
+                                                        if (value >= 1e8) return (value / 1e8).toFixed(0) + '亿';
+                                                        if (value >= 1e4) return (value / 1e4).toFixed(0) + '万';
                                                         return value;
                                                     }
                                                 }
@@ -663,9 +656,8 @@
                                 alert('图表渲染失败: ' + error.message);
                             }
                         }
-                        
-                        // 修复关键：确保DOM加载处理正确
-                        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        
+                        if (document.readyState === 'complete') {
                             renderMaChart();
                         } else {
                             document.addEventListener('DOMContentLoaded', renderMaChart);
@@ -678,20 +670,20 @@
                 popup.document.write(chartHtml);
                 popup.document.close();
                 popup.focus();
-        
             } catch (error) {
                 console.error('加载均线图失败:', error);
                 if (popup && !popup.closed) {
-                    popup.document.body.innerHTML = '<div style="color: #e74c3c; text-align:center;padding:20px;">' +
-                        '<h2>加载图表失败</h2>' +
-                        '<p>' + error.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' +
-                    '</div>';
+                    popup.document.body.innerHTML = `<div style="color: #e74c3c; text-align:center;padding:20px;">
+                        <h2>加载图表失败</h2>
+                        <p>${error.message}</p>
+                    </div>`;
                 }
-                alert('图表加载失败: ' + error.message);
+                alert(`图表加载失败: ${error.message}`);
             } finally {
                 button.innerHTML = '<i class="fas fa-chart-simple"></i>';
             }
         }
+
         // ============== 新增函数结束 ==============
 
         document.addEventListener('DOMContentLoaded', async function() {
