@@ -461,10 +461,13 @@
                     <head>
                         <meta charset="UTF-8">
                         <title>均线分析 - ${stockName} (${stockCode})</title>
-                        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"><\/script>
-                        <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"><\/script>
-                        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"><\/script>
-                        <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"><\/script>
+                        
+                        <!-- **** 关键修正: 移除所有不必要的反斜杠 \ **** -->
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+                        <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+                        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
+                        <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
+                        
                         <style>
                             body { background: #181818; color: #EAEAEA; margin: 0; padding:0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
                             .container { padding: 25px; }
@@ -484,7 +487,7 @@
                             // 4. 将API数据嵌入到脚本中
                             const chartData = ${JSON.stringify(apiData)};
                 
-                            // 5. *** MODIFIED: Replaced all template literals with string concatenation for robustness ***
+                            // 5. 使用之前修正过的渲染函数 (内部使用字符串拼接)
                             function renderMaChart(canvas, plotData) {
                                 const candlestickData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), o: d.Open, h: d.High, l: d.Low, c: d.Close }));
                                 const volumeData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d.Volume }));
@@ -497,13 +500,11 @@
                                 
                                 const maDatasets = [];
                                 for (const config of maConfigs) {
-                                    // **** 关键修正: 改用字符串拼接 ****
                                     const key = 'MA_' + config.period;
                                     if (plotData.some(d => d[key] != null && !isNaN(d[key]))) {
                                         const maData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d[key] })).filter(d => d.y != null && !isNaN(d.y));
                                         maDatasets.push({
                                             type: 'line',
-                                            // **** 关键修正: 改用字符串拼接 ****
                                             label: 'MA' + config.period,
                                             data: maData, borderColor: config.color, borderWidth: 1.5, pointRadius: 0, yAxisID: 'y'
                                         });
@@ -545,7 +546,6 @@
                                                         const label = context.dataset.label || '';
                                                         if (context.dataset.type === 'bar') {
                                                             let value = raw.y;
-                                                            // **** 关键修正: 全部改用字符串拼接 ****
                                                             if (value >= 100000000) return label + ': ' + (value / 100000000).toFixed(2) + '亿';
                                                             if (value >= 10000) return label + ': ' + (value / 10000).toFixed(2) + '万';
                                                             return label + ': ' + value;
@@ -572,15 +572,20 @@
                                 });
                             }
                 
+                            // 6. 页面加载完成后，渲染图表
+                            // 使用 window.onload 是好的实践，确保所有外部脚本都加载完毕
                             window.onload = function() {
                                 const canvas = document.getElementById('popupMaChart');
-                                renderMaChart(canvas, chartData);
+                                if (canvas) {
+                                    renderMaChart(canvas, chartData);
+                                } else {
+                                    console.error('Canvas element not found!');
+                                }
                             };
                         <\/script> 
                     </body>
                     </html>
                 `;
-
                 // 7. 将最终的HTML写入弹出窗口
                 popup.document.open();
                 popup.document.write(chartHtml);
