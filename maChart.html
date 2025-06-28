@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>均线分析</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- Chart.js -->
+<title>均线分析</title>
+
+<!-- Chart.js 主库 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <!-- Luxon 日期库 -->
 <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
@@ -12,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
 <!-- K线扩展 -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
+
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -65,6 +67,9 @@
   document.title = `均线分析 - ${stockName} (${stockCode})`;
 
   try {
+    // 注册Luxon适配器（必须在Chart实例化前调用）
+    Chart.register(window.chartjsAdapterLuxon);
+
     // 请求API获取均线数据
     const response = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
     if (!response.ok) {
@@ -76,13 +81,7 @@
       throw new Error('API未返回有效的均线数据。');
     }
 
-    // 注册luxon适配器
-    if(window.Chart && window['chartjs-adapter-luxon']) {
-      Chart.register(window['chartjs-adapter-luxon']);
-      console.log('Luxon adapter registered');
-    }
-
-    // 处理数据
+    // 处理K线数据
     const candlestickData = data.map(d => ({
       x: luxon.DateTime.fromISO(d.Date).toMillis(),
       o: d.Open,
@@ -91,13 +90,16 @@
       c: d.Close
     }));
 
+    // 处理成交量数据
     const volumeData = data.map(d => ({
       x: luxon.DateTime.fromISO(d.Date).toMillis(),
       y: d.Volume
     }));
 
+    // 成交量颜色
     const volumeColors = data.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
 
+    // 均线配置及数据
     const maConfigs = [
       { period: 5, color: '#e67e22' },
       { period: 10, color: '#3498db' },
@@ -130,6 +132,7 @@
 
     const ctx = document.getElementById('popupMaChart').getContext('2d');
 
+    // 图表区域拆分插件
     const chartAreaSplitter = {
       id: 'chartAreaSplitter',
       beforeDraw(chart) {
@@ -148,6 +151,7 @@
       }
     };
 
+    // 创建Chart实例
     new Chart(ctx, {
       type: 'bar',
       data: {
@@ -238,5 +242,6 @@
   }
 })();
 </script>
+
 </body>
 </html>
