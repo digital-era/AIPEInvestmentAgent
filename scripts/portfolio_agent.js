@@ -902,7 +902,8 @@ async function syncStocksToMyPortfolio() { // 修正为 async
                         existingUserPortfolioItem.suggestedAllocation = Math.max(existingUserPortfolioItem.suggestedAllocation || 0, agentStock.allocation);
                         changed = true;
                     } else {
-                        if (agentStock.allocation > (existingUserPortfolioItem.suggestedAllocation || 0) ) {
+                        //if (agentStock.allocation > (existingUserPortfolioItem.suggestedAllocation || 0) ) {
+			if (agentStock.allocation != (existingUserPortfolioItem.suggestedAllocation || 0) ) {
                              existingUserPortfolioItem.suggestedAllocation = agentStock.allocation;
                              changed = true;
                         }
