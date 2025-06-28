@@ -422,7 +422,6 @@
         
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
-            // 1. 先打开一个空白的弹出窗口
             const popup = window.open('', 'MaChartWindow', 'width=1200,height=750,resizable=yes,scrollbars=yes');
             if (!popup) {
                 alert('无法打开弹出窗口，请检查是否被浏览器拦截。');
@@ -430,12 +429,10 @@
                 return;
             }
             
-            // 立即显示加载状态
             popup.document.write(`<html><head><title>加载中...</title><style>body { background:#181818; color:#EAEAEA; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; font-size:1.5rem; } .fas { margin-right: 15px; }</style><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"></head><body><i class="fas fa-spinner fa-spin fa-2x"></i> 正在加载数据...</body></html>`);
             popup.document.close();
         
             try {
-                // 2. 异步获取数据
                 const response = await fetch(`/api/rtStockQueryProxy?code=${stockCode}&type=movingaveragedata`);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ detail: '服务器错误' }));
@@ -447,29 +444,28 @@
                     throw new Error("API未返回有效的均线数据。");
                 }
                 
-                // 3. 【核心】将所有需要的数据打包成一个对象
                 const chartInitData = {
                     stockName: stockName,
                     stockCode: stockCode,
-                    plotData: apiData // 后端返回的K线和均线数据
+                    plotData: apiData
                 };
         
-                // 4. 【核心】将数据对象直接附加到弹出窗口的 window 对象上
-                // 这样可以完全避免字符串转义问题
                 popup.chartInitData = chartInitData;
         
-                // 5. 准备一个干净的、不包含任何动态数据的HTML模板
+                // ======================= 这是最终的解决方案 =======================
                 const chartHtml = `
                     <!DOCTYPE html>
                     <html lang="zh-CN">
                     <head>
                         <meta charset="UTF-8">
-                        <!-- 标题将在脚本中动态设置 -->
                         <title>均线分析</title>
-                        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-                        <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
-                        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
-                        <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
+                        
+                        <!-- **** 关键修正: 转义所有</script>标签 **** -->
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"><\/script>
+                        <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"><\/script>
+                        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"><\/script>
+                        <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"><\/script>
+                        
                         <style>
                             body { background: #181818; color: #EAEAEA; margin: 0; padding:0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
                             .container { padding: 25px; }
@@ -486,14 +482,11 @@
                         </div>
                         
                         <script>
-                            // 6. 【核心】在弹窗的脚本中，直接从 window 对象获取数据
-                            // 这是最安全、最可靠的方式
                             const initData = window.chartInitData;
                             const stockName = initData.stockName;
                             const stockCode = initData.stockCode;
                             const plotData = initData.plotData;
         
-                            // 动态设置标题和H1
                             document.title = '均线分析 - ' + stockName + ' (' + stockCode + ')';
                             document.getElementById('chartTitle').textContent = '均线分析: ' + stockName + ' (' + stockCode + ')';
         
@@ -501,18 +494,9 @@
                                 const candlestickData = data.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), o: d.Open, h: d.High, l: d.Low, c: d.Close }));
                                 const volumeData = data.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d.Volume }));
                                 const volumeColors = data.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
-                                const maConfigs = [
-                                    { period: 5, color: '#e67e22' }, { period: 10, color: '#3498db' }, { period: 20, color: '#9b59b6' },
-                                    { period: 30, color: '#f1c40f' }, { period: 60, color: '#2ecc71' }, { period: 120, color: '#e74c3c' }, { period: 250, color: '#bdc3c7' }
-                                ];
+                                const maConfigs = [ { period: 5, color: '#e67e22' }, { period: 10, color: '#3498db' }, { period: 20, color: '#9b59b6' }, { period: 30, color: '#f1c40f' }, { period: 60, color: '#2ecc71' }, { period: 120, color: '#e74c3c' }, { period: 250, color: '#bdc3c7' } ];
                                 const maDatasets = [];
-                                for (const config of maConfigs) {
-                                    const key = 'MA_' + config.period;
-                                    if (data.some(d => d[key] != null && !isNaN(d[key]))) {
-                                        const maData = data.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d[key] })).filter(d => d.y != null && !isNaN(d.y));
-                                        maDatasets.push({ type: 'line', label: 'MA' + config.period, data: maData, borderColor: config.color, borderWidth: 1.5, pointRadius: 0, yAxisID: 'y' });
-                                    }
-                                }
+                                for (const config of maConfigs) { const key = 'MA_' + config.period; if (data.some(d => d[key] != null && !isNaN(d[key]))) { const maData = data.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d[key] })).filter(d => d.y != null && !isNaN(d.y)); maDatasets.push({ type: 'line', label: 'MA' + config.period, data: maData, borderColor: config.color, borderWidth: 1.5, pointRadius: 0, yAxisID: 'y' }); } }
                                 const chartAreaSplitter = { id: 'chartAreaSplitter', beforeDraw(chart) { const { chartArea: { top, bottom, height }, scales: { y, yVolume } } = chart; const priceChartRatio = 0.7; const gap = 20; y.height = height * priceChartRatio; y.bottom = top + y.height; yVolume.height = height * (1 - priceChartRatio) - gap; yVolume.top = y.bottom + gap; } };
                                 new Chart(canvas.getContext('2d'), {
                                     type: 'bar',
@@ -521,11 +505,7 @@
                                         maintainAspectRatio: false, responsive: true, interaction: { mode: 'index', intersect: false },
                                         plugins: {
                                             legend: { position: 'top', labels: { color: '#EAEAEA' } },
-                                            tooltip: { backgroundColor: 'rgba(40, 40, 40, 0.95)', titleColor: '#B0BEC5', bodyColor: '#EAEAEA', padding: 10,
-                                                callbacks: {
-                                                    label: function(context) { const raw = context.raw; const label = context.dataset.label || ''; if (context.dataset.type === 'bar') { let value = raw.y; if (value >= 1e8) return label + ': ' + (value / 1e8).toFixed(2) + '亿'; if (value >= 1e4) return label + ': ' + (value / 1e4).toFixed(2) + '万'; return label + ': ' + value; } if (raw && raw.c !== undefined) { return ' 开:' + raw.o.toFixed(2) + ' 高:' + raw.h.toFixed(2) + ' 低:' + raw.l.toFixed(2) + ' 收:' + raw.c.toFixed(2); } return label + ': ' + context.formattedValue; }
-                                                }
-                                            }
+                                            tooltip: { backgroundColor: 'rgba(40, 40, 40, 0.95)', titleColor: '#B0BEC5', bodyColor: '#EAEAEA', padding: 10, callbacks: { label: function(context) { const raw = context.raw; const label = context.dataset.label || ''; if (context.dataset.type === 'bar') { let value = raw.y; if (value >= 1e8) return label + ': ' + (value / 1e8).toFixed(2) + '亿'; if (value >= 1e4) return label + ': ' + (value / 1e4).toFixed(2) + '万'; return label + ': ' + value; } if (raw && raw.c !== undefined) { return ' 开:' + raw.o.toFixed(2) + ' 高:' + raw.h.toFixed(2) + ' 低:' + raw.l.toFixed(2) + ' 收:' + raw.c.toFixed(2); } return label + ': ' + context.formattedValue; } } }
                                         },
                                         scales: { x: { type: 'time', time: { unit: 'day', tooltipFormat: 'yyyy-MM-dd' }, grid: { drawOnChartArea: false }, ticks: { color: '#90A4AE', source: 'auto', maxRotation: 0, autoSkip: true } }, y: { position: 'left', grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#90A4AE' } }, yVolume: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#90A4AE', callback: function(value) { if (value >= 1e8) return (value / 1e8).toFixed(0) + '亿'; if (value >= 1e4) return (value / 1e4).toFixed(0) + '万'; return value; } } } }
                                     },
@@ -533,21 +513,15 @@
                                 });
                             }
         
-                            // 确保DOM完全加载后再执行
                             document.addEventListener('DOMContentLoaded', function() {
                                 const canvas = document.getElementById('popupMaChart');
-                                if (canvas) {
-                                    renderMaChart(canvas, plotData);
-                                } else {
-                                    console.error('Canvas element "popupMaChart" not found!');
-                                }
+                                if (canvas) { renderMaChart(canvas, plotData); } else { console.error('Canvas element "popupMaChart" not found!'); }
                             });
-                        <\/script>
+                        <\/script> <!-- **** 关键修正: 也包括这个最后的标签 **** -->
                     </body>
                     </html>
                 `;
         
-                // 7. 将干净的HTML写入弹出窗口，它会自己加载并运行脚本
                 popup.document.open();
                 popup.document.write(chartHtml);
                 popup.document.close();
