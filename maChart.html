@@ -5,13 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>均线分析</title>
 
-<!-- Chart.js 主库 -->
+<!-- 核心库 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-<!-- Luxon 日期库 -->
 <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
-<!-- Chart.js Luxon 适配器 -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
-<!-- K线扩展 -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
 
 <style>
@@ -32,7 +29,7 @@
   }
   #chartContainer {
     flex: 1;
-    padding: 25px;
+    padding: 20px 25px;
   }
   #popupMaChart {
     width: 100%;
@@ -50,16 +47,18 @@
 
 <script>
 (async function(){
-  // 解析URL参数
+  // 注册Luxon适配器（Chart.js初始化前必须）
+  Chart.register(window.chartjsAdapterLuxon);
+
   function getQueryParam(name) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(name) || '';
+    return new URLSearchParams(window.location.search).get(name) || '';
   }
+
   const stockCode = getQueryParam('code');
-  const stockName = getQueryParam('name');
+  const stockName = getQueryParam('name') || stockCode;
 
   if (!stockCode) {
-    alert('缺少股票代码参数');
+    alert('缺少股票代码参数！');
     return;
   }
 
@@ -67,18 +66,14 @@
   document.title = `均线分析 - ${stockName} (${stockCode})`;
 
   try {
-    // 注册Luxon适配器（必须在Chart实例化前调用）
-    Chart.register(window.chartjsAdapterLuxon);
-
-    // 请求API获取均线数据
     const response = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`请求失败，状态码: ${response.status}`);
     }
-    const data = await response.json();
 
+    const data = await response.json();
     if (!Array.isArray(data) || data.length === 0) {
-      throw new Error('API未返回有效的均线数据。');
+      throw new Error('API未返回有效数据');
     }
 
     // 处理K线数据
@@ -96,10 +91,10 @@
       y: d.Volume
     }));
 
-    // 成交量颜色
+    // 成交量颜色，涨绿跌红
     const volumeColors = data.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
 
-    // 均线配置及数据
+    // 多条均线配置
     const maConfigs = [
       { period: 5, color: '#e67e22' },
       { period: 10, color: '#3498db' },
@@ -132,28 +127,26 @@
 
     const ctx = document.getElementById('popupMaChart').getContext('2d');
 
-    // 图表区域拆分插件
+    // 图表区域拆分插件（价格区+成交量区）
     const chartAreaSplitter = {
       id: 'chartAreaSplitter',
       beforeDraw(chart) {
-        const chartArea = chart.chartArea;
-        const scales = chart.scales;
+        const {ctx, chartArea, scales} = chart;
         if (!scales.y || !scales.yVolume) return;
 
-        const priceChartRatio = 0.7;
+        const priceRatio = 0.7;
         const gap = 20;
 
-        scales.y.height = chartArea.height * priceChartRatio;
+        scales.y.height = chartArea.height * priceRatio;
         scales.y.bottom = chartArea.top + scales.y.height;
 
-        scales.yVolume.height = chartArea.height * (1 - priceChartRatio) - gap;
+        scales.yVolume.height = chartArea.height * (1 - priceRatio) - gap;
         scales.yVolume.top = scales.y.bottom + gap;
       }
     };
 
-    // 创建Chart实例
     new Chart(ctx, {
-      type: 'bar',
+      type: 'bar', // 主体类型为柱状图，K线作为子类型
       data: {
         datasets: [
           {
@@ -177,32 +170,26 @@
         responsive: true,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: {
-            position: 'top',
-            labels: { color: '#EAEAEA' }
-          },
+          legend: { position: 'top', labels: { color: '#EAEAEA' } },
           tooltip: {
-            backgroundColor: 'rgba(40, 40, 40, 0.95)',
+            backgroundColor: 'rgba(40,40,40,0.95)',
             titleColor: '#B0BEC5',
             bodyColor: '#EAEAEA',
             padding: 10,
             callbacks: {
-              label: function(context) {
-                const raw = context.raw;
-                const label = context.dataset.label || '';
-                if (context.dataset.type === 'bar') {
-                  let value = raw.y;
-                  if (value >= 1e8) return label + ': ' + (value / 1e8).toFixed(2) + '亿';
-                  if (value >= 1e4) return label + ': ' + (value / 1e4).toFixed(2) + '万';
-                  return label + ': ' + value;
+              label(ctx) {
+                const raw = ctx.raw;
+                const label = ctx.dataset.label || '';
+                if (ctx.dataset.type === 'bar') {
+                  let val = raw.y;
+                  if (val >= 1e8) return label + ': ' + (val / 1e8).toFixed(2) + '亿';
+                  if (val >= 1e4) return label + ': ' + (val / 1e4).toFixed(2) + '万';
+                  return label + ': ' + val;
                 }
                 if (raw && raw.c !== undefined) {
-                  return ' 开:' + raw.o.toFixed(2) +
-                         ' 高:' + raw.h.toFixed(2) +
-                         ' 低:' + raw.l.toFixed(2) +
-                         ' 收:' + raw.c.toFixed(2);
+                  return `开:${raw.o.toFixed(2)} 高:${raw.h.toFixed(2)} 低:${raw.l.toFixed(2)} 收:${raw.c.toFixed(2)}`;
                 }
-                return label + ': ' + context.formattedValue;
+                return label + ': ' + ctx.formattedValue;
               }
             }
           }
@@ -216,7 +203,7 @@
           },
           y: {
             position: 'left',
-            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+            grid: { color: 'rgba(255,255,255,0.1)' },
             ticks: { color: '#90A4AE' }
           },
           yVolume: {
@@ -224,7 +211,7 @@
             grid: { drawOnChartArea: false },
             ticks: {
               color: '#90A4AE',
-              callback: function(value) {
+              callback(value) {
                 if (value >= 1e8) return (value / 1e8).toFixed(0) + '亿';
                 if (value >= 1e4) return (value / 1e4).toFixed(0) + '万';
                 return value;
