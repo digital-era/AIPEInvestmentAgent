@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI量化分析Agent</title>
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -185,7 +186,6 @@
         .info-card #stockName.value { background: linear-gradient(90deg, #1abc9c, #3498db); -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent; transition: none; }
         .info-card .label { color: #90A4AE; font-size: 1rem; margin-top: 10px; }
         
-        /* NEW/MODIFIED CSS for buttons and content switching */
         .info-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 10;}
         .info-card-btn { background: #3a3a3a; color: #b0bec5; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 14px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .info-card-btn:hover { background: #4f4f4f; color: #ffffff; transform: scale(1.1); }
@@ -217,6 +217,46 @@
         .footer { text-align: center; margin-top: 50px; padding: 25px; color: #FFFFFF; font-size: 1rem; border-top: 1px solid #3A3A3A; background: #212121; border-radius: 15px; }
         .footer p { margin: 8px 0; }
         .full-width { grid-column: 1 / -1; }
+        
+        /* ============== 新增/修改的 CSS 开始 ============== */
+        .card-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3A3A3A;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+        }
+        .card-header-flex h2 {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .chart-actions {
+            display: flex;
+            gap: 8px; /* 按钮之间的间距 */
+        }
+        .chart-icon-btn {
+            background: #3a3a3a;
+            color: #b0bec5;
+            border: none;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-icon-btn:hover {
+            background: #4f4f4f;
+            color: #ffffff;
+            transform: translateY(-2px);
+        }
+        /* ============== 新增/修改的 CSS 结束 ============== */
+
         @media (max-width: 1200px) { 
              .search-controls-container {
                 flex-direction: column; 
@@ -330,12 +370,27 @@
                     <canvas id="flowChart"></canvas>
                 </div>
             </div>
+            <!-- ============== HTML 结构修改开始 ============== -->
             <div class="card full-width">
-                <h2><i class="fas fa-chart-line"></i> 动能指数与价格趋势图</h2>
+                <div class="card-header-flex">
+                    <h2><i class="fas fa-chart-line"></i> 动能指数与价格趋势图</h2>
+                    <div class="chart-actions">
+                        <button class="chart-icon-btn" title="均线 (MA)">
+                            <i class="fas fa-chart-simple"></i>
+                        </button>
+                        <button class="chart-icon-btn" title="MACD">
+                            <i class="fas fa-chart-column"></i>
+                        </button>
+                        <button class="chart-icon-btn" title="相对强弱 (RSI)">
+                            <i class="fas fa-chart-area"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="double-chart-container">
                     <canvas id="doubleChart"></canvas>
                 </div>
             </div>
+            <!-- ============== HTML 结构修改结束 ============== -->
         </div>
         
         <footer>
@@ -345,6 +400,7 @@
     </div>
 
     <script>
+        // ... 保持您原有的 JavaScript 代码不变 ...
         window.flowChartInstance = null;
         window.doubleChartInstance = null;
 
@@ -358,24 +414,19 @@
             populateDropdown('top20ContinuousInflowDropdown', top20ContinuousInflowStocks, "Top20 5日持续净流入占比");
             populateDropdown('top20ReboundFactorDropdown', top20ReboundFactorStocks, "Top20 5日反弹因子");
 
-            // ================== 新增/修改逻辑开始 ==================
-            // 1. 检查URL中是否有'stock'参数
             const urlParams = new URLSearchParams(window.location.search);
             const stockNameToSearch = urlParams.get('stock');
 
             if (stockNameToSearch) {
-                // 如果URL中传入了股票名称
                 const decodedStockName = decodeURIComponent(stockNameToSearch);
                 document.getElementById('stockCode').value = decodedStockName;
                 document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
                 if (dataLoaded) {
-                    // 触发查询
                     triggerLoadStockDataFromInput();
                 } else {
                     console.error("数据尚未加载，无法根据URL参数进行查询。");
                 }
             } else {
-                // 如果URL中没有参数，执行原来的默认加载逻辑
                 if (dataLoaded && defaultStockCode) {
                     document.getElementById('stockCode').value = defaultStockCode;
                     document.getElementById('stockCode').placeholder = "输入股票代码或名称..."; 
@@ -390,7 +441,6 @@
                      document.getElementById('stockCode').placeholder = "加载失败";
                 }
             }
-            // ================== 新增/修改逻辑结束 ==================
 
             document.getElementById('top20TotalInflowDropdown').addEventListener('change', handleDropdownChange);
             document.getElementById('top20ContinuousInflowDropdown').addEventListener('change', handleDropdownChange);
@@ -403,7 +453,6 @@
                 }
             });
 
-            // Add event listeners for new buttons
             document.getElementById('btn-rt-price').addEventListener('click', () => handleApiButtonClick('price'));
             document.getElementById('btn-basic-info').addEventListener('click', () => handleApiButtonClick('info'));
             document.getElementById('btn-return').addEventListener('click', handleReturnButtonClick);
@@ -420,17 +469,14 @@
             const defaultContentDiv = document.querySelector('#main-info-card .default-content');
             const returnBtn = document.getElementById('btn-return');
 
-            // Show loading state
             defaultContentDiv.style.display = 'none';
             dynamicContentDiv.style.display = 'block';
             returnBtn.style.display = 'inline-flex';
             dynamicContentDiv.innerHTML = `<div class="loading-text"><i class="fas fa-spinner fa-spin"></i> 正在查询...</div>`;
 
             try {
-                // The URL now points to our Cloudflare proxy
                 const response = await fetch(`/api/rtStockQueryProxy?code=${stockCode}&type=${type}`);
                 
-                // Always check if the response is ok
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({error: '无法解析错误信息'}));
                     throw new Error(errorData.error || `服务器响应错误: ${response.status}`);
@@ -438,7 +484,6 @@
 
                 const data = await response.json();
 
-                // Check for application-level error from our backend
                 if (data.error) {
                     throw new Error(data.error);
                 }
@@ -462,25 +507,19 @@
                             <span class="info-value ${changeClass}">${sign}${data.changePercent.toFixed(2)}%</span>
                         </div>
                     `;
-                    // 检查是否为ETF
                     const isETF = stockCode.startsWith('58') || 
                                    stockCode.startsWith('56') || 
                                    stockCode.startsWith('51') || 
                                    stockCode.startsWith('15');
 
-                    // 检查是否为ETF
                     const isUS = stockCode.startsWith('US') ;
-                    // 如果是ETF且有dailydata数据
                     if ((isETF || isUS) && data.dailydata && data.dailydata.length > 0) {
-                        // 保留已有的名称（如果存在），否则使用API返回的名称
                         const existingName = ETFallStockData[stockCode]?.name || data.name;                        
-                        // 存储到ETFallStockData
                         ETFallStockData[stockCode] = {
-                            name: existingName,  // 使用保留的已有名称
+                            name: existingName,
                             latestDate: data.dailydata[0].date,
                             dailyData: data.dailydata
                         };                        
-                        // 在控制台打印存储的数据（调试用）
                         console.log(`已存储ETF数据: ${stockCode}`, ETFallStockData[stockCode]);
                         renderStockData(ETFallStockData[stockCode], stockCode);
                         renderDoubleChart(ETFallStockData[stockCode]);
@@ -516,10 +555,8 @@
             const defaultContentDiv = mainCard.querySelector('.default-content');
             const returnBtn = document.getElementById('btn-return');
             
-            // Restore original content from data attribute
             document.getElementById('stockName').textContent = mainCard.dataset.stockName || '---';
             
-            // Toggle visibility
             dynamicContentDiv.style.display = 'none';
             defaultContentDiv.style.display = 'block';
             returnBtn.style.display = 'none';
@@ -635,7 +672,7 @@
                             }
                 }
             }
-            // 定义渲染函数
+
             const renderData = () => {
                 const actionButtons = document.querySelector('.info-card-actions');
                 if (!stockData) {
@@ -667,17 +704,14 @@
                 renderDoubleChart(stockData);
             };
             
-            //检查是否为ETF
             const isETF = upperSearchTerm.startsWith('58') ||
                           upperSearchTerm.startsWith('56') ||
                           upperSearchTerm.startsWith('51') ||
                           upperSearchTerm.startsWith('15');
-            //检查是否为US
             const isUS = upperSearchTerm.startsWith('US');
             
             if (isUS && (!stockData)) {
                 const type = "price";
-                // 修复1: 移除分号，使用正确的变量
                 fetch(`/api/rtStockQueryProxy?code=${upperSearchTerm}&type=${type}`)
                     .then(response => {
                         if (!response.ok) {
@@ -693,7 +727,6 @@
                         if (data.error) {
                             throw new Error(data.error);
                         }
-                        // 修复2: 正确的条件判断
                         if (data.dailydata && data.dailydata.length > 0) {
                             foundStockCode = upperSearchTerm;
                             const existingName = USallStockData[upperSearchTerm]?.name || data.name;
@@ -704,17 +737,16 @@
                             };
                             console.log(`已存储USD数据: ${upperSearchTerm}`, USallStockData[upperSearchTerm]);
                             stockData = USallStockData[upperSearchTerm];
-                            // 修复3: 调用渲染
                             renderData();
                         } else {
                             console.error("API请求无dailydata:");
-                            renderData(); // 仍然需要渲染
+                            renderData(); 
                         }
                     })
-                    .catch(error => { // 修复4: 使用 .catch() 替代 try-catch
+                    .catch(error => { 
                         console.error("API请求失败:", error);
                         alert(`数据获取失败: ${error.message}`);
-                        renderData(); // 错误时也需要渲染
+                        renderData(); 
                     });
             } else if (isETF && (!stockData)) {
                 const type = "price";
@@ -733,7 +765,6 @@
                         if (data.error) {
                             throw new Error(data.error);
                         }
-                        // 修复5: ETF分支不需要检查isUS
                         if (data.dailydata && data.dailydata.length > 0) {
                             foundStockCode = upperSearchTerm;
                             const existingName = ETFallStockData[upperSearchTerm]?.name || data.name;
@@ -756,7 +787,6 @@
                         renderData();
                     });
             } else {
-                // 如果不需要API请求，直接渲染
                 renderData();
             }          
         }
@@ -974,8 +1004,7 @@
                         y1: { 
                             type: 'linear', display: true, position: 'right',
                             grid: { drawOnChartArea: false, },
-                            //ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '¥' + value.toFixed(2); }},
-                            ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '' + value.toFixed(2); }},  //也有可能是HK/USD，所以默认不带单位
+                            ticks: { color: '#e67e22', font: { size: 13 }, callback: function(value) { return '' + value.toFixed(2); }},
                             title: { display: true, text: '收盘价格', color: '#e67e22', font: { size: 14, weight: 'bold' }}
                         }
                     },
