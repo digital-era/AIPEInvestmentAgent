@@ -1741,7 +1741,7 @@ async function copyAnalysisReportToClipboard() {
 }
 
 /**
- * 启动对当前报告的深度搜索。
+ * 启动对当前报告的深度分析和搜索。
  * 1. 构造Prompt。
  * 2. 更新UI以显示加载状态，并禁用按钮。
  * 3. 调用后端代理API。
@@ -1754,13 +1754,13 @@ async function deepSearchReport() {
     const stockName = currentStockNameForReport;
 
     if (!agentId || !stockName) {
-        alert("无法执行深度搜索：缺少智能体或股票信息。");
+        alert("无法执行深度分析：缺少智能体或股票信息。");
         return;
     }
     
     // 验证 API 设置是否存在
     if (!apiSettings || !apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
-        alert("API设置不完整，无法执行深度搜索。请先在设置中配置。");
+        alert("API设置不完整，无法执行深度分析。请先在设置中配置。");
         return;
     }
 
