@@ -483,60 +483,34 @@
                         <script>
                             // 4. 将API数据嵌入到脚本中
                             const chartData = ${JSON.stringify(apiData)};
-
-                            // 5. *** MODIFIED: Updated rendering function to match new API data structure ***
+                
+                            // 5. 使用修正后的渲染函数
                             function renderMaChart(canvas, plotData) {
-                                // Map candlestick data using new field names (e.g., 'Date', 'Open')
-                                const candlestickData = plotData.map(d => ({
-                                    x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                                    o: d.Open, h: d.High, l: d.Low, c: d.Close
-                                }));
-                                
-                                // Map volume data and colors
-                                const volumeData = plotData.map(d => ({
-                                    x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                                    y: d.Volume
-                                }));
+                                const candlestickData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), o: d.Open, h: d.High, l: d.Low, c: d.Close }));
+                                const volumeData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d.Volume }));
                                 const volumeColors = plotData.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
-                            
-                                // Dynamically create datasets for all moving averages
                                 const maConfigs = [
-                                    { period: 5, color: '#e67e22' },   // Orange
-                                    { period: 10, color: '#3498db' },  // Blue
-                                    { period: 20, color: '#9b59b6' },  // Purple
-                                    { period: 30, color: '#f1c40f' },  // Yellow
-                                    { period: 60, color: '#2ecc71' },  // Green
-                                    { period: 120, color: '#e74c3c' }, // Red
-                                    { period: 250, color: '#bdc3c7' }  // Silver
+                                    { period: 5, color: '#e67e22' }, { period: 10, color: '#3498db' }, { period: 20, color: '#9b59b6' },
+                                    { period: 30, color: '#f1c40f' }, { period: 60, color: '#2ecc71' }, { period: 120, color: '#e74c3c' }, { period: 250, color: '#bdc3c7' }
                                 ];
                                 
                                 const maDatasets = [];
                                 for (const config of maConfigs) {
-                                    const key = `MA_${config.period}`;
-                                    
-                                    // --- 修正点 1: 使用更健壮的逻辑来判断是否添加MA线 ---
-                                    // 检查整个数组中是否至少有一个数据点包含有效的MA值，而不是只检查第一个
+                                    // **** 关键修正点 1 ****
+                                    // 转义 ${...}
+                                    const key = \`MA_\\\${config.period}\`;
                                     if (plotData.some(d => d[key] != null && !isNaN(d[key]))) {
-                                        const maData = plotData
-                                            .map(d => ({
-                                                x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                                                y: d[key]
-                                            }))
-                                            .filter(d => d.y != null && !isNaN(d.y)); // Filter out empty initial values
-                                        
+                                        const maData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d[key] })).filter(d => d.y != null && !isNaN(d.y));
                                         maDatasets.push({
                                             type: 'line',
-                                            label: `MA${config.period}`,
-                                            data: maData,
-                                            borderColor: config.color,
-                                            borderWidth: 1.5,
-                                            pointRadius: 0,
-                                            yAxisID: 'y'
+                                            // **** 关键修正点 2 ****
+                                            // 转义 ${...}
+                                            label: \`MA\\\${config.period}\`,
+                                            data: maData, borderColor: config.color, borderWidth: 1.5, pointRadius: 0, yAxisID: 'y'
                                         });
                                     }
                                 }
-                            
-                                // Chart.js plugin to split chart area for price and volume
+                
                                 const chartAreaSplitter = {
                                     id: 'chartAreaSplitter',
                                     beforeDraw(chart, args, options) {
@@ -551,19 +525,11 @@
                                 
                                 const ctx = canvas.getContext('2d');
                                 new Chart(ctx, {
-                                    // --- 修正点 2 (核心修正): 将图表基础类型改为 'bar' ---
-                                    type: 'bar', 
+                                    type: 'bar', // 主类型设为 'bar' 或 'line'
                                     data: {
-                                        // Combine all datasets
                                         datasets: [
-                                            // --- 修正点 3 (核心修正): 为K线数据集显式指定 type: 'candlestick' ---
-                                            { 
-                                                type: 'candlestick',
-                                                label: 'K线', 
-                                                data: candlestickData, 
-                                                yAxisID: 'y' 
-                                            },
-                                            ...maDatasets, // Spread operator to add all MA lines
+                                            { type: 'candlestick', label: 'K线', data: candlestickData, yAxisID: 'y' },
+                                            ...maDatasets,
                                             { type: 'bar', label: '成交量', data: volumeData, backgroundColor: volumeColors, yAxisID: 'yVolume' }
                                         ]
                                     },
@@ -580,14 +546,16 @@
                                                         const label = context.dataset.label || '';
                                                         if (context.dataset.type === 'bar') {
                                                             let value = raw.y;
-                                                            if (value >= 100000000) return `${label}: ${(value / 100000000).toFixed(2)}亿`;
-                                                            if (value >= 10000) return `${label}: ${(value / 10000).toFixed(2)}万`;
-                                                            return `${label}: ${value}`;
+                                                            // **** 关键修正点 3 (多处) ****
+                                                            // 转义所有内层的 ${...}
+                                                            if (value >= 100000000) return \`\\\${label}: \\\${(value / 100000000).toFixed(2)}亿\`;
+                                                            if (value >= 10000) return \`\\\${label}: \\\${(value / 10000).toFixed(2)}万\`;
+                                                            return \`\\\${label}: \\\${value}\`;
                                                         }
                                                         if (raw && raw.c !== undefined) {
-                                                            return ` 开:${raw.o.toFixed(2)} 高:${raw.h.toFixed(2)} 低:${raw.l.toFixed(2)} 收:${raw.c.toFixed(2)}`;
+                                                            return \` 开:\\\${raw.o.toFixed(2)} 高:\\\${raw.h.toFixed(2)} 低:\\\${raw.l.toFixed(2)} 收:\\\${raw.c.toFixed(2)}\`;
                                                         }
-                                                        return `${label}: ${context.formattedValue}`;
+                                                        return \`\\\${label}: \\\${context.formattedValue}\`;
                                                     }
                                                 }
                                             }
@@ -605,11 +573,9 @@
                                     plugins: [chartAreaSplitter]
                                 });
                             }
-
-                            // 6. 页面加载完成后，渲染图表
+                
                             window.onload = function() {
                                 const canvas = document.getElementById('popupMaChart');
-                                // Call the updated render function
                                 renderMaChart(canvas, chartData);
                             };
                         <\/script> 
