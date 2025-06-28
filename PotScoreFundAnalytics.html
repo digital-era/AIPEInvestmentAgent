@@ -498,7 +498,7 @@
                                     y: d.Volume
                                 }));
                                 const volumeColors = plotData.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
-
+                            
                                 // Dynamically create datasets for all moving averages
                                 const maConfigs = [
                                     { period: 5, color: '#e67e22' },   // Orange
@@ -512,8 +512,11 @@
                                 
                                 const maDatasets = [];
                                 for (const config of maConfigs) {
-                                    const key = \`MA_\${config.period}\`;
-                                    if (plotData.length > 0 && plotData[0][key] !== undefined) {
+                                    const key = `MA_${config.period}`;
+                                    
+                                    // --- 修正点 1: 使用更健壮的逻辑来判断是否添加MA线 ---
+                                    // 检查整个数组中是否至少有一个数据点包含有效的MA值，而不是只检查第一个
+                                    if (plotData.some(d => d[key] != null && !isNaN(d[key]))) {
                                         const maData = plotData
                                             .map(d => ({
                                                 x: luxon.DateTime.fromISO(d.Date).valueOf(),
@@ -523,7 +526,7 @@
                                         
                                         maDatasets.push({
                                             type: 'line',
-                                            label: \`MA\${config.period}\`,
+                                            label: `MA${config.period}`,
                                             data: maData,
                                             borderColor: config.color,
                                             borderWidth: 1.5,
@@ -532,7 +535,7 @@
                                         });
                                     }
                                 }
-
+                            
                                 // Chart.js plugin to split chart area for price and volume
                                 const chartAreaSplitter = {
                                     id: 'chartAreaSplitter',
@@ -548,11 +551,18 @@
                                 
                                 const ctx = canvas.getContext('2d');
                                 new Chart(ctx, {
-                                    type: 'candlestick',
+                                    // --- 修正点 2 (核心修正): 将图表基础类型改为 'bar' ---
+                                    type: 'bar', 
                                     data: {
                                         // Combine all datasets
                                         datasets: [
-                                            { label: 'K线', data: candlestickData, yAxisID: 'y' },
+                                            // --- 修正点 3 (核心修正): 为K线数据集显式指定 type: 'candlestick' ---
+                                            { 
+                                                type: 'candlestick',
+                                                label: 'K线', 
+                                                data: candlestickData, 
+                                                yAxisID: 'y' 
+                                            },
                                             ...maDatasets, // Spread operator to add all MA lines
                                             { type: 'bar', label: '成交量', data: volumeData, backgroundColor: volumeColors, yAxisID: 'yVolume' }
                                         ]
@@ -570,14 +580,14 @@
                                                         const label = context.dataset.label || '';
                                                         if (context.dataset.type === 'bar') {
                                                             let value = raw.y;
-                                                            if (value >= 100000000) return \`\${label}: \${(value / 100000000).toFixed(2)}亿\`;
-                                                            if (value >= 10000) return \`\${label}: \${(value / 10000).toFixed(2)}万\`;
-                                                            return \`\${label}: \${value}\`;
+                                                            if (value >= 100000000) return `${label}: ${(value / 100000000).toFixed(2)}亿`;
+                                                            if (value >= 10000) return `${label}: ${(value / 10000).toFixed(2)}万`;
+                                                            return `${label}: ${value}`;
                                                         }
                                                         if (raw && raw.c !== undefined) {
-                                                            return \` 开:\${raw.o.toFixed(2)} 高:\${raw.h.toFixed(2)} 低:\${raw.l.toFixed(2)} 收:\${raw.c.toFixed(2)}\`;
+                                                            return ` 开:${raw.o.toFixed(2)} 高:${raw.h.toFixed(2)} 低:${raw.l.toFixed(2)} 收:${raw.c.toFixed(2)}`;
                                                         }
-                                                        return \`\${label}: \${context.formattedValue}\`;
+                                                        return `${label}: ${context.formattedValue}`;
                                                     }
                                                 }
                                             }
