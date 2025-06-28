@@ -411,318 +411,42 @@
 
         // ============== 新增函数开始：处理MA图表点击 ==============
         async function handleMaChartClick() {
-            const stockCode = document.getElementById('stockCodeDisplay').textContent;
-            const stockName = document.getElementById('stockName').textContent;
-            const button = document.getElementById('btn-ma-chart');
+          const stockCode = document.getElementById('stockCodeDisplay').textContent.trim();
+          const stockName = document.getElementById('stockName').textContent.trim();
+          const button = document.getElementById('btn-ma-chart');
         
-            if (!stockCode || stockCode === '---') {
-                alert('请先加载一只股票。');
-                return;
-            }
+          if (!stockCode || stockCode === '---') {
+            alert('请先加载一只股票。');
+            return;
+          }
         
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+          // 加个loading状态
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
-            const popup = window.open('', 'MaChartWindow', 'width=1200,height=750,resizable=yes,scrollbars=yes');
+          try {
+            const width = 1200;
+            const height = 750;
+            const left = (window.screen.width - width) / 2;
+            const top = (window.screen.height - height) / 2;
+        
+            const url = `/maChart.html?code=${encodeURIComponent(stockCode)}&name=${encodeURIComponent(stockName)}`;
+            const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+        
+            const popup = window.open(url, 'MaChartWindow', features);
+        
             if (!popup) {
-                alert('无法打开弹出窗口，请检查是否被浏览器拦截。');
-                button.innerHTML = '<i class="fas fa-chart-simple"></i>';
-                return;
+              alert('无法打开弹出窗口，请检查是否被浏览器拦截。');
+              return;
             }
         
-            popup.document.write(`
-                <html>
-                <head>
-                    <title>加载中...</title>
-                    <style>
-                        body {
-                            background:#181818;
-                            color:#EAEAEA;
-                            display:flex;
-                            justify-content:center;
-                            align-items:center;
-                            height:100vh;
-                            font-family:sans-serif;
-                            font-size:1.5rem;
-                            margin: 0;
-                        }
-                        .fas {
-                            margin-right: 15px;
-                        }
-                    </style>
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-                </head>
-                <body>
-                    <i class="fas fa-spinner fa-spin fa-2x"></i> 正在加载数据...
-                </body>
-                </html>
-            `);
-            popup.document.close();
+            popup.focus();
         
-            try {
-                const response = await fetch(\`/api/rtStockQueryProxy?code=\${stockCode}&type=movingaveragedata\`);
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ detail: '服务器错误' }));
-                    throw new Error(errorData.detail || \`请求失败: \${response.status}\`);
-                }
-        
-                const apiData = await response.json();
-                if (!Array.isArray(apiData) || apiData.length === 0) {
-                    throw new Error("API未返回有效的均线数据。");
-                }
-        
-                const chartInitData = {
-                    stockName,
-                    stockCode,
-                    plotData: apiData
-                };
-        
-                const chartDataJson = JSON.stringify(chartInitData)
-                    .replace(/</g, '\\u003c')
-                    .replace(/\//g, '\\/');
-        
-                const chartHtml = \`<!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-        <meta charset="UTF-8" />
-        <title>均线分析</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"><\\/script>
-        <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"><\\/script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"><\\/script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"><\\/script>
-        <style>
-            body {
-                background: #181818;
-                color: #EAEAEA;
-                margin: 0; padding: 0;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            .container {
-                padding: 25px;
-            }
-            h1 {
-                font-size: 2rem;
-                text-align: center;
-                color: #a0d2eb;
-                margin-bottom: 25px;
-                padding-bottom: 15px;
-                border-bottom: 1px solid #3A3A3A;
-            }
-            .chart-wrapper {
-                position: relative;
-                height: calc(100vh - 120px);
-                width: 100%;
-            }
-        </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1 id="chartTitle"></h1>
-                <div class="chart-wrapper">
-                    <canvas id="popupMaChart"></canvas>
-                </div>
-            </div>
-        <script>
-            const initData = \${chartDataJson};
-        
-            document.title = '均线分析 - ' + initData.stockName + ' (' + initData.stockCode + ')';
-            document.getElementById('chartTitle').textContent = '均线分析: ' + initData.stockName + ' (' + initData.stockCode + ')';
-        
-            function renderMaChart() {
-                try {
-                    if (window.Chart && window['chartjs-adapter-luxon']) {
-                        Chart.register(window['chartjs-adapter-luxon']);
-                        console.log('Luxon adapter registered');
-                    } else {
-                        console.error('Chart.js 或 Luxon adapter 未加载');
-                    }
-        
-                    const canvas = document.getElementById('popupMaChart');
-                    const data = initData.plotData;
-        
-                    const candlestickData = data.map(d => ({
-                        x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                        o: d.Open,
-                        h: d.High,
-                        l: d.Low,
-                        c: d.Close
-                    }));
-        
-                    const volumeData = data.map(d => ({
-                        x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                        y: d.Volume
-                    }));
-        
-                    const volumeColors = data.map(d =>
-                        d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)'
-                    );
-        
-                    const maConfigs = [
-                        { period: 5, color: '#e67e22' },
-                        { period: 10, color: '#3498db' },
-                        { period: 20, color: '#9b59b6' },
-                        { period: 30, color: '#f1c40f' },
-                        { period: 60, color: '#2ecc71' },
-                        { period: 120, color: '#e74c3c' },
-                        { period: 250, color: '#bdc3c7' }
-                    ];
-        
-                    const maDatasets = [];
-                    for (const config of maConfigs) {
-                        const key = 'MA_' + config.period;
-                        if (data.some(d => d[key] != null)) {
-                            const maData = data.map(d => ({
-                                x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                                y: d[key]
-                            })).filter(d => d.y != null);
-        
-                            maDatasets.push({
-                                type: 'line',
-                                label: 'MA' + config.period,
-                                data: maData,
-                                borderColor: config.color,
-                                borderWidth: 1.5,
-                                pointRadius: 0,
-                                yAxisID: 'y'
-                            });
-                        }
-                    }
-        
-                    const chartAreaSplitter = {
-                        id: 'chartAreaSplitter',
-                        beforeDraw(chart) {
-                            const chartArea = chart.chartArea;
-                            const scales = chart.scales;
-                            if (!scales.y || !scales.yVolume) return;
-        
-                            const priceChartRatio = 0.7;
-                            const gap = 20;
-        
-                            scales.y.height = chartArea.height * priceChartRatio;
-                            scales.y.bottom = chartArea.top + scales.y.height;
-        
-                            scales.yVolume.height = chartArea.height * (1 - priceChartRatio) - gap;
-                            scales.yVolume.top = scales.y.bottom + gap;
-                        }
-                    };
-        
-                    new Chart(canvas, {
-                        type: 'bar',
-                        data: {
-                            datasets: [
-                                {
-                                    type: 'candlestick',
-                                    label: 'K线',
-                                    data: candlestickData,
-                                    yAxisID: 'y'
-                                },
-                                ...maDatasets,
-                                {
-                                    type: 'bar',
-                                    label: '成交量',
-                                    data: volumeData,
-                                    backgroundColor: volumeColors,
-                                    yAxisID: 'yVolume'
-                                }
-                            ]
-                        },
-                        options: {
-                            maintainAspectRatio: false,
-                            responsive: true,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                    labels: { color: '#EAEAEA' }
-                                },
-                                tooltip: {
-                                    backgroundColor: 'rgba(40, 40, 40, 0.95)',
-                                    titleColor: '#B0BEC5',
-                                    bodyColor: '#EAEAEA',
-                                    padding: 10,
-                                    callbacks: {
-                                        label: function(context) {
-                                            const raw = context.raw;
-                                            const label = context.dataset.label || '';
-                                            if (context.dataset.type === 'bar') {
-                                                let value = raw.y;
-                                                if (value >= 1e8) return label + ': ' + (value / 1e8).toFixed(2) + '亿';
-                                                if (value >= 1e4) return label + ': ' + (value / 1e4).toFixed(2) + '万';
-                                                return label + ': ' + value;
-                                            }
-                                            if (raw && raw.c !== undefined) {
-                                                return ' 开:' + raw.o.toFixed(2) +
-                                                    ' 高:' + raw.h.toFixed(2) +
-                                                    ' 低:' + raw.l.toFixed(2) +
-                                                    ' 收:' + raw.c.toFixed(2);
-                                            }
-                                            return label + ': ' + context.formattedValue;
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    type: 'time',
-                                    time: { unit: 'day', tooltipFormat: 'yyyy-MM-dd' },
-                                    grid: { drawOnChartArea: false },
-                                    ticks: { color: '#90A4AE', source: 'auto', maxRotation: 0 }
-                                },
-                                y: {
-                                    position: 'left',
-                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                                    ticks: { color: '#90A4AE' }
-                                },
-                                yVolume: {
-                                    position: 'right',
-                                    grid: { drawOnChartArea: false },
-                                    ticks: {
-                                        color: '#90A4AE',
-                                        callback: function(value) {
-                                            if (value >= 1e8) return (value / 1e8).toFixed(0) + '亿';
-                                            if (value >= 1e4) return (value / 1e4).toFixed(0) + '万';
-                                            return value;
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        plugins: [chartAreaSplitter]
-                    });
-                } catch (error) {
-                    console.error('图表渲染错误:', error);
-                    alert('图表渲染失败: ' + error.message);
-                }
-            }
-        
-            if (document.readyState === 'complete') {
-                renderMaChart();
-            } else {
-                document.addEventListener('DOMContentLoaded', renderMaChart);
-            }
-        <\/script>
-        </body>
-        </html>
-        \`;
-        
-                popup.document.open();
-                popup.document.write(chartHtml);
-                popup.document.close();
-                popup.focus();
-        
-            } catch (error) {
-                console.error('加载均线图失败:', error);
-                if (popup && !popup.closed) {
-                    popup.document.body.innerHTML = \`
-                        <div style="color: #e74c3c; text-align:center;padding:20px;">
-                            <h2>加载图表失败</h2>
-                            <p>\${error.message}</p>
-                        </div>
-                    \`;
-                }
-                alert(\`图表加载失败: \${error.message}\`);
-            } finally {
-                button.innerHTML = '<i class="fas fa-chart-simple"></i>';
-            }
+          } catch (error) {
+            console.error('打开均线图弹窗失败:', error);
+            alert('打开均线图弹窗失败: ' + error.message);
+          } finally {
+            button.innerHTML = '<i class="fas fa-chart-simple"></i>';
+          }
         }
 
         // ============== 新增函数结束 ==============
