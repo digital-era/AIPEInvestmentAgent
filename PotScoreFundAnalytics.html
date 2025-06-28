@@ -450,12 +450,12 @@
                     plotData: apiData
                 };
         
-                // 将数据直接嵌入HTML（关键修复）
+                // 修复关键：正确转义JSON数据
                 const chartDataJson = JSON.stringify(chartInitData)
-                    .replace(/</g, '\\u003c') // 防止XSS
-                    .replace(/\//g, '\\/');
+                    .replace(/</g, '\\u003c') // 转义<
+                    .replace(/\//g, '\\/');   // 转义/
         
-                // 构建包含数据的完整HTML
+                // 构建完整的HTML字符串
                 const chartHtml = `<!DOCTYPE html>
                 <html lang="zh-CN">
                 <head>
@@ -480,7 +480,7 @@
                         </div>
                     </div>
                     <script>
-                        // 直接嵌入数据（关键修复）
+                        // 修复关键：正确解析嵌入的数据
                         const initData = ${chartDataJson};
                         
                         document.title = '均线分析 - ' + initData.stockName + ' (' + initData.stockCode + ')';
@@ -501,12 +501,12 @@
                                     h: d.High, 
                                     l: d.Low, 
                                     c: d.Close 
-                                }));
+                                });
                                 
                                 const volumeData = data.map(d => ({ 
                                     x: luxon.DateTime.fromISO(d.Date).valueOf(), 
                                     y: d.Volume 
-                                }));
+                                });
                                 
                                 const volumeColors = data.map(d => 
                                     d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)'
@@ -546,13 +546,20 @@
                                 const chartAreaSplitter = {
                                     id: 'chartAreaSplitter',
                                     beforeDraw(chart) {
-                                        const { chartArea: { top, bottom, height }, scales: { y, yVolume } } = chart;
+                                        const ctx = chart.ctx;
+                                        const chartArea = chart.chartArea;
+                                        const scales = chart.scales;
+                                        
+                                        if (!scales.y || !scales.yVolume) return;
+                                        
                                         const priceChartRatio = 0.7;
                                         const gap = 20;
-                                        y.height = height * priceChartRatio;
-                                        y.bottom = top + y.height;
-                                        yVolume.height = height * (1 - priceChartRatio) - gap;
-                                        yVolume.top = y.bottom + gap;
+                                        
+                                        scales.y.height = chartArea.height * priceChartRatio;
+                                        scales.y.bottom = chartArea.top + scales.y.height;
+                                        
+                                        scales.yVolume.height = chartArea.height * (1 - priceChartRatio) - gap;
+                                        scales.yVolume.top = scales.y.bottom + gap;
                                     }
                                 };
                                 
@@ -597,16 +604,19 @@
                                                         
                                                         if (context.dataset.type === 'bar') {
                                                             let value = raw.y;
-                                                            if (value >= 1e8) return \`\${label}: \${(value/1e8).toFixed(2)}亿\`;
-                                                            if (value >= 1e4) return \`\${label}: \${(value/1e4).toFixed(2)}万\`;
-                                                            return \`\${label}: \${value}\`;
+                                                            if (value >= 1e8) return label + ': ' + (value/1e8).toFixed(2) + '亿';
+                                                            if (value >= 1e4) return label + ': ' + (value/1e4).toFixed(2) + '万';
+                                                            return label + ': ' + value;
                                                         }
                                                         
                                                         if (raw && raw.c !== undefined) {
-                                                            return \` 开:\${raw.o.toFixed(2)} 高:\${raw.h.toFixed(2)} 低:\${raw.l.toFixed(2)} 收:\${raw.c.toFixed(2)}\`;
+                                                            return ' 开:' + raw.o.toFixed(2) + 
+                                                                   ' 高:' + raw.h.toFixed(2) + 
+                                                                   ' 低:' + raw.l.toFixed(2) + 
+                                                                   ' 收:' + raw.c.toFixed(2);
                                                         }
                                                         
-                                                        return \`\${label}: \${context.formattedValue}\`;
+                                                        return label + ': ' + context.formattedValue;
                                                     }
                                                 }
                                             }
@@ -645,8 +655,12 @@
                             }
                         }
                         
-                        // 直接渲染图表
-                        document.addEventListener('DOMContentLoaded', renderMaChart);
+                        // 确保DOM完全加载后再渲染图表
+                        if (document.readyState === 'complete') {
+                            renderMaChart();
+                        } else {
+                            document.addEventListener('DOMContentLoaded', renderMaChart);
+                        }
                     </script>
                 </body>
                 </html>`;
