@@ -414,34 +414,28 @@
             const stockCode = document.getElementById('stockCodeDisplay').textContent;
             const stockName = document.getElementById('stockName').textContent;
             const button = document.getElementById('btn-ma-chart');
-
+        
             if (!stockCode || stockCode === '---') {
                 alert('请先加载一只股票。');
                 return;
             }
-
-            // 提供视觉反馈
+        
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-            // 1. 打开一个新窗口
+        
             const popup = window.open('', 'MaChartWindow', 'width=1200,height=750,resizable=yes,scrollbars=yes');
             if (!popup) {
                 alert('无法打开弹出窗口，请检查是否被浏览器拦截。');
-                button.innerHTML = '<i class="fas fa-chart-simple"></i>'; // 恢复图标
+                button.innerHTML = '<i class="fas fa-chart-simple"></i>';
                 return;
             }
             
-            // 2. 在新窗口中显示加载状态
             popup.document.write(`
-                <html>
-                    <head><title>加载中...</title><style>body { background:#181818; color:#EAEAEA; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; font-size:1.5rem; } .fas { margin-right: 15px; }</style>
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"></head>
-                    <body><i class="fas fa-spinner fa-spin fa-2x"></i> 正在加载均线分析数据...</body>
-                </html>`);
+                <html><head><title>加载中...</title><style>body { background:#181818; color:#EAEAEA; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; font-size:1.5rem; } .fas { margin-right: 15px; }</style>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"></head>
+                <body><i class="fas fa-spinner fa-spin fa-2x"></i> 正在加载均线分析数据...</body></html>`);
             popup.document.close();
-
+        
             try {
-                // Fetch data from the updated API endpoint
                 const response = await fetch(`/api/rtStockQueryProxy?code=${stockCode}&type=movingaveragedata`);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ detail: '服务器错误' }));
@@ -449,25 +443,23 @@
                 }
                 const apiData = await response.json();
                 
-                // *** MODIFIED: Check if the returned array is valid ***
                 if (!Array.isArray(apiData) || apiData.length === 0) {
                     throw new Error("API未返回有效的均线数据。");
                 }
-
-                // 3. 准备包含图表和渲染逻辑的完整HTML
+        
+                // ======================= 最终修正版 =======================
+                // 这段代码被设计为在主窗口中是合法的字符串，
+                // 并且当它被写入到弹出窗口时，其本身也是一段合法的、无错误的JavaScript代码。
                 const chartHtml = `
                     <!DOCTYPE html>
                     <html lang="zh-CN">
                     <head>
                         <meta charset="UTF-8">
                         <title>均线分析 - ${stockName} (${stockCode})</title>
-                        
-                        <!-- **** 关键修正: 移除所有不必要的反斜杠 \ **** -->
                         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
                         <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
                         <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
                         <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
-                        
                         <style>
                             body { background: #181818; color: #EAEAEA; margin: 0; padding:0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
                             .container { padding: 25px; }
@@ -484,10 +476,8 @@
                         </div>
                         
                         <script>
-                            // 4. 将API数据嵌入到脚本中
                             const chartData = ${JSON.stringify(apiData)};
-                
-                            // 5. 使用之前修正过的渲染函数 (内部使用字符串拼接)
+        
                             function renderMaChart(canvas, plotData) {
                                 const candlestickData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), o: d.Open, h: d.High, l: d.Low, c: d.Close }));
                                 const volumeData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d.Volume }));
@@ -510,11 +500,11 @@
                                         });
                                     }
                                 }
-                
+        
                                 const chartAreaSplitter = {
                                     id: 'chartAreaSplitter',
-                                    beforeDraw(chart, args, options) {
-                                        const { ctx, chartArea: { top, bottom, left, right, width, height }, scales: { x, y, yVolume } } = chart;
+                                    beforeDraw(chart) {
+                                        const { ctx, chartArea: { top, bottom, height }, scales: { y, yVolume } } = chart;
                                         const priceChartRatio = 0.7; const gap = 20;
                                         y.height = height * priceChartRatio;
                                         y.bottom = top + y.height;
@@ -571,32 +561,30 @@
                                     plugins: [chartAreaSplitter]
                                 });
                             }
-                
-                            // 6. 页面加载完成后，渲染图表
-                            // 使用 window.onload 是好的实践，确保所有外部脚本都加载完毕
+        
                             window.onload = function() {
                                 const canvas = document.getElementById('popupMaChart');
                                 if (canvas) {
                                     renderMaChart(canvas, chartData);
                                 } else {
-                                    console.error('Canvas element not found!');
+                                    console.error('Canvas element "popupMaChart" not found!');
                                 }
                             };
-                        <\/script> 
+                        <\/script>
                     </body>
                     </html>
                 `;
-                // 7. 将最终的HTML写入弹出窗口
+        
                 popup.document.open();
                 popup.document.write(chartHtml);
                 popup.document.close();
-                popup.focus(); // 将焦点移到新窗口
-
+                popup.focus();
+        
             } catch (error) {
                 console.error('加载均线图失败:', error);
                 popup.document.body.innerHTML = `<div style="color: #e74c3c; text-align:center;"><h2>加载图表失败</h2><p>${error.message}</p></div>`;
             } finally {
-                button.innerHTML = '<i class="fas fa-chart-simple"></i>'; // 恢复按钮图标
+                button.innerHTML = '<i class="fas fa-chart-simple"></i>';
             }
         }
         // ============== 新增函数结束 ==============
