@@ -450,12 +450,14 @@
                     plotData: apiData
                 };
         
-                // 修复关键：正确转义JSON数据
+                // 修复关键：正确转义JSON数据并确保无语法错误
                 const chartDataJson = JSON.stringify(chartInitData)
                     .replace(/</g, '\\u003c') // 转义<
-                    .replace(/\//g, '\\/');   // 转义/
+                    .replace(/\//g, '\\/')   // 转义/
+                    .replace(/\\/g, '\\\\')  // 转义反斜杠
+                    .replace(/'/g, "\\'");   // 转义单引号
         
-                // 构建完整的HTML字符串
+                // 修复关键：使用单引号构建HTML字符串避免冲突
                 const chartHtml = `<!DOCTYPE html>
                 <html lang="zh-CN">
                 <head>
@@ -495,22 +497,27 @@
                                 }
                                 
                                 const data = initData.plotData;
-                                const candlestickData = data.map(d => ({ 
-                                    x: luxon.DateTime.fromISO(d.Date).valueOf(), 
-                                    o: d.Open, 
-                                    h: d.High, 
-                                    l: d.Low, 
-                                    c: d.Close 
+                                // 修复关键：确保箭头函数正确闭合
+                                const candlestickData = data.map(function(d) { 
+                                    return { 
+                                        x: luxon.DateTime.fromISO(d.Date).valueOf(), 
+                                        o: d.Open, 
+                                        h: d.High, 
+                                        l: d.Low, 
+                                        c: d.Close 
+                                    };
                                 });
                                 
-                                const volumeData = data.map(d => ({ 
-                                    x: luxon.DateTime.fromISO(d.Date).valueOf(), 
-                                    y: d.Volume 
+                                const volumeData = data.map(function(d) { 
+                                    return { 
+                                        x: luxon.DateTime.fromISO(d.Date).valueOf(), 
+                                        y: d.Volume 
+                                    };
                                 });
                                 
-                                const volumeColors = data.map(d => 
-                                    d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)'
-                                );
+                                const volumeColors = data.map(function(d) {
+                                    return d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)';
+                                });
                                 
                                 const maConfigs = [
                                     { period: 5, color: '#e67e22' },
@@ -525,11 +532,13 @@
                                 const maDatasets = [];
                                 for (const config of maConfigs) {
                                     const key = 'MA_' + config.period;
-                                    if (data.some(d => d[key] != null)) {
-                                        const maData = data.map(d => ({
-                                            x: luxon.DateTime.fromISO(d.Date).valueOf(),
-                                            y: d[key]
-                                        })).filter(d => d.y != null);
+                                    if (data.some(function(d) { return d[key] != null; })) {
+                                        const maData = data.map(function(d) {
+                                            return {
+                                                x: luxon.DateTime.fromISO(d.Date).valueOf(),
+                                                y: d[key]
+                                            };
+                                        }).filter(function(d) { return d.y != null; });
                                         
                                         maDatasets.push({
                                             type: 'line',
@@ -545,7 +554,7 @@
                                 
                                 const chartAreaSplitter = {
                                     id: 'chartAreaSplitter',
-                                    beforeDraw(chart) {
+                                    beforeDraw: function(chart) {
                                         const ctx = chart.ctx;
                                         const chartArea = chart.chartArea;
                                         const scales = chart.scales;
@@ -572,8 +581,8 @@
                                                 label: 'K线',
                                                 data: candlestickData,
                                                 yAxisID: 'y'
-                                            },
-                                            ...maDatasets,
+                                            }
+                                        ].concat(maDatasets).concat([
                                             {
                                                 type: 'bar',
                                                 label: '成交量',
@@ -581,7 +590,7 @@
                                                 backgroundColor: volumeColors,
                                                 yAxisID: 'yVolume'
                                             }
-                                        ]
+                                        ])
                                     },
                                     options: {
                                         maintainAspectRatio: false,
@@ -655,8 +664,8 @@
                             }
                         }
                         
-                        // 确保DOM完全加载后再渲染图表
-                        if (document.readyState === 'complete') {
+                        // 修复关键：确保DOM加载处理正确
+                        if (document.readyState === 'complete' || document.readyState === 'interactive') {
                             renderMaChart();
                         } else {
                             document.addEventListener('DOMContentLoaded', renderMaChart);
@@ -673,12 +682,12 @@
             } catch (error) {
                 console.error('加载均线图失败:', error);
                 if (popup && !popup.closed) {
-                    popup.document.body.innerHTML = `<div style="color: #e74c3c; text-align:center;padding:20px;">
-                        <h2>加载图表失败</h2>
-                        <p>${error.message}</p>
-                    </div>`;
+                    popup.document.body.innerHTML = '<div style="color: #e74c3c; text-align:center;padding:20px;">' +
+                        '<h2>加载图表失败</h2>' +
+                        '<p>' + error.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' +
+                    '</div>';
                 }
-                alert(`图表加载失败: ${error.message}`);
+                alert('图表加载失败: ' + error.message);
             } finally {
                 button.innerHTML = '<i class="fas fa-chart-simple"></i>';
             }
