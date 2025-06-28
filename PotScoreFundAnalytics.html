@@ -484,11 +484,12 @@
                             // 4. 将API数据嵌入到脚本中
                             const chartData = ${JSON.stringify(apiData)};
                 
-                            // 5. 使用修正后的渲染函数
+                            // 5. *** MODIFIED: Replaced all template literals with string concatenation for robustness ***
                             function renderMaChart(canvas, plotData) {
                                 const candlestickData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), o: d.Open, h: d.High, l: d.Low, c: d.Close }));
                                 const volumeData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d.Volume }));
                                 const volumeColors = plotData.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
+                                
                                 const maConfigs = [
                                     { period: 5, color: '#e67e22' }, { period: 10, color: '#3498db' }, { period: 20, color: '#9b59b6' },
                                     { period: 30, color: '#f1c40f' }, { period: 60, color: '#2ecc71' }, { period: 120, color: '#e74c3c' }, { period: 250, color: '#bdc3c7' }
@@ -496,16 +497,14 @@
                                 
                                 const maDatasets = [];
                                 for (const config of maConfigs) {
-                                    // **** 关键修正点 1 ****
-                                    // 转义 ${...}
-                                    const key = \`MA_\\\${config.period}\`;
+                                    // **** 关键修正: 改用字符串拼接 ****
+                                    const key = 'MA_' + config.period;
                                     if (plotData.some(d => d[key] != null && !isNaN(d[key]))) {
                                         const maData = plotData.map(d => ({ x: luxon.DateTime.fromISO(d.Date).valueOf(), y: d[key] })).filter(d => d.y != null && !isNaN(d.y));
                                         maDatasets.push({
                                             type: 'line',
-                                            // **** 关键修正点 2 ****
-                                            // 转义 ${...}
-                                            label: \`MA\\\${config.period}\`,
+                                            // **** 关键修正: 改用字符串拼接 ****
+                                            label: 'MA' + config.period,
                                             data: maData, borderColor: config.color, borderWidth: 1.5, pointRadius: 0, yAxisID: 'y'
                                         });
                                     }
@@ -525,7 +524,7 @@
                                 
                                 const ctx = canvas.getContext('2d');
                                 new Chart(ctx, {
-                                    type: 'bar', // 主类型设为 'bar' 或 'line'
+                                    type: 'bar',
                                     data: {
                                         datasets: [
                                             { type: 'candlestick', label: 'K线', data: candlestickData, yAxisID: 'y' },
@@ -546,16 +545,15 @@
                                                         const label = context.dataset.label || '';
                                                         if (context.dataset.type === 'bar') {
                                                             let value = raw.y;
-                                                            // **** 关键修正点 3 (多处) ****
-                                                            // 转义所有内层的 ${...}
-                                                            if (value >= 100000000) return \`\\\${label}: \\\${(value / 100000000).toFixed(2)}亿\`;
-                                                            if (value >= 10000) return \`\\\${label}: \\\${(value / 10000).toFixed(2)}万\`;
-                                                            return \`\\\${label}: \\\${value}\`;
+                                                            // **** 关键修正: 全部改用字符串拼接 ****
+                                                            if (value >= 100000000) return label + ': ' + (value / 100000000).toFixed(2) + '亿';
+                                                            if (value >= 10000) return label + ': ' + (value / 10000).toFixed(2) + '万';
+                                                            return label + ': ' + value;
                                                         }
                                                         if (raw && raw.c !== undefined) {
-                                                            return \` 开:\\\${raw.o.toFixed(2)} 高:\\\${raw.h.toFixed(2)} 低:\\\${raw.l.toFixed(2)} 收:\\\${raw.c.toFixed(2)}\`;
+                                                            return ' 开:' + raw.o.toFixed(2) + ' 高:' + raw.h.toFixed(2) + ' 低:' + raw.l.toFixed(2) + ' 收:' + raw.c.toFixed(2);
                                                         }
-                                                        return \`\\\${label}: \\\${context.formattedValue}\`;
+                                                        return label + ': ' + context.formattedValue;
                                                     }
                                                 }
                                             }
