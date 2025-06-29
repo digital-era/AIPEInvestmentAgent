@@ -1,4 +1,51 @@
-<script>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>均线分析图表</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #181818;
+      color: #eee;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    #legend {
+      text-align: center;
+      padding: 10px;
+      color: #ccc;
+      font-size: 14px;
+    }
+    .ma-label {
+      display: inline-block;
+      margin: 0 8px;
+      font-weight: bold;
+    }
+    #container {
+      width: 100vw;
+      height: 90vh;
+    }
+    #tooltip {
+      text-align: center;
+      font-size: 14px;
+      color: #eee;
+      background-color: #222;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
+  <div id="legend"></div>
+  <div id="tooltip">鼠标移动查看详情</div>
+  <div id="container"></div>
+
+  <!-- 关键修正：必须先通过这个 script 标签加载图表库 -->
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+
+  <!-- 然后在下面的 script 标签里运行我们自己的代码 -->
+  <script>
     const params = new URLSearchParams(window.location.search);
     const stockCode = params.get("code") || "600900";
     const stockName = params.get("name") || "股票";
@@ -8,12 +55,12 @@
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
-    // 此函数只负责格式化，确保不输出时间
     const formatDateForTooltip = t => {
       const d = new Date(t * 1000);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
+    // 这行代码现在可以正确执行，因为上面的 script 标签已经定义了 LightweightCharts
     const chart = LightweightCharts.createChart(document.getElementById('container'), {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
       grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
@@ -37,7 +84,7 @@
       },
     });
 
-    // --- Series的创建保持不变 ---
+    // --- Series的创建 ---
     const candleSeries = chart.addCandlestickSeries({ upColor: '#2ecc71', downColor: '#e74c3c', borderUpColor: '#2ecc71', borderDownColor: '#e74c3c', wickUpColor: '#2ecc71', wickDownColor: '#e74c3c' });
     const volumeSeries = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'volume', scaleMargins: { top: 0.25, bottom: 0.05 }});
     const macdHistogram = chart.addHistogramSeries({ priceScaleId: 'macd', scaleMargins: { top: 0.25, bottom: 0.05 }});
@@ -69,28 +116,19 @@
         const closes = data.map(d => d.Close);
         const dataLength = data.length;
 
-        // **核心改动: 使用一个健壮的EMA计算函数，能处理稀疏数组**
         const calculateEMA = (source, period) => {
             const emaArray = new Array(source.length).fill(undefined);
             const k = 2 / (period + 1);
-
-            // 找到第一个有效的数据点进行初始化
             const firstValidIndex = source.findIndex(val => val !== undefined && val !== null);
-            if (firstValidIndex === -1) return emaArray; // 没有有效数据
-
-            // 找到第一个可以计算EMA的位置
+            if (firstValidIndex === -1) return emaArray;
             const startIndex = firstValidIndex + period - 1;
-            if (startIndex >= source.length) return emaArray; // 数据不足
-
-            // 计算第一个EMA值（使用SMA作为初始值）
+            if (startIndex >= source.length) return emaArray;
             let sum = 0;
             for (let i = firstValidIndex; i <= startIndex; i++) {
                 sum += source[i];
             }
             let prevEma = sum / period;
             emaArray[startIndex] = prevEma;
-
-            // 计算后续的EMA
             for (let i = startIndex + 1; i < source.length; i++) {
                 const value = source[i];
                 if (value !== undefined && value !== null) {
@@ -104,59 +142,47 @@
         const calculateRSI = (source, period = 14) => {
             if (source.length < period + 1) return new Array(source.length).fill(undefined);
             const rsiArray = new Array(source.length).fill(undefined);
-            let avgGain = 0;
-            let avgLoss = 0;
-
+            let avgGain = 0, avgLoss = 0;
             for (let i = 1; i <= period; i++) {
                 const change = source[i] - source[i - 1];
-                if (change > 0) avgGain += change;
-                else avgLoss -= change;
+                if (change > 0) avgGain += change; else avgLoss -= change;
             }
             avgGain /= period;
             avgLoss /= period;
-            
-            let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+            let rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
             rsiArray[period] = 100 - 100 / (1 + rs);
-
             for (let i = period + 1; i < source.length; i++) {
                 const change = source[i] - source[i - 1];
                 let gain = change > 0 ? change : 0;
                 let loss = change < 0 ? -change : 0;
                 avgGain = (avgGain * (period - 1) + gain) / period;
                 avgLoss = (avgLoss * (period - 1) + loss) / period;
-                rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+                rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
                 rsiArray[i] = 100 - 100 / (1 + rs);
             }
             return rsiArray;
         };
         
-        // --- 使用新的健壮函数进行计算 ---
         const ema12 = calculateEMA(closes, 12);
         const ema26 = calculateEMA(closes, 26);
-
         const difValues = new Array(dataLength).fill(undefined);
         for (let i = 0; i < dataLength; i++) {
           if (ema12[i] !== undefined && ema26[i] !== undefined) {
             difValues[i] = ema12[i] - ema26[i];
           }
         }
-        
         const deaValues = calculateEMA(difValues, 9);
-        
         const macdValues = new Array(dataLength).fill(undefined);
         for (let i = 0; i < dataLength; i++) {
             if (difValues[i] !== undefined && deaValues[i] !== undefined) {
-                macdValues[i] = (difValues[i] - deaValues[i]) * 2; // MACD柱状图通常乘以2以增强视觉效果
+                macdValues[i] = (difValues[i] - deaValues[i]) * 2;
             }
         }
-
         const rsiValues = calculateRSI(closes, 14);
 
-        // --- 准备最终数据 ---
         const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
         const maDataMap = {};
         for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
-
         data.forEach((d, i) => {
           const time = adjustTime(d.Date);
           candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
@@ -170,7 +196,6 @@
           rsiData.push({ time, value: rsiValues[i] });
         });
         
-        // --- 设置数据到Series ---
         candleSeries.setData(candleData);
         volumeSeries.setData(volumeData);
         for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
@@ -179,7 +204,6 @@
         macdDEA.setData(deaData);
         rsiLine.setData(rsiData);
         
-        // --- Tooltip 更新逻辑 ---
         chart.subscribeCrosshairMove(param => {
           if (!param.time || !param.point || !param.seriesData.size) {
             document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
@@ -189,25 +213,20 @@
             }
             return;
           }
-
           const p = param.seriesData.get(candleSeries);
           if (!p) return;
-
           const idx = candleData.findIndex(x => x.time === p.time);
           if (idx === -1) return;
-
           const d = candleData[idx];
           const prevClose = idx > 0 ? candleData[idx - 1].close : d.close;
           const change = d.close - prevClose;
           const changePct = ((change / prevClose) * 100).toFixed(2);
           const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
-
           let html = `<strong>${formatDateForTooltip(d.time)}</strong> | `;
           html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
           html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct > 0 ? '+' : ''}${changePct}%) 振幅:${amplitude}% | `;
           html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
           document.getElementById('tooltip').innerHTML = html;
-
           for (const [key, series] of Object.entries(maSeriesMap)) {
             const dataPoint = param.seriesData.get(series);
             const span = document.querySelector(`[data-key="${key}"]`);
@@ -224,4 +243,6 @@
         
         chart.timeScale().fitContent();
       });
-</script>
+  </script>
+</body>
+</html>
