@@ -22,11 +22,13 @@
       margin: 0 8px;
       font-weight: bold;
     }
-    #container, #volumeContainer, #macdContainer, #rsiContainer {
+    /*
+      我们现在只需要一个主容器，图表库会自动管理内部的窗格
+    */
+    #container {
       width: 100vw;
+      height: 90vh; /* 给予足够的高度来容纳所有窗格 */
     }
-    #container { height: 55vh; }
-    #volumeContainer, #macdContainer, #rsiContainer { height: 15vh; }
     #tooltip {
       text-align: center;
       font-size: 14px;
@@ -40,10 +42,8 @@
   <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
   <div id="legend"></div>
   <div id="tooltip">鼠标移动查看详情</div>
+  <!-- 只需要一个图表容器 -->
   <div id="container"></div>
-  <div id="volumeContainer"></div>
-  <div id="macdContainer"></div>
-  <div id="rsiContainer"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   <script>
@@ -56,50 +56,78 @@
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
-    const formatDate = t => {
+    // 辅助函数，现在只用于Tooltip
+    const formatDateForTooltip = t => {
       const d = new Date(t * 1000);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
+    // **核心改动 1: 创建单一图表实例**
+    // 并通过 localization 统一时间格式
+    const chart = LightweightCharts.createChart(document.getElementById('container'), {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
       grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-      crosshair: { mode: 0 },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, // 使用Normal模式以便在所有窗格中显示十字线
+      rightPriceScale: { borderColor: '#666' },
       timeScale: {
-        tickMarkFormatter: formatDate,
-        borderColor: '#666'
+        borderColor: '#666',
+        timeVisible: true, // 确保时间在移动时可见
+        secondsVisible: false, // 通常日线不需要秒
       },
-      rightPriceScale: { borderColor: '#666' }
+      // **核心改动 2: 全局设置日期格式为 'YYYY-MM-DD'**
+      localization: {
+        dateFormat: 'yyyy-MM-dd',
+      },
     });
 
-    function createSubChart(containerId) {
-      return LightweightCharts.createChart(document.getElementById(containerId), {
-        layout: { background: { color: '#181818' }, textColor: '#ccc' },
-        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-        timeScale: { visible: true, tickMarkFormatter: () => '' },
-        rightPriceScale: { borderColor: '#666' }
-      });
-    }
-
-    const volumeChart = createSubChart('volumeContainer');
-    const macdChart = createSubChart('macdContainer');
-    const rsiChart = createSubChart('rsiContainer');
-    const syncCharts = [volumeChart, macdChart, rsiChart];
-    mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-      syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range));
+    // K线系列，在主窗格（默认）
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#2ecc71',
+      downColor: '#e74c3c',
+      borderUpColor: '#2ecc71',
+      borderDownColor: '#e74c3c',
+      wickUpColor: '#2ecc71',
+      wickDownColor: '#e74c3c',
     });
 
-    const candleSeries = mainChart.addCandlestickSeries();
-    const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
-    const macdHistogram = macdChart.addHistogramSeries();
-    const macdDIF = macdChart.addLineSeries({ color: '#3498db' });
-    const macdDEA = macdChart.addLineSeries({ color: '#ffa500' });
-    const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c' });
+    // **核心改动 3: 将指标添加到新的窗格中**
+    // 通过 priceScaleId 创建新窗格
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume', // <--- 指定价格坐标轴ID，将此系列放入新窗格
+      scaleMargins: { top: 0.2, bottom: 0.05 },
+    });
+    volumeSeries.priceScale().applyOptions({
+        scaleMargins: { top: 0.2, bottom: 0.05 },
+    });
 
+    const macdHistogram = chart.addHistogramSeries({
+      priceScaleId: 'macd', // <--- 与DIF/DEA共享同一个ID，放在同一个窗格
+      scaleMargins: { top: 0.2, bottom: 0.05 },
+    });
+    const macdDIF = chart.addLineSeries({ color: '#3498db', priceScaleId: 'macd', lineWidth: 1.5 });
+    const macdDEA = chart.addLineSeries({ color: '#ffa500', priceScaleId: 'macd', lineWidth: 1.5 });
+     macdHistogram.priceScale().applyOptions({
+        scaleMargins: { top: 0.2, bottom: 0.05 },
+    });
+
+
+    const rsiLine = chart.addLineSeries({
+      color: '#1abc9c',
+      priceScaleId: 'rsi', // <--- 使用独立的ID创建RSI窗格
+      scaleMargins: { top: 0.2, bottom: 0.05 },
+      lineWidth: 1.5
+    });
+    rsiLine.priceScale().applyOptions({
+        scaleMargins: { top: 0.2, bottom: 0.05 },
+    });
+
+    // 添加均线到主窗格
     const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
     const maSeriesMap = {};
     for (const [period, color] of Object.entries(colors)) {
-      const series = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
+      // 默认添加到主价格轴，无需指定 priceScaleId
+      const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
       maSeriesMap[`MA_${period}`] = series;
 
       const span = document.createElement('span');
@@ -123,6 +151,8 @@
         for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
 
         const closes = data.map(d => d.Close);
+        
+        // --- 指标计算函数 (保持不变) ---
         const ema = (arr, period) => {
           const k = 2 / (period + 1);
           let emaArray = [arr[0]];
@@ -136,45 +166,53 @@
           let rsis = [];
           for (let i = period; i < values.length; i++) {
             let gains = 0, losses = 0;
-            for (let j = i - period; j < i; j++) {
-              const diff = values[j + 1] - values[j];
-              if (diff >= 0) gains += diff; else losses -= diff;
+            for (let j = i - period + 1; j <= i; j++) {
+                const diff = values[j] - values[j-1];
+                if (diff >= 0) { gains += diff; } else { losses -= diff; }
             }
-            const rs = gains / (losses || 1);
+            const avgGain = gains / period;
+            const avgLoss = losses / period;
+            const rs = avgGain / (avgLoss || 1);
             rsis.push(100 - 100 / (1 + rs));
           }
-          return Array(period).fill(null).concat(rsis);
+          // 返回与原数组等长的数组，前面用undefined填充
+          return Array(period).fill(undefined).concat(rsis);
         };
+        
+        const ema12 = ema(closes, 12);
+        const ema26 = ema(closes, 26);
 
-        const ema12 = ema(closes, 12), ema26 = ema(closes, 26);
-        const dif = ema12.map((v, i) => v - ema26[i]);
-        const dea = ema(dif.slice(1), 9);
-        const macd = dif.map((v, i) => i < dea.length ? v - dea[i - 1] : null);
-        const rsiValues = rsi(closes);
+        const difValues = ema12.map((val, i) => i < 25 ? undefined : val - ema26[i]);
+        // DEA需要从DIF的第一个有效值开始计算
+        const firstValidDifIndex = difValues.findIndex(v => v !== undefined);
+        const deaValues = Array(firstValidDifIndex + 8).fill(undefined);
+        if(firstValidDifIndex !== -1){
+            const validDifs = difValues.slice(firstValidDifIndex);
+            const deaResult = ema(validDifs, 9);
+            deaValues.push(...deaResult);
+        }
 
+        const macdValues = difValues.map((val, i) => (val === undefined || deaValues[i] === undefined) ? undefined : val - deaValues[i]);
+        const rsiValues = rsi(closes, 14);
+
+
+        // **核心改动 4: 填充数据，确保所有数组长度一致**
         data.forEach((d, i) => {
           const time = adjustTime(d.Date);
           candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
-
-          // 1手 = 100股，转换为“万手”单位
           volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
-
+          
           for (const key of Object.keys(maSeriesMap)) {
             const val = d[key];
-            if (val != null) {
-              maDataMap[key].push({ time, value: val });
-            }
+            maDataMap[key].push({ time, value: val !== null ? val : undefined });
           }
 
-          if (dif[i] != null && dea[i - 1] != null && macd[i] != null) {
-            difData.push({ time, value: dif[i] });
-            deaData.push({ time, value: dea[i - 1] });
-            macdData.push({ time, value: macd[i], color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' });
-          }
-
-          if (rsiValues[i] != null) {
-            rsiData.push({ time, value: rsiValues[i] });
-          }
+          // 无论值是否存在，都推入一个带时间戳的对象
+          // lightweight-charts会处理undefined值，不绘制该点
+          difData.push({ time, value: difValues[i] });
+          deaData.push({ time, value: deaValues[i] });
+          macdData.push({ time, value: macdValues[i], color: macdValues[i] >= 0 ? '#2ecc71' : '#e74c3c' });
+          rsiData.push({ time, value: rsiValues[i] });
         });
 
         candleSeries.setData(candleData);
@@ -185,30 +223,45 @@
         macdDEA.setData(deaData);
         rsiLine.setData(rsiData);
 
-        mainChart.subscribeCrosshairMove(param => {
+        // Tooltip更新逻辑，基本不变
+        chart.subscribeCrosshairMove(param => {
           const p = param.seriesData.get(candleSeries);
-          if (!p) return;
+          if (!p || !p.time) { // 检查p和p.time是否存在
+              return;
+          }
 
-          const d = p;
-          const idx = candleData.findIndex(x => x.time === d.time);
-          const prevClose = candleData[idx - 1]?.close || d.close;
+          const idx = candleData.findIndex(x => x.time === p.time);
+          if (idx === -1) return;
+
+          const d = candleData[idx];
+          const prevClose = idx > 0 ? candleData[idx - 1].close : d.close;
           const change = d.close - prevClose;
           const changePct = ((change / prevClose) * 100).toFixed(2);
           const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
 
-          let html = `<strong>${formatDate(d.time)}</strong> | `;
+          let html = `<strong>${formatDateForTooltip(d.time)}</strong> | `;
           html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
           html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
           html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
 
-          for (const [key, series] of Object.entries(maSeriesMap)) {
-            const val = maDataMap[key].find(x => x.time === d.time)?.value;
-            const span = document.querySelector(`[data-key="${key}"]`);
-            if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
-          }
-
           document.getElementById('tooltip').innerHTML = html;
+
+          // 更新图例区的MA数值
+          for (const [key, series] of Object.entries(maSeriesMap)) {
+              const dataPoint = param.seriesData.get(series);
+              const span = document.querySelector(`[data-key="${key}"]`);
+              if (span) {
+                  const label = key.replace('MA_', 'MA');
+                  if (dataPoint && dataPoint.value !== undefined) {
+                      span.innerText = `${label}:${dataPoint.value.toFixed(decimalPlaces)}`;
+                  } else {
+                      span.innerText = `${label}:--`; // 如果没数据则显示'--'
+                  }
+              }
+          }
         });
+        
+        chart.timeScale().fitContent(); // 初始加载时自动缩放以适应所有数据
       });
   </script>
 </body>
