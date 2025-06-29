@@ -29,4 +29,29 @@
     #volumeContainer, #macdContainer, #rsiContainer { height: 15vh; }
     #tooltip {
       text-align: center;
-      font
+      font-size: 14px;
+      color: #eee;
+      background-color: #222;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
+  <div id="legend"></div>
+  <div id="tooltip">鼠标移动查看详情</div>
+  <div id="container"></div>
+  <div id="volumeContainer"></div>
+  <div id="macdContainer"></div>
+  <div id="rsiContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <script>
+    const stockCode = new URLSearchParams(window.location.search).get("code") || "600900";
+    const stockName = new URLSearchParams(window.location.search).get("name") || "股票";
+    const isETF = /^(58|55|51|15)/.test(stockCode);
+    const decimalPlaces = isETF ? 3 : 2;
+
+    document.title = `均线分析 - ${stockName} (${stockCode})`;
+
+    const formatDate = t =>
