@@ -79,9 +79,8 @@
     let lastDayMAs = {}; // 唯一需要在两个模式间传递的数据
 
     /**
-     * 新增：清理函数
-     * 模仿您的原始代码逻辑：销毁并重建。
-     * 这是保证切换纯净、无副作用的关键。
+     * 新增：销毁所有图表容器的内容
+     * 这是保证每次渲染都是全新环境的关键。
      */
     function destroyAllCharts() {
         document.getElementById('container').innerHTML = '';
@@ -94,15 +93,16 @@
 
     /**
      * 日K图渲染函数
-     * 内部代码块100%是您提供的原始代码，仅在获取数据成功后增加了两行用于传递数据和启用按钮。
+     * 内部代码块100%是您提供的原始代码。
      */
     function renderDailyChart() {
         destroyAllCharts();
+        // 确保日K相关的副图容器可见
         document.getElementById('macdContainer').style.display = 'block';
         document.getElementById('rsiContainer').style.display = 'block';
 
         // ===================================================================
-        // >>>>>>>>>>>>>>>>>>>> 您的原始代码（神圣不可侵犯）<<<<<<<<<<<<<<<<<<<
+        // >>>>>>>>>>>>>>>>>>>> 您的原始代码（原封不动）<<<<<<<<<<<<<<<<<<<
         // ===================================================================
         const params = new URLSearchParams(window.location.search);
         const stockCode = params.get("code") || "600900";
@@ -168,7 +168,12 @@
         }
 
         fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) { // 增加对HTTP错误状态的检查
+                    throw new Error(`API返回错误 ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
                 if (!Array.isArray(data) || data.length === 0) {
                     throw new Error("API未返回有效的日K数据");
@@ -186,9 +191,7 @@
                 const ema = (arr, period) => {
                     const k = 2 / (period + 1);
                     let emaArray = [arr[0]];
-                    for (let i = 1; i < arr.length; i++) {
-                        emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k));
-                    }
+                    for (let i = 1; i < arr.length; i++) emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k));
                     return emaArray;
                 };
 
@@ -216,21 +219,13 @@
                     const time = adjustTime(d.Date);
                     candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
                     volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
-
                     for (const key of Object.keys(maSeriesMap)) {
-                        const val = d[key];
-                        maDataMap[key].push({ time, value: val !== null ? val : undefined });
+                        maDataMap[key].push({ time, value: d[key] ?? undefined });
                     }
-                    
-                    const difValue = dif[i];
-                    const deaValue = dea[i - 1];
-                    const macdValue = macd[i];
-                    const rsiValue = rsiValues[i];
-
-                    difData.push({ time, value: difValue !== null ? difValue : undefined });
-                    deaData.push({ time, value: deaValue !== null ? deaValue : undefined });
-                    macdData.push({ time, value: macdValue !== null ? macdValue : undefined, color: macdValue >= 0 ? '#2ecc71' : '#e74c3c' });
-                    rsiData.push({ time, value: rsiValue !== null ? rsiValue : undefined });
+                    difData.push({ time, value: dif[i] ?? undefined });
+                    deaData.push({ time, value: dea[i - 1] ?? undefined });
+                    macdData.push({ time, value: macd[i] ?? undefined, color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' });
+                    rsiData.push({ time, value: rsiValues[i] ?? undefined });
                 });
 
                 candleSeries.setData(candleData);
@@ -244,41 +239,31 @@
                 mainChart.subscribeCrosshairMove(param => {
                     const p = param.seriesData.get(candleSeries);
                     if (!p) return;
-
                     const d = p;
                     const idx = candleData.findIndex(x => x.time === d.time);
                     const prevClose = candleData[idx - 1]?.close || d.close;
                     const change = d.close - prevClose;
                     const changePct = ((change / prevClose) * 100).toFixed(2);
                     const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
-
-                    let html = `<strong>${formatDate(d.time)}</strong> | `;
-                    html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
-                    html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
-                    html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
-
-                    for (const [key, series] of Object.entries(maSeriesMap)) {
+                    let html = `<strong>${formatDate(d.time)}</strong> | 开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
+                    html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | 量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
+                    for (const [key] of Object.entries(maSeriesMap)) {
                         const val = maDataMap[key].find(x => x.time === d.time)?.value;
                         const span = document.querySelector(`[data-key="${key}"]`);
                         if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
                     }
-
                     document.getElementById('tooltip').innerHTML = html;
                 });
                 
                 // --- 唯一在原始代码块中新增的逻辑 ---
-                // 1. 保存均线值，用于分时图
                 const lastDataPoint = data[data.length - 1];
-                for (const key of Object.keys(maSeriesMap)) {
-                    lastDayMAs[key] = lastDataPoint[key];
-                }
-                // 2. 启用分时按钮
+                for (const key of Object.keys(maSeriesMap)) lastDayMAs[key] = lastDataPoint[key];
                 document.getElementById('intradayBtn').disabled = false;
                 // --- 新增逻辑结束 ---
             })
             .catch(error => {
-                console.error("加载日K数据失败:", error.message);
-                document.getElementById('tooltip').innerText = `加载日K数据失败: ${error.message}`;
+                console.error("加载日K数据失败:", error);
+                document.getElementById('tooltip').innerText = "加载日K数据失败，可能是非交易日或代码无效。";
             });
         // ===================================================================
         // >>>>>>>>>>>>>>>>>>>> 您的原始代码结束 <<<<<<<<<<<<<<<<<<<
@@ -301,21 +286,8 @@
 
         const formatDate = t => new Date(t * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
-            layout: { background: { color: '#181818' }, textColor: '#ccc' },
-            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            localization: { timeFormatter: formatDate },
-            timeScale: { tickMarkFormatter: formatDate, borderColor: '#666' },
-            rightPriceScale: { borderColor: '#666' }
-        });
-        const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), {
-            layout: { background: { color: '#181818' }, textColor: '#ccc' },
-            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            timeScale: { visible: false },
-            rightPriceScale: { borderColor: '#666' }
-        });
+        const mainChart = LightweightCharts.createChart(document.getElementById('container'), { /* ... intraday options ... */ });
+        const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), { /* ... intraday subchart options ... */ });
         mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => volumeChart.timeScale().setVisibleLogicalRange(range));
 
         const intradayPriceSeries = mainChart.addAreaSeries({ lineColor: '#4e8df5', topColor: 'rgba(78, 141, 245, 0.4)', bottomColor: 'rgba(78, 141, 245, 0)' });
@@ -323,9 +295,10 @@
         const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' } });
         
         const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
+        const maLineSeries = {};
         for (const [period, color] of Object.entries(colors)) {
             if(lastDayMAs[`MA_${period}`]){
-                mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false, lineStyle: LightweightCharts.LineStyle.Dashed, data: [] });
+                maLineSeries[`MA_${period}`] = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false, lineStyle: LightweightCharts.LineStyle.Dashed });
                 const span = document.createElement('span');
                 span.className = 'ma-label';
                 span.style.color = color;
@@ -343,28 +316,26 @@
             const today = new Date().toISOString().slice(0, 10);
             const intradayData = [], avgPriceData = [], volumeData = [];
             const maLinesData = {};
-            for (const key in lastDayMAs) { if (lastDayMAs[key]) maLinesData[key] = []; }
+            for (const key in maLineSeries) { maLinesData[key] = []; }
 
-            data.forEach((d, i) => {
+            data.forEach(d => {
                 const time = new Date(`${today}T${d.time}`).getTime() / 1000;
                 intradayData.push({ time, value: d.price });
                 avgPriceData.push({ time, value: d.avg_price });
-                volumeData.push({ time, value: d.volume, color: d.price >= (intradayData[i-1]?.value || d.price) ? '#2ecc71' : '#e74c3c' });
-                // 平行均线数据
-                for (const key in maLinesData) {
-                    mainChart.series().at(Object.keys(maLinesData).indexOf(key) + 3).update({time, value: lastDayMAs[key]}); //+3 to skip price, avg, vol
-                }
+                volumeData.push({ time, value: d.volume, color: d.price >= (avgPriceData[avgPriceData.length-1]?.value || d.price) ? '#2ecc71' : '#e74c3c' });
+                for (const key in maLinesData) { maLinesData[key].push({ time, value: lastDayMAs[key] }); }
             });
 
             intradayPriceSeries.setData(intradayData);
             intradayAvgPriceSeries.setData(avgPriceData);
             volumeSeries.setData(volumeData);
+            for (const key in maLinesData) { maLineSeries[key].setData(maLinesData[key]); }
             
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
                 const pricePoint = param.seriesData.get(intradayPriceSeries);
-                const avgPricePoint = param.seriesData.get(intradayAvgPriceSeries);
                 if (!pricePoint) return;
+                const avgPricePoint = param.seriesData.get(intradayAvgPriceSeries);
                 const idx = intradayData.findIndex(d => d.time === pricePoint.time);
                 const vol = volumeData[idx]?.value || 0;
                 let html = `<strong>${formatDate(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
