@@ -5,61 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>均线分析图表</title>
   <style>
-    /* --- 您的原始样式 --- */
-    body {
-      margin: 0;
-      background-color: #181818;
-      color: #eee;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    }
-    #legend {
-      text-align: center;
-      padding: 10px;
-      color: #ccc;
-      font-size: 14px;
-    }
-    .ma-label {
-      display: inline-block;
-      margin: 0 8px;
-      font-weight: bold;
-    }
-    #container, #volumeContainer, #macdContainer, #rsiContainer {
-      width: 100vw;
-    }
+    body { margin: 0; background-color: #181818; color: #eee; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
+    #legend { text-align: center; padding: 10px; color: #ccc; font-size: 14px; }
+    .ma-label { display: inline-block; margin: 0 8px; font-weight: bold; }
+    #container, #volumeContainer, #macdContainer, #rsiContainer { width: 100vw; }
     #container { height: 55vh; }
     #volumeContainer, #macdContainer, #rsiContainer { height: 15vh; }
-    #tooltip {
-      text-align: center;
-      font-size: 14px;
-      color: #eee;
-      background-color: #222;
-      padding: 8px;
-    }
-    /* --- 新增：切换按钮样式 --- */
-    #controls {
-      text-align: center;
-      padding: 10px 0;
-    }
-    .mode-btn {
-      background-color: #333;
-      color: #ccc;
-      border: 1px solid #555;
-      padding: 6px 12px;
-      margin: 0 5px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .mode-btn.active {
-      background-color: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
+    #tooltip { text-align: center; font-size: 14px; color: #eee; background-color: #222; padding: 8px; }
+    #controls { text-align: center; padding: 10px 0; }
+    .mode-btn { background-color: #333; color: #ccc; border: 1px solid #555; padding: 6px 12px; margin: 0 5px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .mode-btn.active { background-color: #007bff; color: white; border-color: #007bff; }
   </style>
 </head>
 <body>
   <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
-  <!-- 新增：模式切换按钮 -->
   <div id="controls">
     <button id="dailyBtn" class="mode-btn active">日K</button>
     <button id="intradayBtn" class="mode-btn">分时</button>
@@ -74,14 +33,10 @@
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   
   <script>
-    // --- 新增：全局状态管理 ---
+    // --- 新增：全局状态管理 (简化后) ---
     let currentMode = 'daily';
-    let lastDayMAs = {}; // 唯一需要在两个模式间传递的数据
+    let lastDayMAs = {}; // 只需存储均线值
 
-    /**
-     * 新增：销毁所有图表容器的内容
-     * 这是保证每次渲染都是全新环境的关键。
-     */
     function destroyAllCharts() {
         document.getElementById('container').innerHTML = '';
         document.getElementById('volumeContainer').innerHTML = '';
@@ -91,69 +46,34 @@
         document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
     }
 
-    /**
-     * 日K图渲染函数
-     * 内部代码块100%是您提供的原始代码。
-     */
+    // --- 日K图渲染函数 (100%基于您的原始代码封装) ---
     function renderDailyChart() {
         destroyAllCharts();
-        // 确保日K相关的副图容器可见
         document.getElementById('macdContainer').style.display = 'block';
         document.getElementById('rsiContainer').style.display = 'block';
 
-        // ===================================================================
-        // >>>>>>>>>>>>>>>>>>>> 您的原始代码（原封不动）<<<<<<<<<<<<<<<<<<<
-        // ===================================================================
+        // --- 您的原始代码（原封不动）---
         const params = new URLSearchParams(window.location.search);
         const stockCode = params.get("code") || "600900";
         const stockName = params.get("name") || "股票";
         const isETF = /^(58|55|51|15)/.test(stockCode);
         const isUSStock = /^us|^US/.test(stockCode);
         const decimalPlaces = isETF ? 3 : 2;
-
         document.title = `均线分析 - ${stockName} (${stockCode})`;
-
-        const formatDate = t => {
-            const d = new Date(t * 1000);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        };
-
-        const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
-            layout: { background: { color: '#181818' }, textColor: '#ccc' },
-            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-            crosshair: { mode: 0, vertLine: { labelVisible: false } },
-            localization: { dateFormat: 'yyyy-MM-dd' },
-            timeScale: { tickMarkFormatter: formatDate, borderColor: '#666' },
-            rightPriceScale: { borderColor: '#666' }
-        });
-
-        function createSubChart(containerId) {
-            return LightweightCharts.createChart(document.getElementById(containerId), {
-                layout: { background: { color: '#181818' }, textColor: '#ccc' },
-                grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-                crosshair: { mode: 0 },
-                localization: { dateFormat: 'yyyy-MM-dd' },
-                timeScale: { visible: true, tickMarkFormatter: () => '' },
-                rightPriceScale: { borderColor: '#666' }
-            });
-        }
-
+        const formatDate = t => { const d = new Date(t * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+        const mainChart = LightweightCharts.createChart(document.getElementById('container'), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: 0, vertLine: { labelVisible: false } }, localization: { dateFormat: 'yyyy-MM-dd' }, timeScale: { tickMarkFormatter: formatDate, borderColor: '#666' }, rightPriceScale: { borderColor: '#666' } });
+        function createSubChart(containerId) { return LightweightCharts.createChart(document.getElementById(containerId), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: 0 }, localization: { dateFormat: 'yyyy-MM-dd' }, timeScale: { visible: true, tickMarkFormatter: () => '' }, rightPriceScale: { borderColor: '#666' } }); }
         const volumeChart = createSubChart('volumeContainer');
         const macdChart = createSubChart('macdContainer');
         const rsiChart = createSubChart('rsiContainer');
-        
         const syncCharts = [volumeChart, macdChart, rsiChart];
-        mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range));
-        });
-
+        mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => { syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range)); });
         const candleSeries = mainChart.addCandlestickSeries();
         const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
         const macdHistogram = macdChart.addHistogramSeries();
         const macdDIF = macdChart.addLineSeries({ color: '#3498db' });
         const macdDEA = macdChart.addLineSeries({ color: '#ffa500' });
         const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c' });
-
         const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
         const maSeriesMap = {};
         for (const [period, color] of Object.entries(colors)) {
@@ -166,68 +86,23 @@
             span.innerText = `MA${period}`;
             document.getElementById('legend').appendChild(span);
         }
-
         fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
-            .then(res => {
-                if (!res.ok) { // 增加对HTTP错误状态的检查
-                    throw new Error(`API返回错误 ${res.status}`);
-                }
-                return res.json();
-            })
+            .then(res => { if (!res.ok) throw new Error(`API返回错误 ${res.status}`); return res.json(); })
             .then(data => {
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error("API未返回有效的日K数据");
-                }
-                const adjustTime = utcStr => {
-                    const date = new Date(utcStr);
-                    return isUSStock ? Math.floor(date.getTime() / 1000) : Math.floor(date.getTime() / 1000) + 8 * 3600;
-                };
-
+                if (!Array.isArray(data) || data.length === 0) throw new Error("API未返回有效的日K数据");
+                const adjustTime = utcStr => { const date = new Date(utcStr); return isUSStock ? Math.floor(date.getTime() / 1000) : Math.floor(date.getTime() / 1000) + 8 * 3600; };
                 const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
                 const maDataMap = {};
                 for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
-
                 const closes = data.map(d => d.Close);
-                const ema = (arr, period) => {
-                    const k = 2 / (period + 1);
-                    let emaArray = [arr[0]];
-                    for (let i = 1; i < arr.length; i++) emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k));
-                    return emaArray;
-                };
-
-                const rsi = (values, period = 14) => {
-                    let rsis = [];
-                    for (let i = period; i < values.length; i++) {
-                        let gains = 0, losses = 0;
-                        for (let j = i - period; j < i; j++) {
-                            const diff = values[j + 1] - values[j];
-                            if (diff >= 0) gains += diff; else losses -= diff;
-                        }
-                        const rs = gains / (losses || 1);
-                        rsis.push(100 - 100 / (1 + rs));
-                    }
-                    return Array(period).fill(null).concat(rsis);
-                };
-
+                const ema = (arr, period) => { const k = 2 / (period + 1); let emaArray = [arr[0]]; for (let i = 1; i < arr.length; i++) emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k)); return emaArray; };
+                const rsi = (values, period = 14) => { let rsis = []; for (let i = period; i < values.length; i++) { let gains = 0, losses = 0; for (let j = i - period; j < i; j++) { const diff = values[j + 1] - values[j]; if (diff >= 0) gains += diff; else losses -= diff; } const rs = gains / (losses || 1); rsis.push(100 - 100 / (1 + rs)); } return Array(period).fill(null).concat(rsis); };
                 const ema12 = ema(closes, 12), ema26 = ema(closes, 26);
                 const dif = ema12.map((v, i) => v - ema26[i]);
                 const dea = ema(dif.slice(1), 9);
                 const macd = dif.map((v, i) => i < dea.length ? v - dea[i - 1] : null);
                 const rsiValues = rsi(closes);
-
-                data.forEach((d, i) => {
-                    const time = adjustTime(d.Date);
-                    candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
-                    volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
-                    for (const key of Object.keys(maSeriesMap)) {
-                        maDataMap[key].push({ time, value: d[key] ?? undefined });
-                    }
-                    difData.push({ time, value: dif[i] ?? undefined });
-                    deaData.push({ time, value: dea[i - 1] ?? undefined });
-                    macdData.push({ time, value: macd[i] ?? undefined, color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' });
-                    rsiData.push({ time, value: rsiValues[i] ?? undefined });
-                });
-
+                data.forEach((d, i) => { const time = adjustTime(d.Date); candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close }); volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' }); for (const key of Object.keys(maSeriesMap)) { maDataMap[key].push({ time, value: d[key] ?? undefined }); } difData.push({ time, value: dif[i] ?? undefined }); deaData.push({ time, value: dea[i - 1] ?? undefined }); macdData.push({ time, value: macd[i] ?? undefined, color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' }); rsiData.push({ time, value: rsiValues[i] ?? undefined }); });
                 candleSeries.setData(candleData);
                 volumeSeries.setData(volumeData);
                 for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
@@ -235,44 +110,20 @@
                 macdDIF.setData(difData);
                 macdDEA.setData(deaData);
                 rsiLine.setData(rsiData);
-
-                mainChart.subscribeCrosshairMove(param => {
-                    const p = param.seriesData.get(candleSeries);
-                    if (!p) return;
-                    const d = p;
-                    const idx = candleData.findIndex(x => x.time === d.time);
-                    const prevClose = candleData[idx - 1]?.close || d.close;
-                    const change = d.close - prevClose;
-                    const changePct = ((change / prevClose) * 100).toFixed(2);
-                    const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
-                    let html = `<strong>${formatDate(d.time)}</strong> | 开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
-                    html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | 量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
-                    for (const [key] of Object.entries(maSeriesMap)) {
-                        const val = maDataMap[key].find(x => x.time === d.time)?.value;
-                        const span = document.querySelector(`[data-key="${key}"]`);
-                        if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
-                    }
-                    document.getElementById('tooltip').innerHTML = html;
-                });
+                mainChart.subscribeCrosshairMove(param => { const p = param.seriesData.get(candleSeries); if (!p) return; const d = p; const idx = candleData.findIndex(x => x.time === d.time); const prevClose = candleData[idx - 1]?.close || d.close; const change = d.close - prevClose; const changePct = ((change / prevClose) * 100).toFixed(2); const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2); let html = `<strong>${formatDate(d.time)}</strong> | 开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `; html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | 量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`; for (const [key] of Object.entries(maSeriesMap)) { const val = maDataMap[key].find(x => x.time === d.time)?.value; const span = document.querySelector(`[data-key="${key}"]`); if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`; } document.getElementById('tooltip').innerHTML = html; });
                 
                 // --- 唯一在原始代码块中新增的逻辑 ---
                 const lastDataPoint = data[data.length - 1];
-                for (const key of Object.keys(maSeriesMap)) lastDayMAs[key] = lastDataPoint[key];
+                for (const key of Object.keys(maSeriesMap)) {
+                    lastDayMAs[key] = lastDataPoint[key];
+                }
                 document.getElementById('intradayBtn').disabled = false;
                 // --- 新增逻辑结束 ---
             })
-            .catch(error => {
-                console.error("加载日K数据失败:", error);
-                document.getElementById('tooltip').innerText = "加载日K数据失败，可能是非交易日或代码无效。";
-            });
-        // ===================================================================
-        // >>>>>>>>>>>>>>>>>>>> 您的原始代码结束 <<<<<<<<<<<<<<<<<<<
-        // ===================================================================
+            .catch(error => { console.error("加载日K数据失败:", error); document.getElementById('tooltip').innerText = "加载日K数据失败，可能是非交易日或代码无效。"; });
     }
 
-    /**
-     * 新增：分时图渲染函数
-     */
+    // --- 新增：分时图渲染函数 (最终修正版) ---
     async function renderIntradayChart() {
         if (Object.keys(lastDayMAs).length === 0) { alert("日K数据尚未加载完成，无法切换。"); return; }
         destroyAllCharts();
@@ -286,8 +137,8 @@
 
         const formatDate = t => new Date(t * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        const mainChart = LightweightCharts.createChart(document.getElementById('container'), { /* ... intraday options ... */ });
-        const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), { /* ... intraday subchart options ... */ });
+        const mainChart = LightweightCharts.createChart(document.getElementById('container'), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, localization: { timeFormatter: formatDate }, timeScale: { tickMarkFormatter: formatDate, borderColor: '#666' }, rightPriceScale: { borderColor: '#666' } });
+        const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, timeScale: { visible: false }, rightPriceScale: { borderColor: '#666' } });
         mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => volumeChart.timeScale().setVisibleLogicalRange(range));
 
         const intradayPriceSeries = mainChart.addAreaSeries({ lineColor: '#4e8df5', topColor: 'rgba(78, 141, 245, 0.4)', bottomColor: 'rgba(78, 141, 245, 0)' });
@@ -295,14 +146,14 @@
         const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' } });
         
         const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
-        const maLineSeries = {};
         for (const [period, color] of Object.entries(colors)) {
-            if(lastDayMAs[`MA_${period}`]){
-                maLineSeries[`MA_${period}`] = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false, lineStyle: LightweightCharts.LineStyle.Dashed });
+            const maValue = lastDayMAs[`MA_${period}`];
+            if (maValue) {
+                intradayPriceSeries.createPriceLine({ price: maValue, color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: `MA${period}` });
                 const span = document.createElement('span');
                 span.className = 'ma-label';
                 span.style.color = color;
-                span.innerText = `MA${period}:${lastDayMAs[`MA_${period}`].toFixed(decimalPlaces)}`;
+                span.innerText = `MA${period}:${maValue.toFixed(decimalPlaces)}`;
                 document.getElementById('legend').appendChild(span);
             }
         }
@@ -313,23 +164,21 @@
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) throw new Error('API未返回有效的分时数据');
 
-            const today = new Date().toISOString().slice(0, 10);
+            // **核心修正：从分时数据自身获取正确的交易日期**
+            const tradeDate = data[0].date;
+            
             const intradayData = [], avgPriceData = [], volumeData = [];
-            const maLinesData = {};
-            for (const key in maLineSeries) { maLinesData[key] = []; }
 
-            data.forEach(d => {
-                const time = new Date(`${today}T${d.time}`).getTime() / 1000;
+            data.forEach((d, i) => {
+                const time = new Date(`${tradeDate}T${d.time}`).getTime() / 1000;
                 intradayData.push({ time, value: d.price });
                 avgPriceData.push({ time, value: d.avg_price });
-                volumeData.push({ time, value: d.volume, color: d.price >= (avgPriceData[avgPriceData.length-1]?.value || d.price) ? '#2ecc71' : '#e74c3c' });
-                for (const key in maLinesData) { maLinesData[key].push({ time, value: lastDayMAs[key] }); }
+                volumeData.push({ time, value: d.volume, color: d.price >= (avgPriceData[i-1]?.value || d.price) ? '#2ecc71' : '#e74c3c' });
             });
 
             intradayPriceSeries.setData(intradayData);
             intradayAvgPriceSeries.setData(avgPriceData);
             volumeSeries.setData(volumeData);
-            for (const key in maLinesData) { maLineSeries[key].setData(maLinesData[key]); }
             
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
@@ -353,27 +202,12 @@
     // --- 新增：事件绑定 ---
     const dailyBtn = document.getElementById('dailyBtn');
     const intradayBtn = document.getElementById('intradayBtn');
-
-    dailyBtn.addEventListener('click', () => {
-        if (currentMode === 'daily') return;
-        currentMode = 'daily';
-        dailyBtn.classList.add('active');
-        intradayBtn.classList.remove('active');
-        renderDailyChart();
-    });
-
-    intradayBtn.addEventListener('click', () => {
-        if (currentMode === 'intraday') return;
-        currentMode = 'intraday';
-        intradayBtn.classList.add('active');
-        dailyBtn.classList.remove('active');
-        renderIntradayChart();
-    });
+    dailyBtn.addEventListener('click', () => { if (currentMode !== 'daily') { currentMode = 'daily'; dailyBtn.classList.add('active'); intradayBtn.classList.remove('active'); renderDailyChart(); } });
+    intradayBtn.addEventListener('click', () => { if (currentMode !== 'intraday') { currentMode = 'intraday'; intradayBtn.classList.add('active'); dailyBtn.classList.remove('active'); renderIntradayChart(); } });
 
     // --- 初始加载 ---
     intradayBtn.disabled = true;
     renderDailyChart();
-
   </script>
 </body>
 </html>
