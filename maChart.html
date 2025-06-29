@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>均线分析</title>
 
-<!-- 引入 Lightweight Charts -->
-<script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js" defer></script>
-
+<!-- 样式部分保持在 head 中 -->
 <style>
   html, body {
-    margin: 0; padding: 0; height: 100%;
+    margin: 0;
+    padding: 0;
+    height: 100%;
     background: #181818;
     color: #EAEAEA;
     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -29,6 +29,8 @@
     flex: 1;
     padding: 10px 20px 20px 20px;
     position: relative;
+    /* 确保容器有明确的尺寸供图表使用 */
+    min-height: 400px;
   }
   #chart {
     width: 100%;
@@ -50,6 +52,8 @@
 </style>
 </head>
 <body>
+
+<!-- HTML 结构部分 -->
 <header id="chartTitle">均线分析</header>
 <div id="chartContainer">
   <div id="chart"></div>
@@ -57,8 +61,15 @@
   <div id="error" style="display:none;"></div>
 </div>
 
-<script defer>
-window.addEventListener('DOMContentLoaded', () => {
+
+<!-- 脚本部分移至 body 底部 -->
+
+<!-- 1. 首先引入 Lightweight Charts 库 -->
+<script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<!-- 2. 然后执行你的业务逻辑脚本 -->
+<script>
+  // 立即执行的异步函数 (IIFE)
   (async () => {
     const chartTitleEl = document.getElementById('chartTitle');
     const loadingEl = document.getElementById('loading');
@@ -83,6 +94,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
     try {
+      // 假设你的 API 代理在同一个域名下
       const resp = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
       if (!resp.ok) throw new Error(`请求失败，状态码：${resp.status}`);
       const data = await resp.json();
@@ -93,7 +105,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       loadingEl.style.display = 'none';
 
-      // 创建图表
+      // 创建图表 (此时 LightweightCharts 对象必然存在)
       const chart = LightweightCharts.createChart(chartContainer, {
         layout: {
           backgroundColor: '#181818',
@@ -161,12 +173,19 @@ window.addEventListener('DOMContentLoaded', () => {
           maSeries.setData(maData);
         }
       }
+      
+      chart.timeScale().fitContent();
 
       // 自适应尺寸
-      window.addEventListener('resize', () => {
+      const resizeChart = () => {
         chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
-      });
-      chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+      };
+
+      // 初始调整大小
+      resizeChart();
+      
+      // 监听窗口大小变化
+      window.addEventListener('resize', resizeChart);
 
     } catch (err) {
       loadingEl.style.display = 'none';
@@ -175,7 +194,7 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error(err);
     }
   })();
-});
 </script>
+
 </body>
 </html>
