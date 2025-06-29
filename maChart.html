@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>均线分析</title>
 
-  <!-- 加载依赖 -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
+  <!-- Chart.js v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Luxon 时间支持 -->
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+  <!-- 金融图插件 v1 兼容 Chart.js v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@1.0.0-beta.15/dist/chartjs-chart-financial.umd.js"></script>
 
   <style>
     html, body {
@@ -29,19 +31,17 @@
     }
     #chartContainer {
       flex: 1;
-      padding: 20px 25px;
+      padding: 20px;
     }
-    #popupMaChart {
+    canvas {
       width: 100%;
       height: 100%;
-      background: #222;
-      border-radius: 8px;
     }
     #loading {
       text-align: center;
-      padding: 50px;
-      font-size: 1.5rem;
-      color: #bbb;
+      font-size: 1.3rem;
+      color: #aaa;
+      margin-top: 50px;
     }
   </style>
 </head>
@@ -52,211 +52,169 @@
     <div id="loading">正在加载数据...</div>
   </div>
 
-  <script>
-    (async function () {
-      // 正确注册所有组件
-      const {
-        CandlestickController,
-        CandlestickElement,
-        OhlcController,
-        OhlcElement,
-        FinancialScale
-      } = window;
+<script>
+(async function () {
+  const { Chart } = window;
 
-      Chart.register(
-        window.chartjsAdapterLuxon,
-        CandlestickController,
-        CandlestickElement,
-        OhlcController,
-        OhlcElement,
-        FinancialScale,
-        Chart.TimeScale,
-        Chart.LinearScale,
-        Chart.CategoryScale,
-        Chart.BarController,
-        Chart.BarElement,
-        Chart.Tooltip,
-        Chart.Legend
-      );
+  // 注册所有必要组件（必须明确注册）
+  Chart.register(
+    window.FinancialController,
+    window.CandlestickController,
+    window.CandlestickElement,
+    window.FinancialScale,
+    window.TimeScale,
+    window.LinearScale,
+    window.BarController,
+    window.BarElement,
+    window.Tooltip,
+    window.Legend,
+    window['chartjs-adapter-luxon']
+  );
 
-      function getQueryParam(name) {
-        return new URLSearchParams(window.location.search).get(name) || '';
-      }
+  const stockCode = new URLSearchParams(location.search).get('code') || '';
+  const stockName = new URLSearchParams(location.search).get('name') || stockCode;
 
-      const stockCode = getQueryParam('code');
-      const stockName = getQueryParam('name') || stockCode;
+  const titleEl = document.getElementById('chartTitle');
+  const canvas = document.getElementById('popupMaChart');
+  const ctx = canvas.getContext('2d');
+  const loadingEl = document.getElementById('loading');
 
-      if (!stockCode) {
-        alert('缺少股票代码参数！');
-        return;
-      }
+  titleEl.textContent = `均线分析: ${stockName} (${stockCode})`;
+  document.title = `均线分析 - ${stockName} (${stockCode})`;
 
-      document.getElementById('chartTitle').textContent = `均线分析: ${stockName} (${stockCode})`;
-      document.title = `均线分析 - ${stockName} (${stockCode})`;
+  try {
+    const res = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
+    if (!res.ok) throw new Error(`API 请求失败: ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) throw new Error('数据为空');
 
-      const loadingDiv = document.getElementById('loading');
-      const canvas = document.getElementById('popupMaChart');
-      canvas.style.display = 'none';
+    const luxon = window.luxon;
 
-      try {
-        const response = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
-        if (!response.ok) {
-          throw new Error(`请求失败，状态码: ${response.status}`);
-        }
+    const candlestickData = data.map(d => ({
+      x: luxon.DateTime.fromISO(d.Date).toMillis(),
+      o: d.Open,
+      h: d.High,
+      l: d.Low,
+      c: d.Close
+    }));
 
-        const data = await response.json();
-        if (!Array.isArray(data) || data.length === 0) {
-          throw new Error('API未返回有效数据');
-        }
+    const volumeData = data.map(d => ({
+      x: luxon.DateTime.fromISO(d.Date).toMillis(),
+      y: d.Volume
+    }));
 
-        const candlestickData = data.map(d => ({
+    const volumeColors = data.map(d => d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
+
+    const maConfigs = [
+      { period: 5, color: '#e67e22' },
+      { period: 10, color: '#3498db' },
+      { period: 20, color: '#9b59b6' },
+      { period: 30, color: '#f1c40f' },
+      { period: 60, color: '#2ecc71' },
+      { period: 120, color: '#e74c3c' },
+      { period: 250, color: '#bdc3c7' }
+    ];
+
+    const maDatasets = maConfigs.flatMap(cfg => {
+      const key = 'MA_' + cfg.period;
+      if (!data.some(d => d[key] != null)) return [];
+      return {
+        type: 'line',
+        label: 'MA' + cfg.period,
+        data: data.map(d => ({
           x: luxon.DateTime.fromISO(d.Date).toMillis(),
-          o: d.Open,
-          h: d.High,
-          l: d.Low,
-          c: d.Close
-        }));
+          y: d[key]
+        })).filter(p => p.y != null),
+        borderColor: cfg.color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        yAxisID: 'y'
+      };
+    });
 
-        const volumeData = data.map(d => ({
-          x: luxon.DateTime.fromISO(d.Date).toMillis(),
-          y: d.Volume
-        }));
+    loadingEl.style.display = 'none';
+    canvas.style.display = 'block';
 
-        const volumeColors = data.map(d =>
-          d.Close >= d.Open ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)'
-        );
-
-        const maConfigs = [
-          { period: 5, color: '#e67e22' },
-          { period: 10, color: '#3498db' },
-          { period: 20, color: '#9b59b6' },
-          { period: 30, color: '#f1c40f' },
-          { period: 60, color: '#2ecc71' },
-          { period: 120, color: '#e74c3c' },
-          { period: 250, color: '#bdc3c7' }
-        ];
-
-        const maDatasets = [];
-        for (const config of maConfigs) {
-          const key = 'MA_' + config.period;
-          if (data.some(d => d[key] != null)) {
-            const maData = data.map(d => ({
-              x: luxon.DateTime.fromISO(d.Date).toMillis(),
-              y: d[key]
-            })).filter(d => d.y != null);
-            maDatasets.push({
-              type: 'line',
-              label: 'MA' + config.period,
-              data: maData,
-              borderColor: config.color,
-              borderWidth: 1.5,
-              pointRadius: 0,
-              yAxisID: 'y'
-            });
-          }
-        }
-
-        const chartAreaSplitter = {
-          id: 'chartAreaSplitter',
-          beforeDraw(chart) {
-            const { chartArea, scales } = chart;
-            if (!scales.y || !scales.yVolume) return;
-            const priceRatio = 0.7;
-            const gap = 20;
-            scales.y.height = chartArea.height * priceRatio;
-            scales.y.bottom = chartArea.top + scales.y.height;
-            scales.yVolume.height = chartArea.height * (1 - priceRatio) - gap;
-            scales.yVolume.top = scales.y.bottom + gap;
-          }
-        };
-
-        const ctx = canvas.getContext('2d');
-        loadingDiv.style.display = 'none';
-        canvas.style.display = 'block';
-
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            datasets: [
-              {
-                type: 'candlestick',
-                label: 'K线',
-                data: candlestickData,
-                yAxisID: 'y'
-              },
-              ...maDatasets,
-              {
-                type: 'bar',
-                label: '成交量',
-                data: volumeData,
-                backgroundColor: volumeColors,
-                yAxisID: 'yVolume'
-              }
-            ]
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        datasets: [
+          {
+            type: 'candlestick',
+            label: 'K线',
+            data: candlestickData,
+            yAxisID: 'y'
           },
-          options: {
-            maintainAspectRatio: false,
-            responsive: true,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { position: 'top', labels: { color: '#EAEAEA' } },
-              tooltip: {
-                backgroundColor: 'rgba(40,40,40,0.95)',
-                titleColor: '#B0BEC5',
-                bodyColor: '#EAEAEA',
-                padding: 10,
-                callbacks: {
-                  label(ctx) {
-                    const raw = ctx.raw;
-                    const label = ctx.dataset.label || '';
-                    if (ctx.dataset.type === 'bar') {
-                      let val = raw.y;
-                      if (val >= 1e8) return label + ': ' + (val / 1e8).toFixed(2) + '亿';
-                      if (val >= 1e4) return label + ': ' + (val / 1e4).toFixed(2) + '万';
-                      return label + ': ' + val;
-                    }
-                    if (raw && raw.c !== undefined) {
-                      return `开:${raw.o.toFixed(2)} 高:${raw.h.toFixed(2)} 低:${raw.l.toFixed(2)} 收:${raw.c.toFixed(2)}`;
-                    }
-                    return label + ': ' + ctx.formattedValue;
-                  }
+          ...maDatasets,
+          {
+            type: 'bar',
+            label: '成交量',
+            data: volumeData,
+            backgroundColor: volumeColors,
+            yAxisID: 'yVolume'
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#EAEAEA' }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(40,40,40,0.95)',
+            titleColor: '#B0BEC5',
+            bodyColor: '#EAEAEA',
+            callbacks: {
+              label(ctx) {
+                const raw = ctx.raw;
+                const label = ctx.dataset.label || '';
+                if (ctx.dataset.type === 'bar') {
+                  const val = raw.y;
+                  return label + ': ' + (val >= 1e8 ? (val/1e8).toFixed(2) + '亿' : (val >= 1e4 ? (val/1e4).toFixed(2) + '万' : val));
                 }
-              }
-            },
-            scales: {
-              x: {
-                type: 'time',
-                time: { unit: 'day', tooltipFormat: 'yyyy-MM-dd' },
-                grid: { drawOnChartArea: false },
-                ticks: { color: '#90A4AE', source: 'auto', maxRotation: 0 }
-              },
-              y: {
-                position: 'left',
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: { color: '#90A4AE' }
-              },
-              yVolume: {
-                position: 'right',
-                grid: { drawOnChartArea: false },
-                ticks: {
-                  color: '#90A4AE',
-                  callback(value) {
-                    if (value >= 1e8) return (value / 1e8).toFixed(0) + '亿';
-                    if (value >= 1e4) return (value / 1e4).toFixed(0) + '万';
-                    return value;
-                  }
+                if (raw && raw.c != null) {
+                  return `开:${raw.o} 高:${raw.h} 低:${raw.l} 收:${raw.c}`;
                 }
+                return label + ': ' + ctx.formattedValue;
               }
             }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'day', tooltipFormat: 'yyyy-MM-dd' },
+            ticks: { color: '#90A4AE' },
+            grid: { drawOnChartArea: false }
           },
-          plugins: [chartAreaSplitter]
-        });
-
-      } catch (e) {
-        console.error('加载或绘制错误:', e);
-        loadingDiv.textContent = '加载失败: ' + e.message;
+          y: {
+            position: 'left',
+            ticks: { color: '#90A4AE' },
+            grid: { color: 'rgba(255,255,255,0.1)' }
+          },
+          yVolume: {
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: '#90A4AE',
+              callback(val) {
+                return val >= 1e8 ? (val / 1e8).toFixed(0) + '亿' :
+                       val >= 1e4 ? (val / 1e4).toFixed(0) + '万' : val;
+              }
+            }
+          }
+        }
       }
-    })();
-  </script>
+    });
+
+  } catch (e) {
+    console.error('图表渲染失败:', e);
+    loadingEl.textContent = '图表渲染失败: ' + e.message;
+  }
+})();
+</script>
 </body>
 </html>
