@@ -54,4 +54,157 @@
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
-    const formatDate = t =>
+    const formatDate = t => {
+      const d = new Date(t * 1000);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
+      layout: { background: { color: '#181818' }, textColor: '#ccc' },
+      grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+      crosshair: { mode: 0 },
+      timeScale: {
+        tickMarkFormatter: formatDate,
+        borderColor: '#666'
+      },
+      rightPriceScale: { borderColor: '#666' }
+    });
+
+    function createSubChart(containerId) {
+      return LightweightCharts.createChart(document.getElementById(containerId), {
+        layout: { background: { color: '#181818' }, textColor: '#ccc' },
+        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+        timeScale: {
+          visible: true,
+          tickMarkFormatter: () => ''
+        },
+        rightPriceScale: { borderColor: '#666' }
+      });
+    }
+
+    const volumeChart = createSubChart('volumeContainer');
+    const macdChart = createSubChart('macdContainer');
+    const rsiChart = createSubChart('rsiContainer');
+
+    const syncCharts = [volumeChart, macdChart, rsiChart];
+    mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range));
+    });
+
+    const candleSeries = mainChart.addCandlestickSeries();
+    const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
+
+    const macdHistogram = macdChart.addHistogramSeries();
+    const macdDIF = macdChart.addLineSeries({ color: '#3498db' });  // 改为蓝色
+    const macdDEA = macdChart.addLineSeries({ color: '#ffa500' });
+
+    const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c' });
+
+    const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
+    const maSeriesMap = {};
+    for (const [period, color] of Object.entries(colors)) {
+      const series = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
+      maSeriesMap[`MA_${period}`] = series;
+
+      const span = document.createElement('span');
+      span.className = 'ma-label';
+      span.style.color = color;
+      span.innerText = `MA${period}`;
+      document.getElementById('legend').appendChild(span);
+    }
+
+    fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
+      .then(res => res.json())
+      .then(data => {
+        const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
+        const maDataMap = {};
+        for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
+
+        const closes = data.map(d => d.Close);
+        const ema = (arr, period) => {
+          const k = 2 / (period + 1);
+          let emaArray = [arr[0]];
+          for (let i = 1; i < arr.length; i++) {
+            emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k));
+          }
+          return emaArray;
+        };
+
+        const rsi = (values, period = 14) => {
+          let rsis = [];
+          for (let i = period; i < values.length; i++) {
+            let gains = 0, losses = 0;
+            for (let j = i - period; j < i; j++) {
+              const diff = values[j + 1] - values[j];
+              if (diff >= 0) gains += diff; else losses -= diff;
+            }
+            const rs = gains / (losses || 1);
+            rsis.push(100 - 100 / (1 + rs));
+          }
+          return Array(period).fill(null).concat(rsis);
+        };
+
+        const ema12 = ema(closes, 12), ema26 = ema(closes, 26);
+        const dif = ema12.map((v, i) => v - ema26[i]);
+        const dea = ema(dif.slice(1), 9);
+        const macd = dif.map((v, i) => i < dea.length ? v - dea[i - 1] : null);
+        const rsiValues = rsi(closes);
+
+        data.forEach((d, i) => {
+          const time = Math.floor(new Date(d.Date).getTime() / 1000);
+          candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
+          volumeData.push({ time, value: d.Volume / 10000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
+
+          for (const key of Object.keys(maSeriesMap)) {
+            const val = d[key];
+            if (val !== null && val !== undefined) {
+              maDataMap[key].push({ time, value: val });
+            }
+          }
+
+          if (dif[i] != null && dea[i - 1] != null && macd[i] != null) {
+            difData.push({ time, value: dif[i] });
+            deaData.push({ time, value: dea[i - 1] });
+            macdData.push({ time, value: macd[i], color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' });
+          }
+          if (rsiValues[i] != null) {
+            rsiData.push({ time, value: rsiValues[i] });
+          }
+        });
+
+        candleSeries.setData(candleData);
+        volumeSeries.setData(volumeData);
+        for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
+        macdHistogram.setData(macdData);
+        macdDIF.setData(difData);
+        macdDEA.setData(deaData);
+        rsiLine.setData(rsiData);
+
+        mainChart.subscribeCrosshairMove(param => {
+          const p = param.seriesData.get(candleSeries);
+          if (!p) return;
+
+          const d = p;
+          const idx = candleData.findIndex(x => x.time === d.time);
+          const prevClose = candleData[idx - 1]?.close || d.close;
+
+          const change = d.close - prevClose;
+          const changePct = ((change / prevClose) * 100).toFixed(2);
+          const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
+
+          let html = `<strong>${formatDate(d.time)}</strong> | `;
+          html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
+          html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
+          html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
+
+          for (const [key, series] of Object.entries(maSeriesMap)) {
+            const val = maDataMap[key].find(x => x.time === d.time)?.value;
+            if (val) html += ` <span style="color:${series.options().color}">${key}:${val.toFixed(decimalPlaces)}</span>`;
+          }
+
+          document.getElementById('tooltip').innerHTML = html;
+        });
+      });
+  </script>
+</body>
+</html>
