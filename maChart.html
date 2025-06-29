@@ -41,10 +41,10 @@
   <div id="tooltip">鼠标移动查看详情</div>
   <div id="container"></div>
 
-  <!-- 关键修正：必须先通过这个 script 标签加载图表库 -->
+  <!-- 1. 确保图表库被正确加载 -->
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
-  <!-- 然后在下面的 script 标签里运行我们自己的代码 -->
+  <!-- 2. 运行我们的图表代码 -->
   <script>
     const params = new URLSearchParams(window.location.search);
     const stockCode = params.get("code") || "600900";
@@ -60,7 +60,6 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    // 这行代码现在可以正确执行，因为上面的 script 标签已经定义了 LightweightCharts
     const chart = LightweightCharts.createChart(document.getElementById('container'), {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
       grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
@@ -75,12 +74,8 @@
       },
       crosshair: {
         mode: LightweightCharts.CrosshairMode.Normal,
-        vertLine: {
-          labelVisible: false,
-        },
-        horzLine: {
-          labelVisible: false,
-        },
+        vertLine: { labelVisible: false },
+        horzLine: { labelVisible: false },
       },
     });
 
@@ -88,14 +83,15 @@
     const candleSeries = chart.addCandlestickSeries({ upColor: '#2ecc71', downColor: '#e74c3c', borderUpColor: '#2ecc71', borderDownColor: '#e74c3c', wickUpColor: '#2ecc71', wickDownColor: '#e74c3c' });
     const volumeSeries = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'volume', scaleMargins: { top: 0.25, bottom: 0.05 }});
     const macdHistogram = chart.addHistogramSeries({ priceScaleId: 'macd', scaleMargins: { top: 0.25, bottom: 0.05 }});
-    const macdDIF = chart.addLineSeries({ color: '#3498db', priceScaleId: 'macd', lineWidth: 1.5, crosshairMarkerVisible: false });
-    const macdDEA = chart.addLineSeries({ color: '#ffa500', priceScaleId: 'macd', lineWidth: 1.5, crosshairMarkerVisible: false });
+    const macdDIF = chart.addLineSeries({ color: '#3498db', priceScaleId: 'macd', lineWidth: 1.5 });
+    const macdDEA = chart.addLineSeries({ color: '#ffa500', priceScaleId: 'macd', lineWidth: 1.5 });
     const rsiLine = chart.addLineSeries({ color: '#1abc9c', priceScaleId: 'rsi', lineWidth: 1.5, scaleMargins: { top: 0.2, bottom: 0.2 } });
     
     const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
     const maSeriesMap = {};
     for (const [period, color] of Object.entries(colors)) {
-      const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false, crosshairMarkerVisible: false });
+      // **核心修正1：移除 crosshairMarkerVisible: false 选项，恢复默认行为**
+      const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
       maSeriesMap[`MA_${period}`] = series;
       const span = document.createElement('span');
       span.className = 'ma-label';
@@ -149,16 +145,19 @@
             }
             avgGain /= period;
             avgLoss /= period;
-            let rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
-            rsiArray[period] = 100 - 100 / (1 + rs);
+            
+            // **核心修正2: 避免使用 Infinity，使用更安全的方式处理除零情况**
+            let rs = avgLoss > 0 ? avgGain / avgLoss : 100; // RSI is 100 if there's no loss
+            rsiArray[period] = 100 - (100 / (1 + rs));
+
             for (let i = period + 1; i < source.length; i++) {
                 const change = source[i] - source[i - 1];
                 let gain = change > 0 ? change : 0;
                 let loss = change < 0 ? -change : 0;
                 avgGain = (avgGain * (period - 1) + gain) / period;
                 avgLoss = (avgLoss * (period - 1) + loss) / period;
-                rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
-                rsiArray[i] = 100 - 100 / (1 + rs);
+                rs = avgLoss > 0 ? avgGain / avgLoss : 100;
+                rsiArray[i] = 100 - (100 / (1 + rs));
             }
             return rsiArray;
         };
