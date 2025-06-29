@@ -1,72 +1,91 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>均线分析图表</title>
   <style>
     body {
       margin: 0;
       background-color: #181818;
       color: #eee;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     }
-    #container { width: 100vw; height: 70vh; }
-    #volumeContainer { width: 100vw; height: 20vh; }
-    #legend { text-align: center; padding: 10px; font-size: 14px; }
-    .ma-label { display: inline-block; margin: 0 10px; font-weight: bold; }
-    #info { padding: 10px; color: #ccc; font-size: 13px; text-align: center; }
+    #container {
+      width: 100vw;
+      height: 75vh;
+    }
+    #volumeContainer {
+      width: 100vw;
+      height: 20vh;
+    }
+    #legend {
+      text-align: center;
+      padding: 5px 10px;
+      font-size: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .ma-label, .ma-value {
+      font-weight: bold;
+    }
+    .ma-item {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    #infoBox {
+      padding: 8px 10px;
+      text-align: center;
+      font-size: 13px;
+      color: #ccc;
+    }
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;color:#a0d2eb">均线分析</h2>
+  <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
   <div id="legend"></div>
-  <div id="info">悬停以查看详细数据</div>
+  <div id="infoBox"></div>
   <div id="container"></div>
   <div id="volumeContainer"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   <script>
-    const stockCode = new URLSearchParams(window.location.search).get("code") || "600900";
-    const stockName = new URLSearchParams(window.location.search).get("name") || "股票";
-    const isUS = /^US/i.test(stockCode);
-
-    const formatDate = (utcString) => {
-      const date = new Date(utcString);
-      const local = isUS ? date : new Date(date.getTime() + 8 * 3600 * 1000);
-      return {
-        short: `${local.getFullYear()}-${(local.getMonth() + 1).toString().padStart(2, '0')}`,
-        full: `${local.getFullYear()}-${(local.getMonth() + 1).toString().padStart(2, '0')}-${local.getDate().toString().padStart(2, '0')}`,
-        time: Math.floor(local.getTime() / 1000)
-      };
-    };
+    const params = new URLSearchParams(window.location.search);
+    const stockCode = params.get("code") || "600900";
+    const stockName = params.get("name") || "股票";
+    const isETF = ['58', '55', '51', '15'].some(prefix => stockCode.startsWith(prefix));
+    const priceDecimal = isETF ? 3 : 2;
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
-
     const container = document.getElementById('container');
     const volumeContainer = document.getElementById('volumeContainer');
     const legend = document.getElementById('legend');
-    const info = document.getElementById('info');
+    const infoBox = document.getElementById('infoBox');
 
     const chart = LightweightCharts.createChart(container, {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
-      grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
       timeScale: {
         timeVisible: true,
-        tickMarkFormatter: time => {
+        secondsVisible: false,
+        tickMarkFormatter: (time) => {
           const d = new Date(time * 1000);
           return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
         }
       },
+      grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
       crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: '#666' },
+      rightPriceScale: { borderColor: '#666' }
     });
 
     const volumeChart = LightweightCharts.createChart(volumeContainer, {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
-      grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
       timeScale: { visible: false },
-      rightPriceScale: { borderColor: '#666' },
+      grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
+      crosshair: { mode: 0 },
+      rightPriceScale: { borderColor: '#666' }
     });
 
     const candleSeries = chart.addCandlestickSeries();
@@ -78,60 +97,70 @@
     });
 
     const colors = {
-      5: '#e67e22', 10: '#3498db', 20: '#9b59b6',
-      30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7'
+      5: '#e67e22',
+      10: '#3498db',
+      20: '#9b59b6',
+      30: '#f1c40f',
+      60: '#2ecc71',
+      120: '#e74c3c',
+      250: '#bdc3c7'
     };
 
     const maSeriesMap = {};
+    const maLabels = {};
     for (const [period, color] of Object.entries(colors)) {
-      maSeriesMap[`MA_${period}`] = chart.addLineSeries({
-        color, lineWidth: 1.5, priceLineVisible: false
-      });
-      const span = document.createElement('span');
-      span.className = 'ma-label';
-      span.style.color = color;
-      span.textContent = `MA${period}`;
-      legend.appendChild(span);
+      const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
+      maSeriesMap[`MA_${period}`] = series;
+
+      const maItem = document.createElement('span');
+      maItem.className = 'ma-item';
+      maItem.style.color = color;
+      maItem.innerHTML = `<span class="ma-label">MA${period}:</span><span id="ma_${period}" class="ma-value">-</span>`;
+      legend.appendChild(maItem);
+      maLabels[`MA_${period}`] = document.getElementById(`ma_${period}`);
     }
 
     fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
       .then(res => res.json())
       .then(data => {
-        const candles = [], volume = [], maMap = {}, macdData = [];
-        Object.keys(maSeriesMap).forEach(k => maMap[k] = []);
+        const candleData = [], volumeData = [], maDataMap = {}, closeMap = {};
+        Object.keys(maSeriesMap).forEach(k => maDataMap[k] = []);
 
-        for (const d of data) {
-          const { time, short, full } = formatDate(d.Date);
+        for (let i = 0; i < data.length; i++) {
+          const d = data[i];
+          const time = Math.floor(new Date(d.Date).getTime() / 1000);
 
-          candles.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
-          volume.push({ time, value: d.Volume, color: d.Close >= d.Open ? '#26a69a' : '#ef5350' });
+          candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
+          volumeData.push({ time, value: d.Volume, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
+          closeMap[time] = d.Close;
 
-          Object.entries(maSeriesMap).forEach(([k, s]) => {
-            if (d[k] != null) maMap[k].push({ time, value: d[k] });
+          Object.keys(maSeriesMap).forEach(k => {
+            if (d[k]) maDataMap[k].push({ time, value: d[k] });
           });
         }
 
-        candleSeries.setData(candles);
-        volumeSeries.setData(volume);
-        Object.entries(maSeriesMap).forEach(([k, s]) => s.setData(maMap[k]));
+        candleSeries.setData(candleData);
+        volumeSeries.setData(volumeData);
+        Object.entries(maSeriesMap).forEach(([k, s]) => s.setData(maDataMap[k]));
 
         chart.subscribeCrosshairMove(param => {
           if (!param.time || !param.seriesData) return;
-          const time = formatDate(new Date(param.time * 1000).toISOString()).full;
-          const d = param.seriesData.get(candleSeries);
-          if (!d) return;
+          const t = param.time;
+          const dp = param.seriesData.get(candleSeries);
+          if (!dp) return;
 
-          const { open, high, low, close } = d;
-          const change = (close - open).toFixed(2);
-          const percent = ((close - open) / open * 100).toFixed(2) + '%';
-          const amplitude = ((high - low) / open * 100).toFixed(2) + '%';
-          const vol = param.seriesData.get(volumeSeries)?.value || 0;
+          const lastClose = candleData.find(c => c.time < t)?.close || dp.open;
+          const change = dp.close - lastClose;
+          const changePct = ((dp.close - lastClose) / lastClose * 100).toFixed(2);
+          const range = dp.high - dp.low;
+          const amplitude = (range / lastClose * 100).toFixed(2);
 
-          const maText = Object.entries(maSeriesMap)
-            .map(([k, s]) => `${k.replace('MA_', 'MA')}: ${(param.seriesData.get(s)?.value ?? '-').toFixed(2)}`)
-            .join('  ');
+          infoBox.innerHTML = `时间: ${new Date(t * 1000).toISOString().split('T')[0]} ｜ 开: ${dp.open.toFixed(priceDecimal)} 高: ${dp.high.toFixed(priceDecimal)} 低: ${dp.low.toFixed(priceDecimal)} 收: ${dp.close.toFixed(priceDecimal)} ｜ 涨跌: ${change.toFixed(priceDecimal)} (${changePct}%) ｜ 振幅: ${amplitude}% ｜ 成交量: ${dp.volume || volumeData.find(v => v.time === t)?.value.toLocaleString()}`;
 
-          info.textContent = `${time} 开:${open} 高:${high} 低:${low} 收:${close} 涨跌:${change} (${percent}) 振幅:${amplitude} 成交量:${vol} ${maText}`;
+          Object.entries(maLabels).forEach(([key, el]) => {
+            const match = maDataMap[key].find(m => m.time === t);
+            el.textContent = match ? match.value.toFixed(priceDecimal) : '-';
+          });
         });
       })
       .catch(e => {
