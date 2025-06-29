@@ -2,81 +2,216 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>均线分析（换库版）</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>均线分析</title>
   <style>
-    html,body{margin:0;padding:0;height:100%;background:#181818;color:#EAEAEA;font-family:'Segoe UI','Microsoft YaHei',sans-serif;}
-    header{padding:20px;text-align:center;font-size:1.8rem;color:#a0d2eb;border-bottom:1px solid #333;}
-    #chartContainer{position:absolute;top:60px;bottom:0;left:0;right:0;}
-    #chart{width:100%;height:100%;}
-    #loading{position:absolute;top:50%;width:100%;text-align:center;color:#888;}
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #181818; color: #EAEAEA;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      display: flex; flex-direction: column;
+    }
+    header {
+      padding: 20px;
+      border-bottom: 1px solid #3A3A3A;
+      text-align: center;
+      font-size: 2rem;
+      color: #a0d2eb;
+    }
+    #chartContainer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 25px;
+    }
+    #chart, #volumeChart {
+      flex: 1;
+      border-radius: 8px;
+      background: #222;
+    }
+    #volumeChart {
+      margin-top: 12px;
+      height: 120px;
+    }
+    #loading {
+      text-align: center;
+      padding: 50px;
+      font-size: 1.5rem;
+      color: #bbb;
+    }
   </style>
 </head>
 <body>
   <header id="chartTitle">均线分析</header>
   <div id="chartContainer">
     <div id="chart"></div>
-    <div id="loading">加载中...</div>
+    <div id="volumeChart"></div>
+    <div id="loading">正在加载数据...</div>
   </div>
 
-  <!-- Lightweight Charts 库 -->
+  <!-- Lightweight Charts CDN -->
   <script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js"></script>
+
   <script>
-  (async ()=>{
-    function getParam(name){
-      return (new URLSearchParams(location.search)).get(name)||'';
+  (async () => {
+    const loadingDiv = document.getElementById('loading');
+    const chartTitle = document.getElementById('chartTitle');
+
+    // 从URL获取参数
+    function getQueryParam(name) {
+      return new URLSearchParams(window.location.search).get(name) || '';
+    }
+    const stockCode = getQueryParam('code');
+    const stockName = getQueryParam('name') || stockCode;
+
+    if (!stockCode) {
+      loadingDiv.textContent = '缺少股票代码参数！';
+      alert('缺少股票代码参数！');
+      return;
     }
 
-    const code = getParam('code');
-    const name = getParam('name') || code;
-    if(!code){ alert('缺少code'); return; }
-
-    document.getElementById('chartTitle').innerText = `均线分析: ${name} (${code})`;
-
-    // 初始化图表
-    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-      layout:{background:'#181818',textColor:'#EAEAEA'},
-      grid:{vertLines:{color:'#333'},horzLines:{color:'#333'}},
-      rightPriceScale:{scaleMargins:{top:0.3,bottom:0.2}},
-      timeScale:{borderColor:'#333'}
-    });
-
-    const candleSeries = chart.addCandlestickSeries();
-    const volumeSeries = chart.addHistogramSeries({scaleMargins:{top:0.7,bottom:0},color:'#26a69a'});
-    const ma5 = chart.addLineSeries({color:'#e67e22',lineWidth:2});
-    const ma10 = chart.addLineSeries({color:'#3498db',lineWidth:2});
-    const ma20 = chart.addLineSeries({color:'#9b59b6',lineWidth:2});
+    chartTitle.textContent = `均线分析: ${stockName} (${stockCode})`;
+    document.title = `均线分析 - ${stockName} (${stockCode})`;
 
     try {
-      const res = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(code)}&type=movingaveragedata`);
-      if(!res.ok) throw new Error(res.status);
-      const data = await res.json();
-      if(!Array.isArray(data)||!data.length) throw new Error('无数据');
+      // 请求数据接口，注意替换为你自己的接口路径
+      const response = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
+      if (!response.ok) throw new Error(`请求失败，状态码: ${response.status}`);
 
-      const candleData = data.map(d=>({
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) throw new Error('API未返回有效数据');
+
+      loadingDiv.style.display = 'none';
+
+      // 格式化K线数据，time必须是YYYY-MM-DD格式或者时间戳（秒）
+      const candleData = data.map(d => ({
         time: d.Date,
-        open: d.Open, high:d.High, low:d.Low, close:d.Close
+        open: d.Open,
+        high: d.High,
+        low: d.Low,
+        close: d.Close
       }));
+
+      // 成交量数据
+      const volumeData = data.map(d => ({
+        time: d.Date,
+        value: d.Volume,
+        color: d.Close >= d.Open ? 'rgba(46,204,113,0.7)' : 'rgba(231,76,60,0.7)'
+      }));
+
+      // 创建主图K线图表
+      const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+        width: document.getElementById('chartContainer').clientWidth,
+        height: document.getElementById('chartContainer').clientHeight - 150,
+        layout: {
+          backgroundColor: '#222',
+          textColor: '#EAEAEA',
+        },
+        grid: {
+          vertLines: { color: '#444' },
+          horzLines: { color: '#444' },
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        rightPriceScale: {
+          borderColor: '#555',
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        localization: {
+          dateFormat: 'yyyy-MM-dd',
+        },
+      });
+
+      const candleSeries = chart.addCandlestickSeries({
+        upColor: 'rgba(46,204,113,1)',
+        downColor: 'rgba(231,76,60,1)',
+        borderDownColor: 'rgba(231,76,60,1)',
+        borderUpColor: 'rgba(46,204,113,1)',
+        wickDownColor: 'rgba(231,76,60,1)',
+        wickUpColor: 'rgba(46,204,113,1)',
+      });
       candleSeries.setData(candleData);
 
-      volumeSeries.setData(data.map(d=>({
-        time:d.Date,
-        value:d.Volume,
-        color:d.Close>=d.Open?'#26a69a':'#ee6666'
-      })));
+      // 创建成交量图表（共享时间轴）
+      const volumeChart = LightweightCharts.createChart(document.getElementById('volumeChart'), {
+        width: document.getElementById('chartContainer').clientWidth,
+        height: 120,
+        layout: {
+          backgroundColor: '#222',
+          textColor: '#EAEAEA',
+        },
+        grid: {
+          vertLines: { color: '#444' },
+          horzLines: { color: '#444' },
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          // 同步主图时间轴
+          syncWith: chart.timeScale(),
+        },
+        rightPriceScale: {
+          visible: false,
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        localization: {
+          dateFormat: 'yyyy-MM-dd',
+        },
+      });
 
-      const calcMA = (period) => candleData.map((_,i,arr)=>i>=period-1 ? {
-        time:arr[i].time, value: arr.slice(i-period+1,i+1).reduce((s, v)=>s+v.close,0)/period
-      } : null).filter(x=>x);
+      const volumeSeries = volumeChart.addHistogramSeries({
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: '',
+        scaleMargins: {
+          top: 0.8,
+          bottom: 0,
+        },
+        color: '#26a69a',
+      });
+      volumeSeries.setData(volumeData);
 
-      ma5.setData(calcMA(5));
-      ma10.setData(calcMA(10));
-      ma20.setData(calcMA(20));
+      // 计算并绘制均线（MA5, MA10, MA20等）
+      const maPeriods = [5, 10, 20, 30, 60, 120, 250];
+      const maColors = ['#e67e22', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e74c3c', '#bdc3c7'];
 
-      document.getElementById('loading').style.display = 'none';
-    } catch(e){
-      document.getElementById('loading').innerText = '加载失败: '+e.message;
-      console.error(e);
+      for (let i = 0; i < maPeriods.length; i++) {
+        const period = maPeriods[i];
+        const maColor = maColors[i];
+        const maKey = `MA_${period}`;
+
+        if (data.some(d => d[maKey] != null)) {
+          const maSeries = chart.addLineSeries({
+            color: maColor,
+            lineWidth: 1.5,
+          });
+
+          const maData = data
+            .filter(d => d[maKey] != null)
+            .map(d => ({
+              time: d.Date,
+              value: d[maKey],
+            }));
+          maSeries.setData(maData);
+        }
+      }
+
+      // 自适应窗口大小（简单示例）
+      window.addEventListener('resize', () => {
+        chart.applyOptions({ width: document.getElementById('chartContainer').clientWidth });
+        volumeChart.applyOptions({ width: document.getElementById('chartContainer').clientWidth });
+      });
+
+    } catch (e) {
+      loadingDiv.textContent = '加载失败: ' + e.message;
+      console.error('图表加载或绘制出错', e);
+      alert('图表加载失败: ' + e.message);
     }
   })();
   </script>
