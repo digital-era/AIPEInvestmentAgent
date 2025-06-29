@@ -11,13 +11,6 @@
       color: #eee;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     }
-    #container, #volumeContainer, #macdContainer, #rsiContainer {
-      width: 100vw;
-      height: 25vh;
-    }
-    #container {
-      height: 35vh;
-    }
     #legend {
       text-align: center;
       padding: 10px;
@@ -26,159 +19,184 @@
     }
     .ma-label {
       display: inline-block;
-      margin: 0 10px;
+      margin: 0 8px;
       font-weight: bold;
     }
-    #infoBox {
-      padding: 10px;
-      color: #fff;
+    #container, #volumeContainer, #macdContainer, #rsiContainer {
+      width: 100vw;
+    }
+    #container { height: 55vh; }
+    #volumeContainer, #macdContainer, #rsiContainer { height: 15vh; }
+    #tooltip {
+      text-align: center;
       font-size: 14px;
+      color: #eee;
       background-color: #222;
-      border-top: 1px solid #444;
-      white-space: pre-wrap;
+      padding: 8px;
     }
   </style>
 </head>
 <body>
   <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
   <div id="legend"></div>
+  <div id="tooltip">鼠标移动查看详情</div>
   <div id="container"></div>
   <div id="volumeContainer"></div>
   <div id="macdContainer"></div>
   <div id="rsiContainer"></div>
-  <div id="infoBox">鼠标移动查看详情</div>
 
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     const stockCode = new URLSearchParams(window.location.search).get("code") || "600900";
     const stockName = new URLSearchParams(window.location.search).get("name") || "股票";
-    const isUS = /^us|^US/.test(stockCode);
     const isETF = /^(58|55|51|15)/.test(stockCode);
+    const decimalPlaces = isETF ? 3 : 2;
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
-    const container = document.getElementById('container');
-    const volumeContainer = document.getElementById('volumeContainer');
-    const macdContainer = document.getElementById('macdContainer');
-    const rsiContainer = document.getElementById('rsiContainer');
-    const legend = document.getElementById('legend');
-    const infoBox = document.getElementById('infoBox');
-
-    const chart = LightweightCharts.createChart(container, {
+    const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
+      grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+      crosshair: { mode: 0 },
       timeScale: {
-        timeVisible: true,
-        tickMarkFormatter: (time) => {
-          const date = new Date((isUS ? time : time + 8 * 3600) * 1000);
-          return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
-        }
+        tickMarkFormatter: t => new Date(t * 1000).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+        borderColor: '#666'
       },
-      crosshair: { mode: 0 },
+      rightPriceScale: { borderColor: '#666' }
     });
 
-    const volumeChart = LightweightCharts.createChart(volumeContainer, {
-      layout: { background: { color: '#181818' }, textColor: '#ccc' },
-      crosshair: { mode: 0 },
-      timeScale: { visible: false }
+    function createSubChart(containerId) {
+      return LightweightCharts.createChart(document.getElementById(containerId), {
+        layout: { background: { color: '#181818' }, textColor: '#ccc' },
+        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+        timeScale: { visible: false },
+        rightPriceScale: { borderColor: '#666' }
+      });
+    }
+
+    const volumeChart = createSubChart('volumeContainer');
+    const macdChart = createSubChart('macdContainer');
+    const rsiChart = createSubChart('rsiContainer');
+
+    const syncTimeScales = [volumeChart, macdChart, rsiChart];
+    syncTimeScales.forEach(c => c.timeScale().setVisibleLogicalRange(mainChart.timeScale().getVisibleLogicalRange()));
+    mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      syncTimeScales.forEach(c => c.timeScale().setVisibleLogicalRange(range));
     });
 
-    const macdChart = LightweightCharts.createChart(macdContainer, {
-      layout: { background: { color: '#181818' }, textColor: '#ccc' },
-      crosshair: { mode: 0 },
-      timeScale: { visible: false }
-    });
+    const candleSeries = mainChart.addCandlestickSeries();
+    const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
 
-    const rsiChart = LightweightCharts.createChart(rsiContainer, {
-      layout: { background: { color: '#181818' }, textColor: '#ccc' },
-      crosshair: { mode: 0 },
-      timeScale: { visible: false }
-    });
+    const macdHistogram = macdChart.addHistogramSeries({ color: '#888' });
+    const macdDIF = macdChart.addLineSeries({ color: '#00ff00' });
+    const macdDEA = macdChart.addLineSeries({ color: '#ffa500' });
 
-    const candleSeries = chart.addCandlestickSeries();
-    const volumeSeries = volumeChart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '' });
+    const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c' });
 
     const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
     const maSeriesMap = {};
     for (const [period, color] of Object.entries(colors)) {
-      const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
+      const series = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
       maSeriesMap[`MA_${period}`] = series;
+
       const span = document.createElement('span');
       span.className = 'ma-label';
       span.style.color = color;
-      span.textContent = `MA${period}`;
-      legend.appendChild(span);
+      span.innerText = `MA${period}`;
+      document.getElementById('legend').appendChild(span);
     }
-
-    const macdSeries = macdChart.addHistogramSeries({ color: '#aaa', priceFormat: { type: 'price' } });
-    const signalSeries = macdChart.addLineSeries({ color: '#f39c12' });
-    const macdLineSeries = macdChart.addLineSeries({ color: '#2ecc71' });
-
-    const rsiSeries = rsiChart.addLineSeries({ color: '#9b59b6' });
 
     fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
       .then(res => res.json())
       .then(data => {
-        const candleData = [], volumeData = [], maDataMap = {}, rsiData = [], macdData = [], macdSignal = [], macdLine = [];
-        let prevClose;
-        const closeArr = [], ema12Arr = [], ema26Arr = [];
-        for (const key in maSeriesMap) maDataMap[key] = [];
+        const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
+        const maDataMap = {};
+        for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
+
+        const closes = data.map(d => d.Close);
+        const ema = (arr, period) => {
+          const k = 2 / (period + 1);
+          let emaArray = [arr[0]];
+          for (let i = 1; i < arr.length; i++) {
+            emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k));
+          }
+          return emaArray;
+        };
+
+        const rsi = (values, period = 14) => {
+          let rsis = [];
+          for (let i = period; i < values.length; i++) {
+            let gains = 0, losses = 0;
+            for (let j = i - period; j < i; j++) {
+              const diff = values[j + 1] - values[j];
+              if (diff >= 0) gains += diff; else losses -= diff;
+            }
+            const rs = gains / (losses || 1);
+            rsis.push(100 - 100 / (1 + rs));
+          }
+          return Array(period).fill(null).concat(rsis);
+        };
+
+        const ema12 = ema(closes, 12), ema26 = ema(closes, 26);
+        const dif = ema12.map((v, i) => v - ema26[i]);
+        const dea = ema(dif.slice(1), 9);
+        const macd = dif.map((v, i) => i < dea.length ? v - dea[i - 1] : null);
+        const rsiValues = rsi(closes);
 
         data.forEach((d, i) => {
           const time = Math.floor(new Date(d.Date).getTime() / 1000);
-          const close = d.Close, open = d.Open;
-          candleData.push({ time, open, high: d.High, low: d.Low, close });
-          volumeData.push({ time, value: d.Volume, color: close >= open ? 'rgba(46,204,113,0.7)' : 'rgba(231,76,60,0.7)' });
-          for (const key in maSeriesMap) if (d[key] != null) maDataMap[key].push({ time, value: d[key] });
+          candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
+          volumeData.push({ time, value: d.Volume, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
 
-          closeArr.push(close);
-          if (i >= 14) {
-            const slice = closeArr.slice(i - 13, i + 1);
-            const avgGain = slice.filter((v, j) => j && v > slice[j - 1]).reduce((s, v, j) => s + (v - slice[j]), 0) / 14;
-            const avgLoss = slice.filter((v, j) => j && v < slice[j - 1]).reduce((s, v, j) => s + (slice[j] - v), 0) / 14;
-            const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-            rsiData.push({ time, value: +(100 - (100 / (1 + rs))).toFixed(2) });
+          for (const key of Object.keys(maSeriesMap)) {
+            const val = d[key];
+            if (val !== null && val !== undefined) {
+              maDataMap[key].push({ time, value: val });
+            }
           }
 
-          // MACD
-          const k = 2 / (12 + 1);
-          const j = 2 / (26 + 1);
-          ema12Arr.push(i === 0 ? close : close * k + ema12Arr[i - 1] * (1 - k));
-          ema26Arr.push(i === 0 ? close : close * j + ema26Arr[i - 1] * (1 - j));
-          const macd = ema12Arr[i] - ema26Arr[i];
-          macdLine.push(macd);
-          const signal = i < 9 ? macd : macd * 0.2 + macdSignal[i - 1] * 0.8;
-          macdSignal.push(signal);
-          macdData.push({ time, value: macd - signal });
+          if (dif[i] != null && dea[i - 1] != null && macd[i] != null) {
+            difData.push({ time, value: dif[i] });
+            deaData.push({ time, value: dea[i - 1] });
+            macdData.push({ time, value: macd[i], color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' });
+          }
+          if (rsiValues[i] != null) {
+            rsiData.push({ time, value: rsiValues[i] });
+          }
         });
 
         candleSeries.setData(candleData);
         volumeSeries.setData(volumeData);
-        for (const key in maSeriesMap) maSeriesMap[key].setData(maDataMap[key]);
-        rsiSeries.setData(rsiData);
-        macdSeries.setData(macdData);
-        signalSeries.setData(macdSignal.map((v, i) => ({ time: candleData[i].time, value: v })));
-        macdLineSeries.setData(macdLine.map((v, i) => ({ time: candleData[i].time, value: v })));
+        for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
+        macdHistogram.setData(macdData);
+        macdDIF.setData(difData);
+        macdDEA.setData(deaData);
+        rsiLine.setData(rsiData);
 
-        chart.subscribeCrosshairMove(param => {
-          if (!param.time || !param.seriesData.size) return infoBox.textContent = '鼠标移动查看详情';
-          const point = candleData.find(p => p.time === param.time);
-          if (!point) return;
-          const prev = candleData[candleData.findIndex(p => p.time === point.time) - 1];
-          const decimal = isETF ? 3 : 2;
-          const chg = prev ? (point.close - prev.close).toFixed(decimal) : '--';
-          const chgPct = prev ? ((point.close - prev.close) / prev.close * 100).toFixed(2) + '%' : '--';
-          const amplitude = ((point.high - point.low) / point.low * 100).toFixed(2) + '%';
-          const maValues = Object.entries(maSeriesMap).map(([key, s]) => {
-            const p = maDataMap[key].find(p => p.time === point.time);
-            return p ? `${key.replace('MA_', 'MA')}: ${p.value.toFixed(decimal)}` : '';
-          }).filter(Boolean).join(' | ');
-          const vol = volumeData.find(p => p.time === point.time)?.value || 0;
-          infoBox.innerHTML = `时间: ${new Date((isUS ? point.time : point.time + 8 * 3600) * 1000).toLocaleDateString()} | 开: ${point.open.toFixed(decimal)} 高: ${point.high.toFixed(decimal)} 低: ${point.low.toFixed(decimal)} 收: ${point.close.toFixed(decimal)} | 涨跌: ${chg} (${chgPct}) | 振幅: ${amplitude} | 成交量: ${vol} | ${maValues}`;
+        mainChart.subscribeCrosshairMove(param => {
+          const p = param.seriesData.get(candleSeries);
+          if (!p) return;
+
+          const d = p;
+          const idx = candleData.findIndex(x => x.time === d.time);
+          const prevClose = candleData[idx - 1]?.close || d.close;
+
+          const change = d.close - prevClose;
+          const changePct = ((change / prevClose) * 100).toFixed(2);
+          const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
+
+          let html = `<strong>${new Date(d.time * 1000).toLocaleDateString('zh-CN')}</strong> | `;
+          html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
+          html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
+          html += `量:${volumeData[idx]?.value || 0}`;
+
+          for (const [key, series] of Object.entries(maSeriesMap)) {
+            const val = maDataMap[key].find(x => x.time === d.time)?.value;
+            if (val) html += ` <span style="color:${series.options().color}">${key}:${val.toFixed(decimalPlaces)}</span>`;
+          }
+
+          document.getElementById('tooltip').innerHTML = html;
         });
-      })
-      .catch(e => {
-        alert('图表加载失败: ' + e.message);
-        console.error(e);
       });
   </script>
 </body>
