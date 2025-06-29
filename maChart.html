@@ -79,7 +79,7 @@
       },
     });
 
-    // --- Series的创建 ---
+    // --- Series的创建 (保持不变) ---
     const candleSeries = chart.addCandlestickSeries({ upColor: '#2ecc71', downColor: '#e74c3c', borderUpColor: '#2ecc71', borderDownColor: '#e74c3c', wickUpColor: '#2ecc71', wickDownColor: '#e74c3c' });
     const volumeSeries = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'volume', scaleMargins: { top: 0.25, bottom: 0.05 }});
     const macdHistogram = chart.addHistogramSeries({ priceScaleId: 'macd', scaleMargins: { top: 0.25, bottom: 0.05 }});
@@ -90,7 +90,6 @@
     const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
     const maSeriesMap = {};
     for (const [period, color] of Object.entries(colors)) {
-      // **核心修正1：移除 crosshairMarkerVisible: false 选项，恢复默认行为**
       const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
       maSeriesMap[`MA_${period}`] = series;
       const span = document.createElement('span');
@@ -104,105 +103,116 @@
     fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
       .then(res => res.json())
       .then(data => {
-        const adjustTime = utcStr => {
-          const date = new Date(utcStr);
-          return isUSStock ? Math.floor(date.getTime() / 1000) : Math.floor(date.getTime() / 1000) + 8 * 3600;
-        };
-
-        const closes = data.map(d => d.Close);
         const dataLength = data.length;
+        const closes = data.map(d => d.Close);
 
-        const calculateEMA = (source, period) => {
-            const emaArray = new Array(source.length).fill(undefined);
+        // **核心修正：使用全新的、稳定可靠的指标计算逻辑**
+
+        // 1. 定义一个只在密集数字数组上工作的简单EMA计算器
+        const calculateEmaOnArray = (source, period) => {
             const k = 2 / (period + 1);
-            const firstValidIndex = source.findIndex(val => val !== undefined && val !== null);
-            if (firstValidIndex === -1) return emaArray;
-            const startIndex = firstValidIndex + period - 1;
-            if (startIndex >= source.length) return emaArray;
+            const results = [];
+            if (source.length < period) return [];
+            
             let sum = 0;
-            for (let i = firstValidIndex; i <= startIndex; i++) {
+            for (let i = 0; i < period; i++) {
                 sum += source[i];
             }
             let prevEma = sum / period;
-            emaArray[startIndex] = prevEma;
-            for (let i = startIndex + 1; i < source.length; i++) {
-                const value = source[i];
-                if (value !== undefined && value !== null) {
-                    prevEma = value * k + prevEma * (1 - k);
-                    emaArray[i] = prevEma;
-                }
+            results.push(prevEma);
+
+            for (let i = period; i < source.length; i++) {
+                const ema = source[i] * k + prevEma * (1 - k);
+                results.push(ema);
+                prevEma = ema;
             }
-            return emaArray;
+            return results;
         };
+
+        // 2. 计算MACD
+        const ema12 = calculateEmaOnArray(closes, 12);
+        const ema26 = calculateEmaOnArray(closes, 26);
         
-        const calculateRSI = (source, period = 14) => {
-            if (source.length < period + 1) return new Array(source.length).fill(undefined);
-            const rsiArray = new Array(source.length).fill(undefined);
-            let avgGain = 0, avgLoss = 0;
+        // 对齐 ema12 和 ema26, 因为它们起点不同
+        const alignedEma12 = Array(26 - 12).fill(undefined).concat(ema12);
+
+        const difValues = [];
+        for (let i = 0; i < ema26.length; i++) {
+            difValues.push(alignedEma12[i] - ema26[i]);
+        }
+        
+        const deaValues = calculateEmaOnArray(difValues, 9);
+        const macdValues = [];
+        for (let i = 0; i < deaValues.length; i++) {
+            macdValues.push((difValues[i + (9 - 1)] - deaValues[i]) * 2);
+        }
+
+        // 3. 计算RSI
+        const calculateRsiOnArray = (source, period = 14) => {
+            const results = [];
+            if (source.length <= period) return [];
+
+            let avgGain = 0;
+            let avgLoss = 0;
             for (let i = 1; i <= period; i++) {
                 const change = source[i] - source[i - 1];
-                if (change > 0) avgGain += change; else avgLoss -= change;
+                if (change > 0) { avgGain += change; } else { avgLoss -= change; }
             }
             avgGain /= period;
             avgLoss /= period;
-            
-            // **核心修正2: 避免使用 Infinity，使用更安全的方式处理除零情况**
-            let rs = avgLoss > 0 ? avgGain / avgLoss : 100; // RSI is 100 if there's no loss
-            rsiArray[period] = 100 - (100 / (1 + rs));
 
-            for (let i = period + 1; i < source.length; i++) {
-                const change = source[i] - source[i - 1];
-                let gain = change > 0 ? change : 0;
-                let loss = change < 0 ? -change : 0;
-                avgGain = (avgGain * (period - 1) + gain) / period;
-                avgLoss = (avgLoss * (period - 1) + loss) / period;
-                rs = avgLoss > 0 ? avgGain / avgLoss : 100;
-                rsiArray[i] = 100 - (100 / (1 + rs));
+            for (let i = period; i < source.length; i++) {
+                if (i > period) {
+                    const change = source[i] - source[i - 1];
+                    const gain = change > 0 ? change : 0;
+                    const loss = change < 0 ? -change : 0;
+                    avgGain = (avgGain * (period - 1) + gain) / period;
+                    avgLoss = (avgLoss * (period - 1) + loss) / period;
+                }
+                const rs = avgLoss > 0 ? avgGain / avgLoss : 100;
+                results.push(100 - 100 / (1 + rs));
             }
-            return rsiArray;
+            return results;
         };
-        
-        const ema12 = calculateEMA(closes, 12);
-        const ema26 = calculateEMA(closes, 26);
-        const difValues = new Array(dataLength).fill(undefined);
-        for (let i = 0; i < dataLength; i++) {
-          if (ema12[i] !== undefined && ema26[i] !== undefined) {
-            difValues[i] = ema12[i] - ema26[i];
-          }
-        }
-        const deaValues = calculateEMA(difValues, 9);
-        const macdValues = new Array(dataLength).fill(undefined);
-        for (let i = 0; i < dataLength; i++) {
-            if (difValues[i] !== undefined && deaValues[i] !== undefined) {
-                macdValues[i] = (difValues[i] - deaValues[i]) * 2;
-            }
-        }
-        const rsiValues = calculateRSI(closes, 14);
+        const rsiValues = calculateRsiOnArray(closes, 14);
 
-        const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
-        const maDataMap = {};
-        for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
-        data.forEach((d, i) => {
-          const time = adjustTime(d.Date);
-          candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
-          volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
-          for (const key of Object.keys(maSeriesMap)) {
-            maDataMap[key].push({ time, value: d[key] !== null ? d[key] : undefined });
-          }
-          difData.push({ time, value: difValues[i] });
-          deaData.push({ time, value: deaValues[i] });
-          macdData.push({ time, value: macdValues[i], color: macdValues[i] >= 0 ? '#2ecc71' : '#e74c3c' });
-          rsiData.push({ time, value: rsiValues[i] });
-        });
-        
+        // 4. 将所有数据组装成图表库需要的格式，并用 undefined 填充空白期
+        const candleData = [], volumeData = [], maData = {},
+              macdData = [], difData = [], deaData = [], rsiData = [];
+        Object.keys(maSeriesMap).forEach(key => maData[key] = []);
+
+        for (let i = 0; i < dataLength; i++) {
+            const d = data[i];
+            const time = Math.floor(new Date(d.Date).getTime() / 1000) + (isUSStock ? 0 : 8 * 3600);
+
+            candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
+            volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
+            Object.keys(maSeriesMap).forEach(key => {
+                maData[key].push({ time, value: d[key] });
+            });
+            
+            // 用偏移量来正确填充数据
+            const macdOffset = 26 - 1 + 9 - 1; // EMA26 + DEA9
+            difData.push({ time, value: i >= macdOffset ? difValues[i - (26 - 1)] : undefined });
+            deaData.push({ time, value: i >= macdOffset ? deaValues[i - macdOffset] : undefined });
+            macdData.push({ time, value: i >= macdOffset ? macdValues[i - macdOffset] : undefined, color: macdValues[i - macdOffset] >= 0 ? '#2ecc71' : '#e74c3c' });
+
+            const rsiOffset = 14;
+            rsiData.push({ time, value: i >= rsiOffset ? rsiValues[i - rsiOffset] : undefined });
+        }
+
+        // 5. 设置数据
         candleSeries.setData(candleData);
         volumeSeries.setData(volumeData);
-        for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
+        for (const [key, series] of Object.entries(maSeriesMap)) {
+            series.setData(maData[key]);
+        }
         macdHistogram.setData(macdData);
         macdDIF.setData(difData);
         macdDEA.setData(deaData);
         rsiLine.setData(rsiData);
         
+        // Tooltip 更新逻辑 (保持不变)
         chart.subscribeCrosshairMove(param => {
           if (!param.time || !param.point || !param.seriesData.size) {
             document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
