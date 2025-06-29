@@ -1,219 +1,181 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>均线分析</title>
-  <style>
-    html, body {
-      margin: 0; padding: 0; height: 100%;
-      background: #181818; color: #EAEAEA;
-      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-      display: flex; flex-direction: column;
-    }
-    header {
-      padding: 20px;
-      border-bottom: 1px solid #3A3A3A;
-      text-align: center;
-      font-size: 2rem;
-      color: #a0d2eb;
-    }
-    #chartContainer {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 20px 25px;
-    }
-    #chart, #volumeChart {
-      flex: 1;
-      border-radius: 8px;
-      background: #222;
-    }
-    #volumeChart {
-      margin-top: 12px;
-      height: 120px;
-    }
-    #loading {
-      text-align: center;
-      padding: 50px;
-      font-size: 1.5rem;
-      color: #bbb;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>均线分析</title>
+
+<!-- 引入 Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js" defer></script>
+
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #181818;
+    color: #EAEAEA;
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 20px;
+    border-bottom: 1px solid #3A3A3A;
+    text-align: center;
+    font-size: 2rem;
+    color: #a0d2eb;
+    user-select: none;
+  }
+  #chartContainer {
+    flex: 1;
+    padding: 10px 20px 20px 20px;
+    position: relative;
+  }
+  #chart {
+    width: 100%;
+    height: 100%;
+  }
+  #loading {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #bbb;
+    font-size: 1.5rem;
+  }
+  #error {
+    color: #e74c3c;
+    text-align: center;
+    margin-top: 20px;
+  }
+</style>
 </head>
 <body>
-  <header id="chartTitle">均线分析</header>
-  <div id="chartContainer">
-    <div id="chart"></div>
-    <div id="volumeChart"></div>
-    <div id="loading">正在加载数据...</div>
-  </div>
+<header id="chartTitle">均线分析</header>
+<div id="chartContainer">
+  <div id="chart"></div>
+  <div id="loading">正在加载数据...</div>
+  <div id="error" style="display:none;"></div>
+</div>
 
-  <!-- Lightweight Charts CDN -->
-  <script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js"></script>
-
-  <script>
+<script defer>
+window.addEventListener('DOMContentLoaded', () => {
   (async () => {
-    const loadingDiv = document.getElementById('loading');
-    const chartTitle = document.getElementById('chartTitle');
+    const chartTitleEl = document.getElementById('chartTitle');
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('error');
+    const chartContainer = document.getElementById('chart');
 
-    // 从URL获取参数
     function getQueryParam(name) {
       return new URLSearchParams(window.location.search).get(name) || '';
     }
+
     const stockCode = getQueryParam('code');
     const stockName = getQueryParam('name') || stockCode;
 
     if (!stockCode) {
-      loadingDiv.textContent = '缺少股票代码参数！';
-      alert('缺少股票代码参数！');
+      errorEl.style.display = 'block';
+      errorEl.textContent = '缺少股票代码参数！';
+      loadingEl.style.display = 'none';
       return;
     }
 
-    chartTitle.textContent = `均线分析: ${stockName} (${stockCode})`;
+    chartTitleEl.textContent = `均线分析: ${stockName} (${stockCode})`;
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
     try {
-      // 请求数据接口，注意替换为你自己的接口路径
-      const response = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
-      if (!response.ok) throw new Error(`请求失败，状态码: ${response.status}`);
+      const resp = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
+      if (!resp.ok) throw new Error(`请求失败，状态码：${resp.status}`);
+      const data = await resp.json();
 
-      const data = await response.json();
-      if (!Array.isArray(data) || data.length === 0) throw new Error('API未返回有效数据');
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('接口未返回有效数据');
+      }
 
-      loadingDiv.style.display = 'none';
+      loadingEl.style.display = 'none';
 
-      // 格式化K线数据，time必须是YYYY-MM-DD格式或者时间戳（秒）
-      const candleData = data.map(d => ({
-        time: d.Date,
-        open: d.Open,
-        high: d.High,
-        low: d.Low,
-        close: d.Close
-      }));
-
-      // 成交量数据
-      const volumeData = data.map(d => ({
-        time: d.Date,
-        value: d.Volume,
-        color: d.Close >= d.Open ? 'rgba(46,204,113,0.7)' : 'rgba(231,76,60,0.7)'
-      }));
-
-      // 创建主图K线图表
-      const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-        width: document.getElementById('chartContainer').clientWidth,
-        height: document.getElementById('chartContainer').clientHeight - 150,
+      // 创建图表
+      const chart = LightweightCharts.createChart(chartContainer, {
         layout: {
-          backgroundColor: '#222',
+          backgroundColor: '#181818',
           textColor: '#EAEAEA',
         },
         grid: {
-          vertLines: { color: '#444' },
-          horzLines: { color: '#444' },
-        },
-        timeScale: {
-          timeVisible: true,
-          secondsVisible: false,
+          vertLines: { color: '#333' },
+          horzLines: { color: '#333' },
         },
         rightPriceScale: {
           borderColor: '#555',
         },
-        crosshair: {
-          mode: LightweightCharts.CrosshairMode.Normal,
-        },
-        localization: {
-          dateFormat: 'yyyy-MM-dd',
-        },
-      });
-
-      const candleSeries = chart.addCandlestickSeries({
-        upColor: 'rgba(46,204,113,1)',
-        downColor: 'rgba(231,76,60,1)',
-        borderDownColor: 'rgba(231,76,60,1)',
-        borderUpColor: 'rgba(46,204,113,1)',
-        wickDownColor: 'rgba(231,76,60,1)',
-        wickUpColor: 'rgba(46,204,113,1)',
-      });
-      candleSeries.setData(candleData);
-
-      // 创建成交量图表（共享时间轴）
-      const volumeChart = LightweightCharts.createChart(document.getElementById('volumeChart'), {
-        width: document.getElementById('chartContainer').clientWidth,
-        height: 120,
-        layout: {
-          backgroundColor: '#222',
-          textColor: '#EAEAEA',
-        },
-        grid: {
-          vertLines: { color: '#444' },
-          horzLines: { color: '#444' },
-        },
         timeScale: {
+          borderColor: '#555',
           timeVisible: true,
           secondsVisible: false,
-          // 同步主图时间轴
-          syncWith: chart.timeScale(),
-        },
-        rightPriceScale: {
-          visible: false,
         },
         crosshair: {
           mode: LightweightCharts.CrosshairMode.Normal,
         },
-        localization: {
-          dateFormat: 'yyyy-MM-dd',
-        },
       });
 
-      const volumeSeries = volumeChart.addHistogramSeries({
-        priceFormat: {
-          type: 'volume',
-        },
-        priceScaleId: '',
-        scaleMargins: {
-          top: 0.8,
-          bottom: 0,
-        },
-        color: '#26a69a',
+      // 添加K线序列
+      const candleSeries = chart.addCandlestickSeries({
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        borderDownColor: '#ef5350',
+        borderUpColor: '#26a69a',
+        wickDownColor: '#ef5350',
+        wickUpColor: '#26a69a',
       });
-      volumeSeries.setData(volumeData);
 
-      // 计算并绘制均线（MA5, MA10, MA20等）
-      const maPeriods = [5, 10, 20, 30, 60, 120, 250];
-      const maColors = ['#e67e22', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e74c3c', '#bdc3c7'];
+      // 处理K线数据
+      const klineData = data.map(d => ({
+        time: d.Date,
+        open: d.Open,
+        high: d.High,
+        low: d.Low,
+        close: d.Close,
+      }));
+      candleSeries.setData(klineData);
 
-      for (let i = 0; i < maPeriods.length; i++) {
-        const period = maPeriods[i];
-        const maColor = maColors[i];
-        const maKey = `MA_${period}`;
+      // 配置均线颜色和周期
+      const maConfigs = [
+        { period: 5, color: '#e67e22' },
+        { period: 10, color: '#3498db' },
+        { period: 20, color: '#9b59b6' },
+        { period: 30, color: '#f1c40f' },
+        { period: 60, color: '#2ecc71' },
+        { period: 120, color: '#e74c3c' },
+        { period: 250, color: '#bdc3c7' },
+      ];
 
-        if (data.some(d => d[maKey] != null)) {
+      // 添加均线序列
+      for (const { period, color } of maConfigs) {
+        const key = 'MA_' + period;
+        if (data.some(d => d[key] != null)) {
           const maSeries = chart.addLineSeries({
-            color: maColor,
-            lineWidth: 1.5,
+            color: color,
+            lineWidth: 2,
           });
-
           const maData = data
-            .filter(d => d[maKey] != null)
-            .map(d => ({
-              time: d.Date,
-              value: d[maKey],
-            }));
+            .filter(d => d[key] != null)
+            .map(d => ({ time: d.Date, value: d[key] }));
           maSeries.setData(maData);
         }
       }
 
-      // 自适应窗口大小（简单示例）
+      // 自适应尺寸
       window.addEventListener('resize', () => {
-        chart.applyOptions({ width: document.getElementById('chartContainer').clientWidth });
-        volumeChart.applyOptions({ width: document.getElementById('chartContainer').clientWidth });
+        chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
       });
+      chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
 
-    } catch (e) {
-      loadingDiv.textContent = '加载失败: ' + e.message;
-      console.error('图表加载或绘制出错', e);
-      alert('图表加载失败: ' + e.message);
+    } catch (err) {
+      loadingEl.style.display = 'none';
+      errorEl.style.display = 'block';
+      errorEl.textContent = '图表加载或绘制出错: ' + err.message;
+      console.error(err);
     }
   })();
-  </script>
+});
+</script>
 </body>
 </html>
