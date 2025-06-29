@@ -109,6 +109,7 @@
       const span = document.createElement('span');
       span.className = 'ma-label';
       span.style.color = color;
+      span.setAttribute('data-key', `MA_${period}`);
       span.innerText = `MA${period}`;
       document.getElementById('legend').appendChild(span);
     }
@@ -199,7 +200,10 @@
 
           for (const [key, series] of Object.entries(maSeriesMap)) {
             const val = maDataMap[key].find(x => x.time === d.time)?.value;
-            if (val) html += ` <span style="color:${series.options().color}">${key}:${val.toFixed(decimalPlaces)}</span>`;
+            const span = document.querySelector(`[data-key="${key}"]`);
+            if (val && span) {
+              span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
+            }
           }
 
           document.getElementById('tooltip').innerHTML = html;
