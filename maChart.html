@@ -47,9 +47,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   <script>
-    const stockCode = new URLSearchParams(window.location.search).get("code") || "600900";
-    const stockName = new URLSearchParams(window.location.search).get("name") || "股票";
+    const params = new URLSearchParams(window.location.search);
+    const stockCode = params.get("code") || "600900";
+    const stockName = params.get("name") || "股票";
     const isETF = /^(58|55|51|15)/.test(stockCode);
+    const isUSStock = /^us|^US/.test(stockCode);
     const decimalPlaces = isETF ? 3 : 2;
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
@@ -74,10 +76,7 @@
       return LightweightCharts.createChart(document.getElementById(containerId), {
         layout: { background: { color: '#181818' }, textColor: '#ccc' },
         grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-        timeScale: {
-          visible: true,
-          tickMarkFormatter: () => ''
-        },
+        timeScale: { visible: true, tickMarkFormatter: () => '' },
         rightPriceScale: { borderColor: '#666' }
       });
     }
@@ -85,7 +84,6 @@
     const volumeChart = createSubChart('volumeContainer');
     const macdChart = createSubChart('macdContainer');
     const rsiChart = createSubChart('rsiContainer');
-
     const syncCharts = [volumeChart, macdChart, rsiChart];
     mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
       syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range));
@@ -93,11 +91,9 @@
 
     const candleSeries = mainChart.addCandlestickSeries();
     const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
-
     const macdHistogram = macdChart.addHistogramSeries();
-    const macdDIF = macdChart.addLineSeries({ color: '#3498db' });  // 改为蓝色
+    const macdDIF = macdChart.addLineSeries({ color: '#3498db' });
     const macdDEA = macdChart.addLineSeries({ color: '#ffa500' });
-
     const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c' });
 
     const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
@@ -117,6 +113,11 @@
     fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
       .then(res => res.json())
       .then(data => {
+        const adjustTime = utcStr => {
+          const date = new Date(utcStr);
+          return isUSStock ? Math.floor(date.getTime() / 1000) : Math.floor(date.getTime() / 1000) + 8 * 3600;
+        };
+
         const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
         const maDataMap = {};
         for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
@@ -152,13 +153,15 @@
         const rsiValues = rsi(closes);
 
         data.forEach((d, i) => {
-          const time = Math.floor(new Date(d.Date).getTime() / 1000);
+          const time = adjustTime(d.Date);
           candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
-          volumeData.push({ time, value: d.Volume / 10000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
+
+          // 1手 = 100股，转换为“万手”单位
+          volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
 
           for (const key of Object.keys(maSeriesMap)) {
             const val = d[key];
-            if (val !== null && val !== undefined) {
+            if (val != null) {
               maDataMap[key].push({ time, value: val });
             }
           }
@@ -168,6 +171,7 @@
             deaData.push({ time, value: dea[i - 1] });
             macdData.push({ time, value: macd[i], color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' });
           }
+
           if (rsiValues[i] != null) {
             rsiData.push({ time, value: rsiValues[i] });
           }
@@ -188,7 +192,6 @@
           const d = p;
           const idx = candleData.findIndex(x => x.time === d.time);
           const prevClose = candleData[idx - 1]?.close || d.close;
-
           const change = d.close - prevClose;
           const changePct = ((change / prevClose) * 100).toFixed(2);
           const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
@@ -201,9 +204,7 @@
           for (const [key, series] of Object.entries(maSeriesMap)) {
             const val = maDataMap[key].find(x => x.time === d.time)?.value;
             const span = document.querySelector(`[data-key="${key}"]`);
-            if (val && span) {
-              span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
-            }
+            if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
           }
 
           document.getElementById('tooltip').innerHTML = html;
