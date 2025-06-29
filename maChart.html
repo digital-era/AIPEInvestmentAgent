@@ -2,150 +2,159 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>均线分析</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>均线分析图表</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
-      background: #181818;
-      color: #eaeaea;
-      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-      height: 100%;
-    }
-    #chart {
-      height: 80vh;
-    }
-    #info {
-      background: #222;
+      background-color: #181818;
       color: #eee;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    #container, #volumeContainer, #macdContainer {
+      width: 100vw;
+    }
+    #container {
+      height: 60vh;
+    }
+    #volumeContainer {
+      height: 20vh;
+    }
+    #macdContainer {
+      height: 20vh;
+    }
+    #legend {
+      text-align: center;
       padding: 10px;
+      color: #ccc;
       font-size: 14px;
-      font-family: monospace;
+    }
+    .ma-label {
+      display: inline-block;
+      margin: 0 10px;
+      font-weight: bold;
+    }
+    #tooltipData {
+      text-align: center;
+      font-size: 14px;
+      color: #fff;
+      padding: 5px 10px;
     }
   </style>
-  <script type="module">
-    import { createChart } from 'https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.esm.production.js';
+</head>
+<body>
+  <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
+  <div id="legend"></div>
+  <div id="tooltipData"></div>
+  <div id="container"></div>
+  <div id="volumeContainer"></div>
+  <div id="macdContainer"></div>
 
-    const chart = createChart(document.body, {
-      width: window.innerWidth,
-      height: window.innerHeight * 0.8,
-      layout: {
-        background: { color: '#181818' },
-        textColor: '#eaeaea',
-      },
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <script>
+    const stockCode = new URLSearchParams(window.location.search).get("code") || "600900";
+    const stockName = new URLSearchParams(window.location.search).get("name") || "股票";
+
+    document.title = `均线分析 - ${stockName} (${stockCode})`;
+
+    const container = document.getElementById('container');
+    const volumeContainer = document.getElementById('volumeContainer');
+    const macdContainer = document.getElementById('macdContainer');
+    const legend = document.getElementById('legend');
+    const tooltipData = document.getElementById('tooltipData');
+
+    const commonChartOptions = {
+      layout: { background: { color: '#181818' }, textColor: '#ccc' },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
         tickMarkFormatter: (time) => {
           const date = new Date(time * 1000);
           return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        },
+        }
       },
-      grid: {
-        vertLines: { color: '#333' },
-        horzLines: { color: '#333' },
-      },
-    });
+      grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
+      rightPriceScale: { borderColor: '#666' }
+    };
+
+    const chart = LightweightCharts.createChart(container, commonChartOptions);
+    const volumeChart = LightweightCharts.createChart(volumeContainer, commonChartOptions);
+    const macdChart = LightweightCharts.createChart(macdContainer, commonChartOptions);
 
     const candleSeries = chart.addCandlestickSeries();
-    const volumeSeries = chart.addHistogramSeries({
-      color: '#26a69a',
-      priceFormat: { type: 'volume' },
-      priceScaleId: '',
-      scaleMargins: { top: 0.8, bottom: 0 },
+    const volumeSeries = volumeChart.addHistogramSeries({
+      color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.1, bottom: 0 }
     });
+    const macdSeries = macdChart.addHistogramSeries({ color: '#8888ff', priceScaleId: '', scaleMargins: { top: 0.2, bottom: 0.05 } });
 
-    const maColors = ['#f39c12', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e74c3c', '#bdc3c7'];
-    const maPeriods = [5, 10, 20, 30, 60, 120, 250];
-    const maSeries = maPeriods.map((_, i) => chart.addLineSeries({ color: maColors[i], lineWidth: 1.5 }));
-
-    const macdLine = chart.addLineSeries({ color: '#00bcd4', lineWidth: 1 });
-    const signalLine = chart.addLineSeries({ color: '#e91e63', lineWidth: 1 });
-    const histogram = chart.addHistogramSeries({ color: '#888', scaleMargins: { top: 0.85, bottom: 0 } });
-
-    const infoDiv = document.createElement('div');
-    infoDiv.id = 'info';
-    document.body.appendChild(infoDiv);
-
-    async function fetchData() {
-      const params = new URLSearchParams(location.search);
-      const code = params.get('code');
-      const name = params.get('name') || code;
-      const url = `/api/rtStockQueryProxy?code=${encodeURIComponent(code)}&type=movingaveragedata`;
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const candles = [],
-            volume = [],
-            macdArr = [],
-            signalArr = [],
-            histArr = [];
-
-      const maValues = maPeriods.map(() => []);
-
-      for (const d of data) {
-        const ts = Math.floor(new Date(d.Date).getTime() / 1000);
-        candles.push({
-          time: ts,
-          open: d.Open,
-          high: d.High,
-          low: d.Low,
-          close: d.Close,
-        });
-
-        volume.push({ time: ts, value: d.Volume, color: d.Close >= d.Open ? '#26a69a' : '#ef5350' });
-
-        maPeriods.forEach((p, i) => {
-          if (d[`MA_${p}`] != null) {
-            maValues[i].push({ time: ts, value: d[`MA_${p}`] });
-          }
-        });
-
-        if (d.MACD != null && d.MACDSignal != null && d.MACDHist != null) {
-          macdArr.push({ time: ts, value: d.MACD });
-          signalArr.push({ time: ts, value: d.MACDSignal });
-          histArr.push({ time: ts, value: d.MACDHist, color: d.MACDHist >= 0 ? '#00ff00' : '#ff4444' });
-        }
-      }
-
-      candleSeries.setData(candles);
-      volumeSeries.setData(volume);
-      macdLine.setData(macdArr);
-      signalLine.setData(signalArr);
-      histogram.setData(histArr);
-      maValues.forEach((ma, i) => maSeries[i].setData(ma));
-
-      chart.subscribeCrosshairMove(param => {
-        if (!param.time || !param.seriesData) return;
-        const d = new Date(param.time * 1000);
-        const fmt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const candle = param.seriesData.get(candleSeries);
-        if (!candle) return;
-
-        const change = (candle.close - candle.open).toFixed(2);
-        const changePct = ((change / candle.open) * 100).toFixed(2);
-        const amplitude = ((candle.high - candle.low) / candle.open * 100).toFixed(2);
-
-        let maText = maSeries.map((s, i) => {
-          const v = param.seriesData.get(s);
-          return v ? `MA${maPeriods[i]}: ${v.value.toFixed(2)}` : '';
-        }).filter(Boolean).join(' | ');
-
-        infoDiv.innerText = [
-          `日期: ${fmt}`,
-          `开: ${candle.open.toFixed(2)} 高: ${candle.high.toFixed(2)} 低: ${candle.low.toFixed(2)} 收: ${candle.close.toFixed(2)}`,
-          `涨跌: ${change} (${changePct}%) 振幅: ${amplitude}%`,
-          `成交量: ${param.seriesData.get(volumeSeries)?.value ?? '--'}`,
-          maText
-        ].join('  \n');
-      });
+    const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
+    const maSeriesMap = {};
+    for (const [period, color] of Object.entries(colors)) {
+      const series = chart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
+      maSeriesMap[`MA_${period}`] = series;
+      const span = document.createElement('span');
+      span.className = 'ma-label';
+      span.style.color = color;
+      span.textContent = `MA${period}`;
+      legend.appendChild(span);
     }
 
-    fetchData();
+    fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
+      .then(res => res.json())
+      .then(data => {
+        const candleData = [], volumeData = [], macdData = [], maDataMap = {};
+        for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
+
+        for (let i = 0; i < data.length; i++) {
+          const d = data[i];
+          const time = Math.floor(new Date(d.Date).getTime() / 1000);
+
+          candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
+          volumeData.push({ time, value: d.Volume, color: d.Close >= d.Open ? 'rgba(46,204,113,0.7)' : 'rgba(231,76,60,0.7)' });
+
+          for (const key of Object.keys(maSeriesMap)) {
+            if (d[key] != null) maDataMap[key].push({ time, value: d[key] });
+          }
+
+          if (d.MACD != null) {
+            macdData.push({ time, value: d.MACD, color: d.MACD >= 0 ? '#26a69a' : '#ef5350' });
+          }
+        }
+
+        candleSeries.setData(candleData);
+        volumeSeries.setData(volumeData);
+        macdSeries.setData(macdData);
+        for (const [key, series] of Object.entries(maSeriesMap)) {
+          series.setData(maDataMap[key]);
+        }
+
+        chart.subscribeCrosshairMove(param => {
+          if (!param || !param.time || !param.seriesData) return;
+          const priceData = param.seriesData.get(candleSeries);
+          if (!priceData) return;
+
+          const date = new Date(param.time * 1000);
+          const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          const { open, high, low, close } = priceData;
+          const change = close - open;
+          const percent = ((change / open) * 100).toFixed(2);
+          const amplitude = (((high - low) / open) * 100).toFixed(2);
+          const volume = param.seriesData.get(volumeSeries)?.value || 0;
+
+          const maValues = Object.entries(maSeriesMap)
+            .map(([key, s]) => {
+              const val = param.seriesData.get(s);
+              return val ? `${key}:${val.value.toFixed(2)}` : '';
+            })
+            .filter(Boolean).join(' ');
+
+          tooltipData.textContent = `日期:${dateStr} 开:${open.toFixed(2)} 高:${high.toFixed(2)} 低:${low.toFixed(2)} 收:${close.toFixed(2)} 涨跌:${change.toFixed(2)}(${percent}%) 振幅:${amplitude}% 成交量:${volume} ${maValues}`;
+        });
+      })
+      .catch(e => {
+        alert('图表加载失败: ' + e.message);
+        console.error(e);
+      });
   </script>
-</head>
-<body>
 </body>
 </html>
