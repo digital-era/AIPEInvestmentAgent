@@ -1,119 +1,57 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>均线分析</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>均线分析 - LightweightCharts 示例</title>
 
-<!-- 样式部分保持在 head 中 -->
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    background: #181818;
-    color: #EAEAEA;
-    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-    display: flex;
-    flex-direction: column;
-  }
-  header {
-    padding: 20px;
-    border-bottom: 1px solid #3A3A3A;
-    text-align: center;
-    font-size: 2rem;
-    color: #a0d2eb;
-    user-select: none;
-  }
-  #chartContainer {
-    flex: 1;
-    padding: 10px 20px 20px 20px;
-    position: relative;
-    /* 确保容器有明确的尺寸供图表使用 */
-    min-height: 400px;
-  }
-  #chart {
-    width: 100%;
-    height: 100%;
-  }
-  #loading {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #bbb;
-    font-size: 1.5rem;
-  }
-  #error {
-    color: #e74c3c;
-    text-align: center;
-    margin-top: 20px;
-  }
-</style>
+  <!-- 引入 LightweightCharts 库，确保不要加 defer -->
+  <script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #181818;
+      color: #EAEAEA;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      display: flex; flex-direction: column;
+    }
+    header {
+      padding: 20px;
+      border-bottom: 1px solid #3A3A3A;
+      text-align: center;
+      font-size: 2rem;
+      color: #a0d2eb;
+    }
+    #chartContainer {
+      flex: 1;
+      padding: 20px 25px;
+    }
+    #chart {
+      width: 100%;
+      height: 600px;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
+  <header id="chartTitle">均线分析示例</header>
+  <div id="chartContainer">
+    <div id="chart"></div>
+  </div>
 
-<!-- HTML 结构部分 -->
-<header id="chartTitle">均线分析</header>
-<div id="chartContainer">
-  <div id="chart"></div>
-  <div id="loading">正在加载数据...</div>
-  <div id="error" style="display:none;"></div>
-</div>
-
-
-<!-- 脚本部分移至 body 底部 -->
-
-<!-- 1. 首先引入 Lightweight Charts 库 -->
-<script src="https://unpkg.com/lightweight-charts@4.5.0/dist/lightweight-charts.standalone.production.js"></script>
-
-<!-- 2. 然后执行你的业务逻辑脚本 -->
-<script>
-  // 立即执行的异步函数 (IIFE)
-  (async () => {
-    const chartTitleEl = document.getElementById('chartTitle');
-    const loadingEl = document.getElementById('loading');
-    const errorEl = document.getElementById('error');
-    const chartContainer = document.getElementById('chart');
-
-    function getQueryParam(name) {
-      return new URLSearchParams(window.location.search).get(name) || '';
-    }
-
-    const stockCode = getQueryParam('code');
-    const stockName = getQueryParam('name') || stockCode;
-
-    if (!stockCode) {
-      errorEl.style.display = 'block';
-      errorEl.textContent = '缺少股票代码参数！';
-      loadingEl.style.display = 'none';
-      return;
-    }
-
-    chartTitleEl.textContent = `均线分析: ${stockName} (${stockCode})`;
-    document.title = `均线分析 - ${stockName} (${stockCode})`;
-
-    try {
-      // 假设你的 API 代理在同一个域名下
-      const resp = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
-      if (!resp.ok) throw new Error(`请求失败，状态码：${resp.status}`);
-      const data = await resp.json();
-
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('接口未返回有效数据');
+  <script>
+    // 等待 DOM 和 LightweightCharts 加载完成后执行
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!window.LightweightCharts) {
+        alert('LightweightCharts 库加载失败，请检查网络连接和脚本引用。');
+        return;
       }
 
-      loadingEl.style.display = 'none';
-
-      // 创建图表 (此时 LightweightCharts 对象必然存在)
-      const chart = LightweightCharts.createChart(chartContainer, {
+      const chart = LightweightCharts.createChart(document.getElementById('chart'), {
         layout: {
           backgroundColor: '#181818',
           textColor: '#EAEAEA',
-        },
-        grid: {
-          vertLines: { color: '#333' },
-          horzLines: { color: '#333' },
         },
         rightPriceScale: {
           borderColor: '#555',
@@ -123,12 +61,13 @@
           timeVisible: true,
           secondsVisible: false,
         },
-        crosshair: {
-          mode: LightweightCharts.CrosshairMode.Normal,
+        grid: {
+          vertLines: { color: '#444' },
+          horzLines: { color: '#444' },
         },
       });
 
-      // 添加K线序列
+      // K线数据示例
       const candleSeries = chart.addCandlestickSeries({
         upColor: '#26a69a',
         downColor: '#ef5350',
@@ -138,63 +77,48 @@
         wickUpColor: '#26a69a',
       });
 
-      // 处理K线数据
-      const klineData = data.map(d => ({
-        time: d.Date,
-        open: d.Open,
-        high: d.High,
-        low: d.Low,
-        close: d.Close,
-      }));
-      candleSeries.setData(klineData);
-
-      // 配置均线颜色和周期
-      const maConfigs = [
-        { period: 5, color: '#e67e22' },
-        { period: 10, color: '#3498db' },
-        { period: 20, color: '#9b59b6' },
-        { period: 30, color: '#f1c40f' },
-        { period: 60, color: '#2ecc71' },
-        { period: 120, color: '#e74c3c' },
-        { period: 250, color: '#bdc3c7' },
+      // 模拟的历史K线数据，格式要正确
+      const candleData = [
+        { time: '2023-06-01', open: 100, high: 105, low: 95, close: 102 },
+        { time: '2023-06-02', open: 102, high: 108, low: 101, close: 107 },
+        { time: '2023-06-05', open: 107, high: 110, low: 104, close: 106 },
+        { time: '2023-06-06', open: 106, high: 109, low: 103, close: 104 },
+        { time: '2023-06-07', open: 104, high: 107, low: 101, close: 105 },
+        { time: '2023-06-08', open: 105, high: 108, low: 102, close: 107 },
+        { time: '2023-06-09', open: 107, high: 111, low: 106, close: 110 },
       ];
+      candleSeries.setData(candleData);
 
-      // 添加均线序列
-      for (const { period, color } of maConfigs) {
-        const key = 'MA_' + period;
-        if (data.some(d => d[key] != null)) {
-          const maSeries = chart.addLineSeries({
-            color: color,
-            lineWidth: 2,
-          });
-          const maData = data
-            .filter(d => d[key] != null)
-            .map(d => ({ time: d.Date, value: d[key] }));
-          maSeries.setData(maData);
+      // 简单计算均线函数（简单移动平均）
+      function calculateSMA(data, period) {
+        const sma = [];
+        for (let i = 0; i < data.length; i++) {
+          if (i < period - 1) {
+            sma.push({ time: data[i].time, value: null });
+            continue;
+          }
+          let sum = 0;
+          for (let j = i - period + 1; j <= i; j++) {
+            sum += data[j].close;
+          }
+          sma.push({ time: data[i].time, value: sum / period });
         }
+        return sma;
       }
-      
-      chart.timeScale().fitContent();
 
-      // 自适应尺寸
-      const resizeChart = () => {
-        chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
-      };
+      // 添加均线系列
+      const maPeriods = [5, 10, 20];
+      const maColors = ['#e67e22', '#3498db', '#9b59b6'];
 
-      // 初始调整大小
-      resizeChart();
-      
-      // 监听窗口大小变化
-      window.addEventListener('resize', resizeChart);
-
-    } catch (err) {
-      loadingEl.style.display = 'none';
-      errorEl.style.display = 'block';
-      errorEl.textContent = '图表加载或绘制出错: ' + err.message;
-      console.error(err);
-    }
-  })();
-</script>
-
+      maPeriods.forEach((period, idx) => {
+        const lineSeries = chart.addLineSeries({
+          color: maColors[idx],
+          lineWidth: 2,
+        });
+        const maData = calculateSMA(candleData, period).filter(d => d.value !== null);
+        lineSeries.setData(maData);
+      });
+    });
+  </script>
 </body>
 </html>
