@@ -62,12 +62,12 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    // **最小化修改 1: 统一时间格式**
+    // **最小化修改 1: 在图表创建时统一时间格式**
     const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
       grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-      crosshair: { mode: 0, vertLine: { labelVisible: false }, horzLine: { labelVisible: false } },
-      localization: { dateFormat: 'yyyy-MM-dd' }, // <-- 添加此行
+      crosshair: { mode: 0, vertLine: { labelVisible: false } }, // 禁用默认的时间标签
+      localization: { dateFormat: 'yyyy-MM-dd' }, // <-- 添加此行，统一格式
       timeScale: {
         tickMarkFormatter: formatDate,
         borderColor: '#666'
@@ -79,8 +79,8 @@
       return LightweightCharts.createChart(document.getElementById(containerId), {
         layout: { background: { color: '#181818' }, textColor: '#ccc' },
         grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-        crosshair: { mode: 0, vertLine: { labelVisible: false }, horzLine: { labelVisible: false } },
-        localization: { dateFormat: 'yyyy-MM-dd' }, // <-- 添加此行
+        crosshair: { mode: 0 }, // 副图十字线模式与主图一致
+        localization: { dateFormat: 'yyyy-MM-dd' }, // <-- 添加此行，统一格式
         timeScale: { visible: true, tickMarkFormatter: () => '' },
         rightPriceScale: { borderColor: '#666' }
       });
@@ -90,18 +90,7 @@
     const macdChart = createSubChart('macdContainer');
     const rsiChart = createSubChart('rsiContainer');
     
-    // 增强同步：当主图表十字光标移动时，通知其他图表也移动到同一时间点
-    const allCharts = [mainChart, volumeChart, macdChart, rsiChart];
-    mainChart.subscribeCrosshairMove(param => {
-        if (param.time) {
-            allCharts.forEach(chart => {
-                if (chart !== mainChart) {
-                    chart.moveCrosshair(param.point);
-                }
-            });
-        }
-    });
-
+    // **代码恢复到原始状态**: 只同步范围，不添加多余的十字光标同步
     const syncCharts = [volumeChart, macdChart, rsiChart];
     mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
       syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range));
@@ -202,13 +191,10 @@
         macdDEA.setData(deaData);
         rsiLine.setData(rsiData);
 
-        // Tooltip更新逻辑，只在主图表上监听一次即可，因为十字光标已同步
+        // **代码恢复到原始状态**: Tooltip更新逻辑与您原始代码完全一样
         mainChart.subscribeCrosshairMove(param => {
           const p = param.seriesData.get(candleSeries);
-          if (!p || !p.time) {
-            document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
-            return;
-          }
+          if (!p) return;
 
           const d = p;
           const idx = candleData.findIndex(x => x.time === d.time);
@@ -222,17 +208,10 @@
           html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
           html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
 
-          for (const [key] of Object.entries(maSeriesMap)) {
+          for (const [key, series] of Object.entries(maSeriesMap)) {
             const val = maDataMap[key].find(x => x.time === d.time)?.value;
             const span = document.querySelector(`[data-key="${key}"]`);
-            if (span){
-                if (val !== undefined) {
-                    span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
-                } else {
-                    const label = key.replace('MA_', 'MA');
-                    span.innerText = `${label}:--`
-                }
-            }
+            if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
           }
 
           document.getElementById('tooltip').innerHTML = html;
