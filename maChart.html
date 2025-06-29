@@ -1,3 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>均线分析图表</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #181818;
+      color: #eee;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    #legend {
+      text-align: center;
+      padding: 10px;
+      color: #ccc;
+      font-size: 14px;
+    }
+    .ma-label {
+      display: inline-block;
+      margin: 0 8px;
+      font-weight: bold;
+    }
+    #container, #volumeContainer, #macdContainer, #rsiContainer {
+      width: 100vw;
+    }
+    #container { height: 55vh; }
+    #volumeContainer, #macdContainer, #rsiContainer { height: 15vh; }
+    #tooltip {
+      text-align: center;
+      font-size: 14px;
+      color: #eee;
+      background-color: #222;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center; color: #a0d2eb">均线分析</h2>
+  <div id="legend"></div>
+  <div id="tooltip">鼠标移动查看详情</div>
+  <div id="container"></div>
+  <div id="volumeContainer"></div>
+  <div id="macdContainer"></div>
+  <div id="rsiContainer"></div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  
   <script>
     const params = new URLSearchParams(window.location.search);
     const stockCode = params.get("code") || "600900";
@@ -13,87 +62,63 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    // **核心改动 1: 定义一个通用的图表配置，用于统一时间格式**
-    const commonChartOptions = {
-        layout: { background: { color: '#181818' }, textColor: '#ccc' },
-        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-        rightPriceScale: { borderColor: '#666' },
-        timeScale: { borderColor: '#666' },
-        // 全局设置日期格式
-        localization: {
-            dateFormat: 'yyyy-MM-dd',
-        },
-        // 禁用图表自带的十字光标标签，避免格式冲突和信息重叠
-        crosshair: {
-            vertLine: {
-                labelVisible: false,
-            },
-            horzLine: {
-                labelVisible: false,
-            },
-        },
-    };
-
+    // **最小化修改 1: 统一时间格式**
     const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
-      ...commonChartOptions,
-      timeScale: { // 主图保留完整的时间轴
-        ...commonChartOptions.timeScale,
-        tickMarkFormatter: (time) => {
-            // 我们仍然可以用 tickMarkFormatter 来决定固定刻度的显示内容
-            // 这里我们使用库的默认格式化器，因为它现在会遵循 localization 设置
-            const d = new Date(time * 1000);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        },
-      }
+      layout: { background: { color: '#181818' }, textColor: '#ccc' },
+      grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+      crosshair: { mode: 0, vertLine: { labelVisible: false }, horzLine: { labelVisible: false } },
+      localization: { dateFormat: 'yyyy-MM-dd' }, // <-- 添加此行
+      timeScale: {
+        tickMarkFormatter: formatDate,
+        borderColor: '#666'
+      },
+      rightPriceScale: { borderColor: '#666' }
     });
 
     function createSubChart(containerId) {
       return LightweightCharts.createChart(document.getElementById(containerId), {
-        ...commonChartOptions,
-        timeScale: { // 副图不显示时间轴标签，但时间轴本身存在并同步
-            ...commonChartOptions.timeScale,
-            visible: true, 
-            tickMarkFormatter: () => '', // 不显示刻度标签
-        },
+        layout: { background: { color: '#181818' }, textColor: '#ccc' },
+        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+        crosshair: { mode: 0, vertLine: { labelVisible: false }, horzLine: { labelVisible: false } },
+        localization: { dateFormat: 'yyyy-MM-dd' }, // <-- 添加此行
+        timeScale: { visible: true, tickMarkFormatter: () => '' },
+        rightPriceScale: { borderColor: '#666' }
       });
     }
 
     const volumeChart = createSubChart('volumeContainer');
     const macdChart = createSubChart('macdContainer');
     const rsiChart = createSubChart('rsiContainer');
+    
+    // 增强同步：当主图表十字光标移动时，通知其他图表也移动到同一时间点
+    const allCharts = [mainChart, volumeChart, macdChart, rsiChart];
+    mainChart.subscribeCrosshairMove(param => {
+        if (param.time) {
+            allCharts.forEach(chart => {
+                if (chart !== mainChart) {
+                    chart.moveCrosshair(param.point);
+                }
+            });
+        }
+    });
 
-    // **核心改动 2: 除了同步范围，还要同步十字光标位置，确保所有图表联动**
-    const syncCharts = [mainChart, volumeChart, macdChart, rsiChart];
-    syncCharts.forEach(chart => {
-        chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            syncCharts.forEach(otherChart => {
-                if (otherChart !== chart) {
-                    otherChart.timeScale().setVisibleLogicalRange(range);
-                }
-            });
-        });
-        chart.subscribeCrosshairMove(param => {
-            syncCharts.forEach(otherChart => {
-                if (otherChart !== chart) {
-                    otherChart.setCrosshairPosition(param.point.x, param.point.y, param.seriesData);
-                }
-            });
-        });
+    const syncCharts = [volumeChart, macdChart, rsiChart];
+    mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range));
     });
 
     const candleSeries = mainChart.addCandlestickSeries();
-    const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.2, bottom: 0 } });
-    const macdHistogram = macdChart.addHistogramSeries({scaleMargins: { top: 0.2, bottom: 0.05 }});
+    const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
+    const macdHistogram = macdChart.addHistogramSeries();
     const macdDIF = macdChart.addLineSeries({ color: '#3498db' });
     const macdDEA = macdChart.addLineSeries({ color: '#ffa500' });
-    const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c', scaleMargins: { top: 0.2, bottom: 0.2 } });
+    const rsiLine = rsiChart.addLineSeries({ color: '#1abc9c' });
 
     const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
     const maSeriesMap = {};
     for (const [period, color] of Object.entries(colors)) {
       const series = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
       maSeriesMap[`MA_${period}`] = series;
-
       const span = document.createElement('span');
       span.className = 'ma-label';
       span.style.color = color;
@@ -114,7 +139,7 @@
         const maDataMap = {};
         for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
 
-        // --- 指标计算逻辑保持您原始的不变 ---
+        // 指标计算逻辑保持您原始的不变
         const closes = data.map(d => d.Close);
         const ema = (arr, period) => {
           const k = 2 / (period + 1);
@@ -124,6 +149,7 @@
           }
           return emaArray;
         };
+
         const rsi = (values, period = 14) => {
           let rsis = [];
           for (let i = period; i < values.length; i++) {
@@ -137,30 +163,31 @@
           }
           return Array(period).fill(null).concat(rsis);
         };
+
         const ema12 = ema(closes, 12), ema26 = ema(closes, 26);
         const dif = ema12.map((v, i) => v - ema26[i]);
         const dea = ema(dif.slice(1), 9);
         const macd = dif.map((v, i) => i < dea.length ? v - dea[i - 1] : null);
         const rsiValues = rsi(closes);
 
-        // **核心改动 3: 填充数据，确保所有数组长度一致**
+        // **最小化修改 2: 填充数据，确保所有数组长度一致以实现对齐**
         data.forEach((d, i) => {
           const time = adjustTime(d.Date);
           candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close });
           volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
-          
+
           for (const key of Object.keys(maSeriesMap)) {
             const val = d[key];
+            // 使用 undefined 代替 null 让图表库正确处理空白
             maDataMap[key].push({ time, value: val !== null ? val : undefined });
           }
-
-          // 无论值是否存在，都推入一个带时间戳的对象
-          // lightweight-charts会处理undefined值，不绘制该点，但时间点会保留，实现对齐
+          
           const difValue = dif[i];
-          const deaValue = dea[i - 1]; // 注意原始逻辑中的索引
+          const deaValue = dea[i - 1]; // 保持您原始代码的索引逻辑
           const macdValue = macd[i];
           const rsiValue = rsiValues[i];
 
+          // 无论值是否存在，都推入一个带时间戳的对象
           difData.push({ time, value: difValue !== null ? difValue : undefined });
           deaData.push({ time, value: deaValue !== null ? deaValue : undefined });
           macdData.push({ time, value: macdValue !== null ? macdValue : undefined, color: macdValue >= 0 ? '#2ecc71' : '#e74c3c' });
@@ -174,49 +201,43 @@
         macdDIF.setData(difData);
         macdDEA.setData(deaData);
         rsiLine.setData(rsiData);
-        
-        mainChart.timeScale().fitContent();
-        
-        // Tooltip更新逻辑，只在主图表上监听一次
+
+        // Tooltip更新逻辑，只在主图表上监听一次即可，因为十字光标已同步
         mainChart.subscribeCrosshairMove(param => {
-            // 如果鼠标移出图表区域，清除tooltip
-            if (!param.time || !param.point || !param.seriesData.get(candleSeries)) {
-              document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
-              for (const [key] of Object.entries(maSeriesMap)) {
-                const span = document.querySelector(`[data-key="${key}"]`);
-                if (span) span.innerText = key.replace('MA_', 'MA');
-              }
-              return;
-            }
+          const p = param.seriesData.get(candleSeries);
+          if (!p || !p.time) {
+            document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
+            return;
+          }
 
-            const p = param.seriesData.get(candleSeries);
-            const idx = candleData.findIndex(x => x.time === p.time);
-            if (idx === -1) return;
+          const d = p;
+          const idx = candleData.findIndex(x => x.time === d.time);
+          const prevClose = candleData[idx - 1]?.close || d.close;
+          const change = d.close - prevClose;
+          const changePct = ((change / prevClose) * 100).toFixed(2);
+          const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
 
-            const d = candleData[idx];
-            const prevClose = idx > 0 ? candleData[idx - 1].close : d.close;
-            const change = d.close - prevClose;
-            const changePct = ((change / prevClose) * 100).toFixed(2);
-            const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
+          let html = `<strong>${formatDate(d.time)}</strong> | `;
+          html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
+          html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
+          html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
 
-            let html = `<strong>${formatDate(d.time)}</strong> | `;
-            html += `开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
-            html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct > 0 ? '+' : ''}${changePct}%) 振幅:${amplitude}% | `;
-            html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
-            document.getElementById('tooltip').innerHTML = html;
-            
-            for (const [key, series] of Object.entries(maSeriesMap)) {
-              const dataPoint = maDataMap[key].find(x => x.time === p.time);
-              const span = document.querySelector(`[data-key="${key}"]`);
-              if (span) {
-                const label = key.replace('MA_', 'MA');
-                if (dataPoint && dataPoint.value !== undefined) {
-                  span.innerText = `${label}:${dataPoint.value.toFixed(decimalPlaces)}`;
+          for (const [key] of Object.entries(maSeriesMap)) {
+            const val = maDataMap[key].find(x => x.time === d.time)?.value;
+            const span = document.querySelector(`[data-key="${key}"]`);
+            if (span){
+                if (val !== undefined) {
+                    span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
                 } else {
-                  span.innerText = `${label}:--`;
+                    const label = key.replace('MA_', 'MA');
+                    span.innerText = `${label}:--`
                 }
-              }
             }
+          }
+
+          document.getElementById('tooltip').innerHTML = html;
         });
       });
   </script>
+</body>
+</html>
