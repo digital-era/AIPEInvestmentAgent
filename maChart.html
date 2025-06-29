@@ -55,85 +55,100 @@
 
     document.title = `均线分析 - ${stockName} (${stockCode})`;
 
-    const formatDate = t => {
+    const formatDateFromTimestamp = t => {
       const d = new Date(t * 1000);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    // === 修改点 1: 隐藏主图的时间轴，让最底部的图表来显示 ===
-    const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
+    // === 修复点 2: 创建一个专门用于格式化十字准星时间标签的函数 ===
+    // 它接收一个Date对象，而不是时间戳
+    const formatCrosshairDate = date => {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+
+    // === 修复点 2: 将通用图表选项提取出来，包含新的 localization 设置 ===
+    const commonChartOptions = (isLastChart = false) => ({
       layout: { background: { color: '#181818' }, textColor: '#ccc' },
       grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-      crosshair: { mode: 0 },
+      rightPriceScale: { borderColor: '#666' },
       timeScale: {
-        visible: false, // 隐藏主图时间轴
-        borderColor: '#666'
+        borderColor: '#666',
+        // 只有最后一个图表显示底部固定的时间轴刻度
+        tickMarkFormatter: isLastChart ? formatDateFromTimestamp : () => '',
       },
-      rightPriceScale: { borderColor: '#666' }
+      // 这个选项会格式化所有跟随鼠标移动的动态标签（价格和时间）
+      localization: {
+          locale: 'zh-CN',
+          timeFormatter: formatCrosshairDate, // 应用我们自定义的格式化函数
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+      }
     });
 
-    // 通用副图创建函数
-    function createSubChart(containerId, isLastChart = false) {
-      const options = {
-        layout: { background: { color: '#181818' }, textColor: '#ccc' },
-        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-        rightPriceScale: { borderColor: '#666' },
-        timeScale: {
-          borderColor: '#666',
-          // === 修改点 2: 只有最后一个图表显示时间轴标签 ===
-          // 其他图表不显示标签，避免重复
-          tickMarkFormatter: isLastChart ? formatDate : () => '',
-        }
-      };
-      return LightweightCharts.createChart(document.getElementById(containerId), options);
-    }
+    const mainChart = LightweightCharts.createChart(document.getElementById('container'), {
+      ...commonChartOptions(),
+      timeScale: { // 主图不显示时间轴
+          ...commonChartOptions().timeScale,
+          visible: false,
+      }
+    });
 
-    const volumeChart = createSubChart('volumeContainer');
-    const macdChart = createSubChart('macdContainer');
-    // === 修改点 3: 标记RSI图表为最后一个，它将显示统一的时间轴 ===
-    const rsiChart = createSubChart('rsiContainer', true);
+    const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), commonChartOptions());
+    const macdChart = LightweightCharts.createChart(document.getElementById('macdContainer'), commonChartOptions());
+    const rsiChart = LightweightCharts.createChart(document.getElementById('rsiContainer'), commonChartOptions(true)); // 标记为最后一个图表
 
-    // === 优化: 统一管理所有图表，方便同步 ===
+
     const allCharts = [mainChart, volumeChart, macdChart, rsiChart];
+    
+    // 同步时间轴缩放
     mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
       allCharts.filter(c => c !== mainChart).forEach(c => c.timeScale().setVisibleLogicalRange(range));
     });
-    
-    // === 优化: 同步所有图表的十字准星 ===
+
+    // === 修复点 1: 修正十字准星移动事件的处理逻辑 ===
     allCharts.forEach(chart => {
         chart.subscribeCrosshairMove(param => {
-            // 从任一图表接收事件，并同步到所有其他图表
-            if (!param.time) return;
+            // 1. 如果当前图表没有十字准星时间，则不处理 (例如鼠标移出图表)
+            if (!param.time) {
+                return;
+            }
+
+            // 2. 将当前图表的十字准星时间同步到所有其他图表
             allCharts.forEach(otherChart => {
                 if (otherChart !== chart) {
                     otherChart.moveCrosshair(param.time);
                 }
             });
 
-            // 更新工具提示 (逻辑保持不变，但放在这里可以响应任何图表的移动)
-            const mainSeriesData = param.seriesData.get(candleSeries) || mainChart.getSeriesData(candleSeries).at(-1);
-            if (!mainSeriesData) return;
-            
-            const p = mainSeriesData;
-            const idx = candleData.findIndex(x => x.time === p.time);
-            if (idx === -1) return;
+            // 3. 使用同步后的时间戳 (param.time) 来查找所有数据，而不是依赖 param.seriesData
+            // 这样无论鼠标在哪个图表上，都能找到对应时间点的K线数据来更新Tooltip
+            const dataPointIndex = candleData.findIndex(d => d.time === param.time);
+            if (dataPointIndex === -1) {
+                return; // 如果当天没有数据（例如周末），则不更新
+            }
 
-            const prevClose = candleData[idx - 1]?.close || p.close;
+            const p = candleData[dataPointIndex];
+            const prevClose = (candleData[dataPointIndex - 1] || p).close;
             const change = p.close - prevClose;
             const changePct = ((change / prevClose) * 100).toFixed(2);
             const amplitude = (((p.high - p.low) / prevClose) * 100).toFixed(2);
 
-            let html = `<strong>${formatDate(p.time)}</strong> | `;
+            let html = `<strong>${formatDateFromTimestamp(p.time)}</strong> | `;
             html += `开:${p.open.toFixed(decimalPlaces)} 高:${p.high.toFixed(decimalPlaces)} 低:${p.low.toFixed(decimalPlaces)} 收:${p.close.toFixed(decimalPlaces)} | `;
             html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | `;
-            html += `量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`;
+            html += `量:${(volumeData[dataPointIndex]?.value || 0).toFixed(2)} 万手`;
 
             document.getElementById('tooltip').innerHTML = html;
-
+            
+            // 更新均线图例
             for (const [key, series] of Object.entries(maSeriesMap)) {
-                const val = maDataMap[key].find(x => x.time === p.time)?.value;
+                const val = maDataMap[key][dataPointIndex]?.value;
                 const span = document.querySelector(`[data-key="${key}"]`);
-                if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
+                if (val && span) {
+                    span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
+                }
             }
         });
     });
@@ -151,7 +166,6 @@
     for (const [period, color] of Object.entries(colors)) {
       const series = mainChart.addLineSeries({ color, lineWidth: 1.5, priceLineVisible: false });
       maSeriesMap[`MA_${period}`] = series;
-
       const span = document.createElement('span');
       span.className = 'ma-label';
       span.style.color = color;
@@ -159,22 +173,17 @@
       span.innerText = `MA${period}`;
       document.getElementById('legend').appendChild(span);
     }
+    
+    // 定义一个全局变量来持有数据，方便在事件回调中访问
+    let candleData = [], volumeData = [], maDataMap = {};
 
     fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
       .then(res => res.json())
       .then(data => {
-        const adjustTime = utcStr => {
-          const date = new Date(utcStr);
-          return isUSStock ? Math.floor(date.getTime() / 1000) : Math.floor(date.getTime() / 1000) + 8 * 3600;
-        };
-
-        const candleData = [], volumeData = [];
-        const maDataMap = {};
-        for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
-
+        const adjustTime = utcStr => new Date(utcStr).getTime() / 1000 + (isUSStock ? 0 : 8 * 3600);
+        
         const closes = data.map(d => d.Close);
         
-        // EMA 函数保持不变
         const ema = (arr, period) => {
           const k = 2 / (period + 1);
           let emaArray = [];
@@ -187,7 +196,6 @@
           return emaArray;
         };
         
-        // RSI 函数保持不变，它已经正确地填充了null
         const rsi = (values, period = 14) => {
           let rsis = [];
           if (values.length <= period) return Array(values.length).fill(null);
@@ -203,21 +211,17 @@
           return Array(period).fill(null).concat(rsis);
         };
 
-        // === 修改点 4: 修正MACD计算逻辑，确保数组长度一致 ===
         const ema12 = ema(closes, 12);
         const ema26 = ema(closes, 26);
-        
-        // DIF、DEA、MACD都将与closes数组等长
         const difValues = ema12.map((v, i) => v - ema26[i]);
-        const deaValues = ema(difValues, 9); // 直接对完整的DIF数组计算EMA
+        const deaValues = ema(difValues, 9);
         const macdValues = difValues.map((v, i) => v - deaValues[i]);
-        
         const rsiValues = rsi(closes, 14);
-
-        const macdWarmupPeriod = 26 + 9; // MACD(12,26,9) 的大致热身期
-
-        // 准备好所有指标数据数组
+        const macdWarmupPeriod = 26 + 9;
+        
+        // 准备指标数据数组
         const difData = [], deaData = [], macdData = [], rsiData = [];
+        for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
 
         data.forEach((d, i) => {
           const time = adjustTime(d.Date);
@@ -225,31 +229,23 @@
           volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' });
 
           for (const key of Object.keys(maSeriesMap)) {
-            const val = d[key];
-            if (val != null) {
-              maDataMap[key].push({ time, value: val });
-            }
+            maDataMap[key].push({ time, value: d[key] });
           }
 
-          // === 修改点 5: 为所有时间点添加数据，无效值则赋为null ===
-          // 这样可以保证所有数据系列的时间轴完全对齐
           if (i >= macdWarmupPeriod) {
             difData.push({ time, value: difValues[i] });
             deaData.push({ time, value: deaValues[i] });
             const macdVal = macdValues[i];
             macdData.push({ time, value: macdVal, color: macdVal >= 0 ? '#2ecc71' : '#e74c3c' });
           } else {
-            // 在热身期内，填充null值以保持对齐
             difData.push({ time, value: null });
             deaData.push({ time, value: null });
             macdData.push({ time, value: null });
           }
           
-          // RSI数据已经由rsi函数处理好了
           rsiData.push({ time, value: rsiValues[i] });
         });
 
-        // 按顺序设置数据
         candleSeries.setData(candleData);
         volumeSeries.setData(volumeData);
         for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
@@ -258,9 +254,7 @@
         macdDEA.setData(deaData);
         rsiLine.setData(rsiData);
         
-        // 将视图调整到最后，以便看到最新数据
         mainChart.timeScale().fitContent();
-
       });
   </script>
 </body>
