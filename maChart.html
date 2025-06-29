@@ -3,97 +3,136 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>K线均线分析</title>
+  <title>均线分析图</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      background-color: #181818;
-      color: #EAEAEA;
-      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      padding: 0;
+      height: 100%;
+      background-color: #111;
+      color: #eee;
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     }
     header {
-      padding: 20px;
-      font-size: 1.8rem;
+      padding: 16px;
+      font-size: 1.5rem;
       text-align: center;
+      background-color: #222;
       color: #00bcd4;
-      border-bottom: 1px solid #333;
     }
     #chart {
-      height: 600px;
+      width: 100%;
+      height: calc(100vh - 64px);
+    }
+    #loading {
+      text-align: center;
+      padding: 50px;
+      font-size: 1.25rem;
     }
   </style>
+  <script src="https://unpkg.com/lightweight-charts@4.0.1/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
-  <header>均线分析图</header>
+  <header id="chartTitle">均线图加载中...</header>
   <div id="chart"></div>
-
-  <!-- ✅ UMD版本脚本，含Candlestick支持 -->
-  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <div id="loading">正在加载数据...</div>
 
   <script>
-    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-      width: window.innerWidth,
-      height: 600,
-      layout: {
-        backgroundColor: '#181818',
-        textColor: '#EAEAEA'
-      },
-      grid: {
-        vertLines: { color: '#333' },
-        horzLines: { color: '#333' }
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
+    (async function() {
+      function getQueryParam(name) {
+        return new URLSearchParams(window.location.search).get(name) || '';
       }
-    });
 
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderDownColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
-    });
+      const stockCode = getQueryParam('code');
+      const stockName = getQueryParam('name');
 
-    const candleData = [
-      { time: '2023-06-01', open: 100, high: 105, low: 95, close: 102 },
-      { time: '2023-06-02', open: 102, high: 108, low: 101, close: 107 },
-      { time: '2023-06-05', open: 107, high: 110, low: 104, close: 106 },
-      { time: '2023-06-06', open: 106, high: 109, low: 103, close: 104 },
-      { time: '2023-06-07', open: 104, high: 107, low: 101, close: 105 },
-      { time: '2023-06-08', open: 105, high: 108, low: 102, close: 107 },
-      { time: '2023-06-09', open: 107, high: 111, low: 106, close: 110 },
-    ];
-    candleSeries.setData(candleData);
+      document.getElementById('chartTitle').textContent = `均线图：${stockName} (${stockCode})`;
 
-    // 计算并画均线
-    function calculateMA(data, period) {
-      const result = [];
-      for (let i = 0; i < data.length; i++) {
-        if (i < period - 1) {
-          continue;
-        }
-        let sum = 0;
-        for (let j = i - period + 1; j <= i; j++) {
-          sum += data[j].close;
-        }
-        result.push({ time: data[i].time, value: +(sum / period).toFixed(2) });
+      const response = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`);
+      if (!response.ok) {
+        document.getElementById('loading').textContent = '数据加载失败';
+        return;
       }
-      return result;
-    }
 
-    const ma5 = chart.addLineSeries({ color: '#e67e22', lineWidth: 2 });
-    ma5.setData(calculateMA(candleData, 5));
+      const rawData = await response.json();
+      if (!Array.isArray(rawData) || rawData.length === 0) {
+        document.getElementById('loading').textContent = '无可用数据';
+        return;
+      }
 
-    const ma10 = chart.addLineSeries({ color: '#3498db', lineWidth: 2 });
-    ma10.setData(calculateMA(candleData, 3));
+      document.getElementById('loading').style.display = 'none';
+      const chartDiv = document.getElementById('chart');
 
-    // 自适应宽度
-    window.addEventListener('resize', () => {
-      chart.applyOptions({ width: window.innerWidth });
-    });
+      const chart = LightweightCharts.createChart(chartDiv, {
+        layout: {
+          background: { color: '#111' },
+          textColor: '#ccc'
+        },
+        grid: {
+          vertLines: { color: '#222' },
+          horzLines: { color: '#222' }
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false
+        },
+        width: chartDiv.clientWidth,
+        height: chartDiv.clientHeight
+      });
+
+      window.addEventListener('resize', () => {
+        chart.resize(chartDiv.clientWidth, chartDiv.clientHeight);
+      });
+
+      const candlestickSeries = chart.addCandlestickSeries();
+      const maSeries = {};
+
+      const maPeriods = [5, 10, 20, 30, 60, 120, 250];
+      const maColors = {
+        5: '#ff9800',
+        10: '#03a9f4',
+        20: '#8e44ad',
+        30: '#ffeb3b',
+        60: '#4caf50',
+        120: '#e91e63',
+        250: '#9e9e9e'
+      };
+
+      maPeriods.forEach(period => {
+        maSeries[period] = chart.addLineSeries({
+          color: maColors[period],
+          lineWidth: 1.5
+        });
+      });
+
+      const candlestickData = [];
+      const maData = {};
+
+      maPeriods.forEach(p => maData[p] = []);
+
+      rawData.forEach(item => {
+        const time = new Date(item.Date).getTime() / 1000;
+
+        candlestickData.push({
+          time,
+          open: item.Open,
+          high: item.High,
+          low: item.Low,
+          close: item.Close
+        });
+
+        maPeriods.forEach(period => {
+          if (item[`MA_${period}`]) {
+            maData[period].push({ time, value: item[`MA_${period}`] });
+          }
+        });
+      });
+
+      candlestickSeries.setData(candlestickData);
+      maPeriods.forEach(period => {
+        maSeries[period].setData(maData[period]);
+      });
+    })();
   </script>
 </body>
 </html>
