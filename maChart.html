@@ -231,21 +231,37 @@
             
             mainChart.priceScale('right').applyOptions({
                 autoscaleInfoProvider: () => {
-                    if (intradayData.length === 0) return null;
+                    // 如果没有数据或昨收价，则使用默认缩放
+                    if (intradayData.length === 0 || !closeYest) {
+                        return null;
+                    }
+
                     let minPrice = intradayData[0].value;
                     let maxPrice = intradayData[0].value;
                     for (let i = 1; i < intradayData.length; i++) {
-                        minPrice = Math.min(minPrice, intradayData[i].value);
-                        maxPrice = Math.max(maxPrice, intradayData[i].value);
+                        // 确保数据点的值有效
+                        if (intradayData[i].value !== null) {
+                            minPrice = Math.min(minPrice, intradayData[i].value);
+                            maxPrice = Math.max(maxPrice, intradayData[i].value);
+                        }
                     }
-                    const priceRange = maxPrice - minPrice;
-                    const minimumDisplayRange = closeYest * 0.005;
-                    if (priceRange < minimumDisplayRange) {
-                        const midPoint = (maxPrice + minPrice) / 2;
-                        return { priceRange: { minValue: midPoint - minimumDisplayRange, maxValue: midPoint + minimumDisplayRange } };
-                    } else {
-                        return null;
-                    }
+
+                    // 1. 计算当前价格相对昨收价的最大偏离值
+                    const maxDeviation = Math.max(Math.abs(maxPrice - closeYest), Math.abs(minPrice - closeYest));
+
+                    // 2. 设置一个最小的偏离范围（例如昨收价的1%），防止开盘时范围过小
+                    const minimumDeviation = closeYest * 0.01;
+
+                    // 3. 取实际最大偏离和最小偏离范围中较大的一个作为最终的对称范围
+                    const finalDeviation = Math.max(maxDeviation, minimumDeviation);
+
+                    // 4. 返回一个以昨收价为中心，上下对称的新的价格范围
+                    return {
+                        priceRange: {
+                            minValue: closeYest - finalDeviation,
+                            maxValue: closeYest + finalDeviation,
+                        },
+                    };
                 },
             });
             
