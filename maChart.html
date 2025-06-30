@@ -124,6 +124,7 @@
     }
 
     // --- 新增：分时图渲染函数 (最终修正版) ---
+        // --- 新增：分时图渲染函数 (最终确认版) ---
     async function renderIntradayChart() {
         if (Object.keys(lastDayMAs).length === 0) {
             alert("日K数据尚未加载完成，无法切换。");
@@ -152,7 +153,6 @@
         for (const [period, color] of Object.entries(colors)) {
             const maValue = lastDayMAs[`MA_${period}`];
             if (maValue) {
-                // MA线仍然正常创建，它们会被显示，但不会再影响自动缩放
                 intradayPriceSeries.createPriceLine({ price: maValue, color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: `MA${period}` });
                 const span = document.createElement('span');
                 span.className = 'ma-label';
@@ -166,11 +166,11 @@
             const res = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=intraday`);
             if (!res.ok) throw new Error(`API返回错误 ${res.status}`);
             const data = await res.json();
-            if (!Array.isArray(data) || data.length === 0) throw new Error('API未返回有效的分时数据');
+            if (!Array.isArray(data) || data.length === 0 || !data[0].close_yest) throw new Error('API未返回有效的分时数据或缺少昨收价');
 
             const tradeDate = data[0].date;
+            const closeYest = data[0].close_yest;
             const intradayData = [], avgPriceData = [], volumeData = [];
-            const closeYest = data[0].close_yest; // 获取昨日收盘价
 
             data.forEach((d, i) => {
                 const time = new Date(`${tradeDate}T${d.time}`).getTime() / 1000;
@@ -182,45 +182,45 @@
             intradayPriceSeries.setData(intradayData);
             intradayAvgPriceSeries.setData(avgPriceData);
             volumeSeries.setData(volumeData);
-
-            // ====================== 核心修正代码开始 ======================
-            // 自定义价格轴的自动缩放行为，使其仅关注可见的K线数据
+            
+            // ====================== 最终解决方案：条件性智能缩放 ======================
             mainChart.priceScale('right').applyOptions({
                 autoscaleInfoProvider: () => {
-                    const logicalRange = mainChart.timeScale().getVisibleLogicalRange();
-                    if (!logicalRange) {
-                        return null;
+                    if (intradayData.length === 0) {
+                        return null; // 没有数据，使用默认行为
                     }
-
-                    // 从分时价格数据中找出在当前可见范围内的点
-                    const visibleData = intradayData.filter(
-                        (d, index) => index >= logicalRange.from && index < logicalRange.to
-                    );
-
-                    if (visibleData.length === 0) {
-                        return null;
+            
+                    // 1. 计算当前所有数据点的实际最高价和最低价
+                    let minPrice = intradayData[0].value;
+                    let maxPrice = intradayData[0].value;
+                    for (let i = 1; i < intradayData.length; i++) {
+                        minPrice = Math.min(minPrice, intradayData[i].value);
+                        maxPrice = Math.max(maxPrice, intradayData[i].value);
                     }
                     
-                    // 计算可见点的最高价和最低价
-                    let minPrice = visibleData[0].value;
-                    let maxPrice = visibleData[0].value;
-                    for (let i = 1; i < visibleData.length; i++) {
-                        minPrice = Math.min(minPrice, visibleData[i].value);
-                        maxPrice = Math.max(maxPrice, visibleData[i].value);
-                    }
-                    
-                    // 为上下增加一点边距，避免价格线贴边
-                    const padding = (maxPrice - minPrice) * 0.1;
+                    const priceRange = maxPrice - minPrice;
+            
+                    // 2. 定义一个合理的“最小可视范围”，例如股价的0.5%
+                    const minimumDisplayRange = closeYest * 0.005;
 
-                    return {
-                        priceRange: {
-                            minValue: minPrice - padding,
-                            maxValue: maxPrice + padding,
-                        },
-                    };
+                    // 3. 条件判断
+                    if (priceRange < minimumDisplayRange) {
+                        // **场景：开盘初期，价格波动太小，是直线**
+                        // 我们人为地撑开Y轴，以昨收价为中心（或当前价中心），展开一个最小范围
+                        const midPoint = (maxPrice + minPrice) / 2;
+                        return {
+                            priceRange: {
+                                minValue: midPoint - minimumDisplayRange,
+                                maxValue: midPoint + minimumDisplayRange,
+                            },
+                        };
+                    } else {
+                        // **场景：价格波动已足够大，或查看全天数据**
+                        // 返回null，让图表库恢复它自己的、您认为OK的默认缩放行为
+                        return null;
+                    }
                 },
             });
-            // ====================== 核心修正代码结束 ======================
             
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
