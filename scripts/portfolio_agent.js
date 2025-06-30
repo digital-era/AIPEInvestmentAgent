@@ -1796,17 +1796,12 @@ async function deepSearchReport() {
     const today = new Date();
 	
     //console.log(`deepSearchReport:agent.latestPrompt=${agent.latestPrompt}`)
-
-    function getStockCodeByName(stockName, allStockData) {
-	for (const stockCode in allStockData) {
-		if (allStockData[stockCode].name === stockName) {
-	      		return stockCode;
-	    	}
+    
+    for (const stockCodeForData in allStockData) {
+	if (allStockData[stockCodeForData].name === stockName) {
+		break;
 	}
-	 	 return null; // 如果没找到
     }
-	
-    const stockCodeForData= getStockCodeByName(stockName，, allStockData);
     console.log([stockCodeForData]，stockName) // 输出代码
     let quantDataMessage = ''
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
