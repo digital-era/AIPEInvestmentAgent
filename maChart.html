@@ -112,7 +112,7 @@
         });
     }
 
-    // --- 日K图“调度”函数：优先使用缓存，否则请求API ---
+    // --- 日K图"调度"函数：优先使用缓存，否则请求API ---
     function renderDailyChart() {
         // 如果缓存存在，直接用缓存数据重新绘图，跳过API请求
         if (cachedDailyData) {
@@ -170,7 +170,7 @@
             });
     }
 
-    // --- 分时图渲染函数 ---
+    // --- 分时图渲染函数（修复版）---
     async function renderIntradayChart() {
         if (Object.keys(lastDayMAs).length === 0 || lastDayPrevClose === null) {
             alert("日K数据尚未加载完成，无法切换。");
@@ -185,22 +185,80 @@
         const isETF = /^(58|55|51|15)/.test(stockCode);
         const decimalPlaces = isETF ? 3 : 2;
 
-        const formatDate = t => new Date(t * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const formatTime = t => {
+            const d = new Date(t * 1000);
+            return d.toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: false 
+            });
+        };
         
-        const mainChart = LightweightCharts.createChart(document.getElementById('container'), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, localization: { timeFormatter: formatDate }, timeScale: { tickMarkFormatter: formatDate, borderColor: '#666' }, rightPriceScale: { borderColor: '#666' } });
-        const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, timeScale: { visible: false }, rightPriceScale: { borderColor: '#666' } });
+        const mainChart = LightweightCharts.createChart(document.getElementById('container'), { 
+            layout: { background: { color: '#181818' }, textColor: '#ccc' }, 
+            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, 
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, 
+            localization: { timeFormatter: formatTime }, 
+            timeScale: { 
+                tickMarkFormatter: formatTime, 
+                borderColor: '#666',
+                timeVisible: true,
+                secondsVisible: false
+            }, 
+            rightPriceScale: { 
+                borderColor: '#666',
+                autoScale: true,
+                mode: LightweightCharts.PriceScaleMode.Normal
+            } 
+        });
+        
+        const volumeChart = LightweightCharts.createChart(document.getElementById('volumeContainer'), { 
+            layout: { background: { color: '#181818' }, textColor: '#ccc' }, 
+            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, 
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, 
+            timeScale: { 
+                visible: false
+            }, 
+            rightPriceScale: { borderColor: '#666' } 
+        });
+        
         mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => volumeChart.timeScale().setVisibleLogicalRange(range));
 
-        const intradayPriceSeries = mainChart.addAreaSeries({ lineColor: '#4e8df5', topColor: 'rgba(78, 141, 245, 0.4)', bottomColor: 'rgba(78, 141, 245, 0)' });
-        const intradayAvgPriceSeries = mainChart.addLineSeries({ color: '#f1c40f', lineWidth: 1 });
+        const intradayPriceSeries = mainChart.addAreaSeries({ 
+            lineColor: '#4e8df5', 
+            topColor: 'rgba(78, 141, 245, 0.4)', 
+            bottomColor: 'rgba(78, 141, 245, 0)',
+            priceFormat: {
+                type: 'price',
+                precision: decimalPlaces,
+                minMove: 0.001
+            }
+        });
+        
+        const intradayAvgPriceSeries = mainChart.addLineSeries({ 
+            color: '#f1c40f', 
+            lineWidth: 1,
+            priceFormat: {
+                type: 'price',
+                precision: decimalPlaces,
+                minMove: 0.001
+            }
+        });
+        
         const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' } });
         
         const colors = { 5: '#e67e22', 10: '#3498db', 20: '#9b59b6', 30: '#f1c40f', 60: '#2ecc71', 120: '#e74c3c', 250: '#bdc3c7' };
         for (const [period, color] of Object.entries(colors)) {
             const maValue = lastDayMAs[`MA_${period}`];
             if (maValue) {
-                // ############ 核心修改点在这里 ############
-                intradayPriceSeries.createPriceLine({ price: maValue, color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false, title: `MA${period}` });
+                intradayPriceSeries.createPriceLine({ 
+                    price: maValue, 
+                    color: color, 
+                    lineWidth: 1, 
+                    lineStyle: LightweightCharts.LineStyle.Dashed, 
+                    axisLabelVisible: false, 
+                    title: `MA${period}` 
+                });
                 const span = document.createElement('span');
                 span.className = 'ma-label';
                 span.style.color = color;
@@ -219,52 +277,43 @@
             const closeYest = lastDayPrevClose;
             const intradayData = [], avgPriceData = [], volumeData = [];
 
+            // 修复1：正确的时间戳处理
             data.forEach((d, i) => {
-                const time = new Date(`${tradeDate}T${d.time}`).getTime() / 1000;
+                // 将时间字符串转换为本地时间戳（秒级）
+                const timeStr = `${tradeDate} ${d.time}`;
+                const dateObj = new Date(timeStr);
+                const time = Math.floor(dateObj.getTime() / 1000);
+                
+                // 修复2：处理avg_price为null的情况
+                let avgPrice = d.avg_price;
+                if (avgPrice === null) {
+                    avgPrice = i > 0 ? avgPriceData[i-1].value : d.price;
+                }
+                
                 intradayData.push({ time, value: d.price });
-                avgPriceData.push({ time, value: d.avg_price });
-                volumeData.push({ time, value: d.volume, color: d.price >= (intradayData[i - 1]?.value || closeYest) ? '#2ecc71' : '#e74c3c' });
+                avgPriceData.push({ time, value: avgPrice });
+                
+                // 修复3：更精确的涨跌判断
+                const prevPrice = i > 0 ? intradayData[i-1].value : closeYest;
+                volumeData.push({ 
+                    time, 
+                    value: d.volume, 
+                    color: d.price >= prevPrice ? '#2ecc71' : '#e74c3c' 
+                });
             });
 
             intradayPriceSeries.setData(intradayData);
             intradayAvgPriceSeries.setData(avgPriceData);
             volumeSeries.setData(volumeData);
             
+            // 修复4：简化坐标轴缩放逻辑
             mainChart.priceScale('right').applyOptions({
-                autoscaleInfoProvider: () => {
-                    // 如果没有数据或昨收价，则使用默认缩放
-                    if (intradayData.length === 0 || !closeYest) {
-                        return null;
-                    }
-
-                    let minPrice = intradayData[0].value;
-                    let maxPrice = intradayData[0].value;
-                    for (let i = 1; i < intradayData.length; i++) {
-                        // 确保数据点的值有效
-                        if (intradayData[i].value !== null) {
-                            minPrice = Math.min(minPrice, intradayData[i].value);
-                            maxPrice = Math.max(maxPrice, intradayData[i].value);
-                        }
-                    }
-
-                    // 1. 计算当前价格相对昨收价的最大偏离值
-                    const maxDeviation = Math.max(Math.abs(maxPrice - closeYest), Math.abs(minPrice - closeYest));
-
-                    // 2. 设置一个最小的偏离范围（例如昨收价的1%），防止开盘时范围过小
-                    const minimumDeviation = closeYest * 0.01;
-
-                    // 3. 取实际最大偏离和最小偏离范围中较大的一个作为最终的对称范围
-                    const finalDeviation = Math.max(maxDeviation, minimumDeviation);
-
-                    // 4. 返回一个以昨收价为中心，上下对称的新的价格范围
-                    return {
-                        priceRange: {
-                            minValue: closeYest - finalDeviation,
-                            maxValue: closeYest + finalDeviation,
-                        },
-                    };
-                },
+                autoScale: true,
+                mode: LightweightCharts.PriceScaleMode.Normal
             });
+            
+            // 修复5：确保图表刷新
+            mainChart.timeScale().fitContent();
             
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
@@ -275,10 +324,17 @@
                 const volPoint = volumeData.find(d => d.time === pricePoint.time);
                 const vol = volPoint?.value || 0;
 
-                let html = `<strong>${formatDate(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
+                let html = `<strong>${formatTime(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
                 
                 if(avgPricePoint && avgPricePoint.value != null) {
                     html += `均价: ${avgPricePoint.value.toFixed(decimalPlaces)} | `;
+                }
+                
+                // 修复6：添加涨跌幅信息
+                if (closeYest) {
+                    const change = pricePoint.value - closeYest;
+                    const changePct = ((change / closeYest) * 100).toFixed(2);
+                    html += `涨跌: ${change >= 0 ? '+' : ''}${change.toFixed(decimalPlaces)} (${changePct}%) | `;
                 }
                 
                 html += `量: ${(vol / 100).toFixed(2)}手`;
