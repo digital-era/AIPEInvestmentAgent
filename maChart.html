@@ -252,12 +252,21 @@
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
                 const pricePoint = param.seriesData.get(intradayPriceSeries);
-                if (!pricePoint) return;
+                // 核心修正：如果数据点不存在，或其值为null/undefined，则直接返回，不更新tooltip
+                if (!pricePoint || pricePoint.value == null) return;
+
                 const avgPricePoint = avgPriceData.find(d => d.time === pricePoint.time);
                 const volPoint = volumeData.find(d => d.time === pricePoint.time);
                 const vol = volPoint?.value || 0;
+
+                // 此时 pricePoint.value 必定是有效数字
                 let html = `<strong>${formatDate(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
-                if(avgPricePoint) html += `均价: ${avgPricePoint.value.toFixed(decimalPlaces)} | `;
+                
+                // 核心修正：同样检查 avgPricePoint 是否存在且其 value 属性是否为有效数字
+                if(avgPricePoint && avgPricePoint.value != null) {
+                    html += `均价: ${avgPricePoint.value.toFixed(decimalPlaces)} | `;
+                }
+                
                 html += `量: ${(vol / 100).toFixed(2)}手`;
                 document.getElementById('tooltip').innerHTML = html;
             });
