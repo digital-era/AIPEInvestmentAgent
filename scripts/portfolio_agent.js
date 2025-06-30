@@ -41,9 +41,8 @@ Warren Buffett的核心信息:
 3.  **核心理念/驱动力**: 结合 Warren Buffett 的 备注中提到的特点 (被称为“奥马哈先知”，其投资哲学强调企业内在价值，影响全球金融市场。) 和 已知贡献，思考其做决策、看待问题时的核心驱动力是什么（例如，技术乐观主义、风险厌恶、社会责任、效率至上、创新驱动、长期主义等）。
 4.  **问题剖析**: 深入分析用户问题的本质，探讨其背后的深层原因和可能的多种解读。
 5.  **解决方案/洞察**: 基于以上思考，提出具有 Warren Buffett 特色的、富有洞察力的、可能具有前瞻性的观点、分析或解决方案框架。 如果适用，可以指出潜在的挑战、机遇或需要进一步探索的方向。
-6.  **量化因子**: 针对 ${stockName}，其当前的标的动能(PotScore)为 ${potScore}，近5日主力资金总净流入占比为 ${totalInflow}。请将这些量化数据融入你的分析中，评估它们如何支持或挑战你的价值判断。
-7.  **投资配置思路**: 基于对 ${stockName} 的分析，如果认为其具备投资价值，请阐述如何将其整合进一个符合您投资理念的多元化组合中，以及它可能占据的权重范围和理由。
-8.  **语言风格**: 尝试模仿 Warren Buffett 可能的沟通风格（例如，直接、富有远见、严谨、强调数据、关注伦理等）。 如果其风格未知，则采用清晰、专业、有深度的表达。
+6.  **投资配置思路**: 基于对 ${stockName} 的分析，如果认为其具备投资价值，请阐述如何将其整合进一个符合您投资理念的多元化组合中，以及它可能占据的权重范围和理由。
+7.  **语言风格**: 尝试模仿 Warren Buffett 可能的沟通风格（例如，直接、富有远见、严谨、强调数据、关注伦理等）。 如果其风格未知，则采用清晰、专业、有深度的表达。
 注意事项：
 切记回答信息中不要带有任何Warren Buffett字眼，这里全称都体现你自己，你是${agents.agent1.name}
 用户问题:
@@ -87,9 +86,8 @@ Cathie Wood的核心信息:
 3.  **核心理念/驱动力**: 结合 Cathie Wood 的 备注中提到的特点 (以长期投资科技驱动行业著称，吸引年轻投资者。) 和 已知贡献，思考其做决策、看待问题时的核心驱动力是什么（例如，技术乐观主义、风险厌恶、社会责任、效率至上、创新驱动、长期主义等）。
 4.  **问题剖析**: 深入分析用户问题的本质，探讨其背后的深层原因和可能的多种解读。
 5.  **解决方案/洞察**: 基于以上思考，提出具有 Cathie Wood 特色的、富有洞察力的、可能具有前瞻性的观点、分析或解决方案框架。 如果适用，可以指出潜在的挑战、机遇或需要进一步探索的方向。
-6.  **量化因子**: 关于 ${stockName}，其当前标的动能(PotScore)为 ${potScore}，而近5日主力资金总净流入占比为 ${totalInflow}。请分析这些量化指标如何反映市场对该股票创新故事的看法，以及它们是否支持其成长潜力。
-7.  **投资配置思路**: 基于对 ${stockName} 的分析，如果认为其具备投资潜力，请阐述如何将其整合进一个符合您投资理念的成长型多元化组合中，以及它可能占据的权重范围和理由。
-8.  **语言风格**: 尝试模仿 Cathie Wood 可能的沟通风格（例如，直接、富有远见、严谨、强调数据、关注伦理等）。 如果其风格未知，则采用清晰、专业、有深度的表达。
+6.  **投资配置思路**: 基于对 ${stockName} 的分析，如果认为其具备投资潜力，请阐述如何将其整合进一个符合您投资理念的成长型多元化组合中，以及它可能占据的权重范围和理由。
+7.  **语言风格**: 尝试模仿 Cathie Wood 可能的沟通风格（例如，直接、富有远见、严谨、强调数据、关注伦理等）。 如果其风格未知，则采用清晰、专业、有深度的表达。
 注意事项：
 切记回答信息中不要带有任何Cathie Wood, ARK Invest, ARK字眼，这里全称都体现你自己，你是${agents.agent2.name}
 用户问题:
@@ -594,7 +592,7 @@ async function analyzeStockForAgent(agentId) {
 
     let potScore = "[数据缺失]";
     let totalInflow = "[数据缺失]";
-    let quantDataMessage = "";
+    /* let quantDataMessage = "";
 
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
         quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
@@ -609,110 +607,136 @@ async function analyzeStockForAgent(agentId) {
         quantDataMessage = `注意: 由于未能识别股票代码，无法获取 ${stockNameForDisplay} 的量化数据。\n`;
     }
     if (analysisDisplayElement) analysisDisplayElement.value += quantDataMessage;
+    */
 
-    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
-        if (analysisDisplayElement) {
-            analysisDisplayElement.value += "错误：API设置未完成。请前往“API设置”配置。";
-            analysisDisplayElement.style.color = 'var(--danger-color)';
-        }
-        return;
-    }
+    let analysisReportText = "";
 
-    const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
-    agent.latestPrompt = prompt; // <--- 存储prompt到对应的 agent 对象
-    console.log(`agent.latestPrompt=${agent.latestPrompt}`)
-    if (analysisDisplayElement) {
-        analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
-    }
+    //获取历史分析报告
 
-    try {
-        let requestUrl;
-        let requestPayload;
-        const headers = { 'Content-Type': 'application/json' };
+    if (True) {	//如果是第一次分析
+	    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
+	        if (analysisDisplayElement) {
+	            analysisDisplayElement.value += "错误：API设置未完成。请前往“API设置”配置。";
+	            analysisDisplayElement.style.color = 'var(--danger-color)';
+	        }
+	        return;
+	    }
+	
+	    const prompt = agent.promptTemplate(stockNameForDisplay, potScore, totalInflow);
+	    agent.latestPrompt = prompt; // <--- 存储prompt到对应的 agent 对象
+	    console.log(`agent.latestPrompt=${agent.latestPrompt}`)
+	    if (analysisDisplayElement) {
+	        analysisDisplayElement.value += `\n正在为 "${stockNameForDisplay}" 生成分析报告 (使用模型: ${apiSettings.model})...\n这将需要一些时间，请耐心等待。\n`;
+	    }
+	
+	    try {
+	        let requestUrl;
+	        let requestPayload;
+	        const headers = { 'Content-Type': 'application/json' };
+	
+	        if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
+	            requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
+	            headers['Authorization'] = `Bearer ${apiSettings.key}`;
+	            requestPayload = {
+	                model: apiSettings.model,
+	                messages: [{ role: "user", content: prompt }],
+	            };
+	        } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
+	            requestUrl = `${apiSettings.endpoint}/v1beta/models/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
+	            requestPayload = {
+	                contents: [{ parts: [{ text: prompt }] }],
+	                safetySettings: [
+	                    { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
+	                    { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
+	                    { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
+	                    { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" }
+	                ]
+	            };
+	        } else {
+	            if (analysisDisplayElement) {
+	                 analysisDisplayElement.value += "错误: 不支持的API接入点配置。";
+	                 analysisDisplayElement.style.color = 'var(--danger-color)';
+	            }
+	            return;
+	        }
+	
+	        const apiResponse = await fetch(requestUrl, { method: 'POST', headers: headers, body: JSON.stringify(requestPayload) });
+	
+	        if (!apiResponse.ok) {
+	            const errorBody = await apiResponse.text();
+	            throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}. 响应: ${errorBody}`);
+	        }
+	
+	        const responseData = await apiResponse.json();
+	        let analysisReportText = "未能从API响应中提取分析报告。";
+	        console.log("API Response Data:", responseData);
+	
+	        if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
+	            if (responseData.choices && responseData.choices[0] && responseData.choices[0].message && responseData.choices[0].message.content) {
+	                analysisReportText = responseData.choices[0].message.content;
+	            } else if (responseData.error) {
+	                analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
+	            }
+	        } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
+	            if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0] && responseData.candidates[0].content.parts[0].text) {
+	                analysisReportText = responseData.candidates[0].content.parts[0].text;
+	                 if (responseData.candidates[0].finishReason && responseData.candidates[0].finishReason !== "STOP") {
+	                     analysisReportText += `\n\n(模型输出可能由于以下原因不完整: ${responseData.candidates[0].finishReason})`;
+	                }
+	            } else if (responseData.promptFeedback && responseData.promptFeedback.blockReason) {
+	                analysisReportText = `API错误: 您的请求因 "${responseData.promptFeedback.blockReason}" 而被阻止。`;
+	            } else if (responseData.error) {
+	                 analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
+	            }
+	        }
+	
+	        agent.latestReport = analysisReportText; // <--- 存储报告到对应的 agent 对象
 
-        if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
-            requestUrl = (apiSettings.endpoint.endsWith('/') ? apiSettings.endpoint.slice(0, -1) : apiSettings.endpoint) + "/v1/chat/completions";
-            headers['Authorization'] = `Bearer ${apiSettings.key}`;
-            requestPayload = {
-                model: apiSettings.model,
-                messages: [{ role: "user", content: prompt }],
-            };
-        } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
-            requestUrl = `${apiSettings.endpoint}/v1beta/models/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
-            requestPayload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                safetySettings: [
-                    { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
-                    { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
-                    { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
-                    { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" }
-                ]
-            };
-        } else {
-            if (analysisDisplayElement) {
-                 analysisDisplayElement.value += "错误: 不支持的API接入点配置。";
-                 analysisDisplayElement.style.color = 'var(--danger-color)';
-            }
-            return;
-        }
-
-        const apiResponse = await fetch(requestUrl, { method: 'POST', headers: headers, body: JSON.stringify(requestPayload) });
-
-        if (!apiResponse.ok) {
-            const errorBody = await apiResponse.text();
-            throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}. 响应: ${errorBody}`);
-        }
-
-        const responseData = await apiResponse.json();
-        let analysisReportText = "未能从API响应中提取分析报告。";
-        console.log("API Response Data:", responseData);
-
-        if (apiSettings.endpoint.includes("deepseek.com") || apiSettings.endpoint.includes("api.openai.com")) {
-            if (responseData.choices && responseData.choices[0] && responseData.choices[0].message && responseData.choices[0].message.content) {
-                analysisReportText = responseData.choices[0].message.content;
-            } else if (responseData.error) {
-                analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
-            }
-        } else if (apiSettings.endpoint.includes("generativelanguage.googleapis.com")) {
-            if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0] && responseData.candidates[0].content.parts[0].text) {
-                analysisReportText = responseData.candidates[0].content.parts[0].text;
-                 if (responseData.candidates[0].finishReason && responseData.candidates[0].finishReason !== "STOP") {
-                     analysisReportText += `\n\n(模型输出可能由于以下原因不完整: ${responseData.candidates[0].finishReason})`;
-                }
-            } else if (responseData.promptFeedback && responseData.promptFeedback.blockReason) {
-                analysisReportText = `API错误: 您的请求因 "${responseData.promptFeedback.blockReason}" 而被阻止。`;
-            } else if (responseData.error) {
-                 analysisReportText = `API错误: ${responseData.error.message || JSON.stringify(responseData.error)}`;
-            }
-        }
-
-        agent.latestReport = analysisReportText; // <--- 存储报告到对应的 agent 对象
-
-        if (analysisDisplayElement) {
-            analysisDisplayElement.value = `AI为“${stockNameForDisplay}”生成的分析报告已就绪。\n点击下方按钮查看完整报告。`;
-            analysisDisplayElement.style.color = 'var(--accent-color2)';
-
-            if (!viewReportBtn) {
-                viewReportBtn = document.createElement('button');
-                viewReportBtn.id = `viewReportBtn_${agentId}`;
-                viewReportBtn.className = 'view-report-btn';
-                viewReportBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> 查看完整报告`;
-                if (analysisOutputContainer) {
-                    analysisOutputContainer.appendChild(viewReportBtn);
-                }
-            }
-            viewReportBtn.onclick = function() { openAnalysisReportModal(agentId, stockNameForDisplay); };
-            viewReportBtn.style.display = 'inline-block';
-        }
-
-    } catch (error) {
-        console.error("analyzeStockForAgent API Call Error:", error);
-        agent.latestReport = ""; // 清空报告
-	agent.latestPrompt = ""; // 清空Prompt
-        if (analysisDisplayElement) {
-            analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}\n请检查控制台详情。`;
-            analysisDisplayElement.style.color = 'var(--danger-color)';
-        }
+	        if (analysisDisplayElement) {
+	            analysisDisplayElement.value = `AI为“${stockNameForDisplay}”生成的分析报告已就绪。\n点击下方按钮查看完整报告。`;
+	            analysisDisplayElement.style.color = 'var(--accent-color2)';
+	
+	            if (!viewReportBtn) {
+	                viewReportBtn = document.createElement('button');
+	                viewReportBtn.id = `viewReportBtn_${agentId}`;
+	                viewReportBtn.className = 'view-report-btn';
+	                viewReportBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> 查看完整报告`;
+	                if (analysisOutputContainer) {
+	                    analysisOutputContainer.appendChild(viewReportBtn);
+	                }
+	            }
+	            viewReportBtn.onclick = function() { openAnalysisReportModal(agentId, stockNameForDisplay); };
+	            viewReportBtn.style.display = 'inline-block';
+	        }
+	
+	    } catch (error) {
+	        console.error("analyzeStockForAgent API Call Error:", error);
+	        agent.latestReport = ""; // 清空报告
+		agent.latestPrompt = ""; // 清空Prompt
+	        if (analysisDisplayElement) {
+	            analysisDisplayElement.value = `调用AI模型分析时出错: ${error.message}\n请检查控制台详情。`;
+	            analysisDisplayElement.style.color = 'var(--danger-color)';
+	        }
+	    }
+    } else {		
+		agent.latestReport = analysisReportText; // <--- 存储报告到对应的 agent 对象
+	
+		if (analysisDisplayElement) {
+		    analysisDisplayElement.value = `AI为“${stockNameForDisplay}”已经调出上次分析报告。\n点击下方按钮查看完整报告。`;
+		    analysisDisplayElement.style.color = 'var(--accent-color2)';
+	
+		    if (!viewReportBtn) {
+			viewReportBtn = document.createElement('button');
+			viewReportBtn.id = `viewReportBtn_${agentId}`;
+			viewReportBtn.className = 'view-report-btn';
+			viewReportBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> 查看完整报告`;
+			if (analysisOutputContainer) {
+			    analysisOutputContainer.appendChild(viewReportBtn);
+			}
+		    }
+		    viewReportBtn.onclick = function() { openAnalysisReportModal(agentId, stockNameForDisplay); };
+		    viewReportBtn.style.display = 'inline-block';
+		}	
     }
 }
 
@@ -1773,6 +1797,31 @@ async function deepSearchReport() {
 	
     //console.log(`deepSearchReport:agent.latestPrompt=${agent.latestPrompt}`)
 
+    function getStockCodeByName(stockName, allStockData) {
+	for (const stockCode in allStockData) {
+		if (allStockData[stockCode].name === stockName) {
+	      		return stockCode;
+	    	}
+	}
+	 	 return null; // 如果没找到
+    }
+	
+    const stockCodeForData= getStockCodeByName(stockName，, allStockData);
+    console.log([stockCodeForData]，stockName) // 输出代码
+    let quantDataMessage = ''
+    if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
+	quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
+    } else if (stockCodeForData && allStockData[stockCodeForData]) {
+	const stockData = allStockData[stockCodeForData];
+	potScore = stockData.currentPotScore !== undefined ? String(stockData.currentPotScore) : "[无PotScore数据]";
+	totalInflow = stockData.totalInflow !== undefined ? String(stockData.totalInflow) : "[无主力资金数据]";
+	quantDataMessage = `已获取 ${stockNameForDisplay}(${stockCodeForData}) 的量化数据: PotScore=${potScore}, 主力资金流入=${totalInflow}\n`;
+    } else if (stockCodeForData) {
+	quantDataMessage = `注意: 无法在已加载的股票基础数据中找到代码 ${stockCodeForData} (${stockNameForDisplay}) 的量化信息。\n`;
+    } else {
+	quantDataMessage = `注意: 由于未能识别股票代码，无法获取 ${stockNameForDisplay} 的量化数据。\n`;
+    }
+
     // --- 2. 构筑 Prompt ---
     const deepSearchPrompt = `## 任务指令：深度分析报告生成
 
@@ -1788,12 +1837,17 @@ ${agent.name}，你好。你已基于现有知识库对 **${stockName}** 完成�
     *   **验证与修正**：核实或修正你前期分析中的关键假设（例如：成本优势、政策影响、管理层动态、技术壁垒等）。
     *   **发现新洞察**：挖掘任何可能从根本上改变你前期判断的最新动态、数据或市场情绪。
 
-3.  **整合与报告**：
+3.  **量化因子**: 针对 **${stockName}**，其当前的标的动能(PotScore)为 ${potScore}，(PotScore)是专有算法推理而来，不同于传统动能指标，大于零表明动能正向反之动能不足，近5日主力资金总净流入占比为 ${totalInflow}。请将这些量化数据融入你的分析中，评估它们如何支持或挑战你的价值判断。
+
+4.  **整合与报告**：
     *   **撰写报告**：将搜索到的新信息与你的前期分析进行整合，生成一份逻辑严密、更具时效性的最终深度分析报告。
+    *   **报告结构**：包括两部分，第一部分：投资逻辑深入分析。清晰的从第一性原理出发的底层投资逻辑分析。第二部分：季度动态深入分析（括号里标明开始时间~结束时间，结束时间就是当前最新时间，跨度为3个月），如果对投资逻辑有更新，也需要同步更新第一部分分析内容。
     *   **关键要求**：报告中必须明确指出：
         *   哪些初步判断得到了新信息的【验证】。
         *   哪些判断因新信息而需要【修正或补充】。
         *   有哪些是基于新信息的【全新发现】。
+        *   标的具体配置建议。
+
 
 ---
 ### 前期分析参考
@@ -1810,8 +1864,9 @@ ${agent.latestReport || '无'}
 
     // --- 3. UI 更新和 API 调用 ---
     try {
+	modalBody.innerText =    quantDataMessage
         // 3a. 进入加载状态：更新UI并禁用所有按钮
-        modalBody.innerText = `正在使用模型: ${apiSettings.model} 进行深度搜索...\n\n这将需要一些时间，请耐心等待。\n(联网搜索和深度分析通常需要 30-90 秒)`;
+        modalBody.innerText = modalBody.innerText + `\n正在使用模型: ${apiSettings.model} 进行深度搜索...\n\n这将需要一些时间，请耐心等待。\n(联网搜索和深度分析通常需要 30-90 秒)`;
         allButtons.forEach(btn => btn.disabled = true);
 
         // 3b. 调用后端代理 API
