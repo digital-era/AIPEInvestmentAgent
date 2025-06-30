@@ -613,7 +613,7 @@ async function analyzeStockForAgent(agentId) {
 
     //获取历史分析报告
 
-    if (True) {	//如果是第一次分析
+    if (TRUE) {	//如果是第一次分析
 	    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
 	        if (analysisDisplayElement) {
 	            analysisDisplayElement.value += "错误：API设置未完成。请前往“API设置”配置。";
