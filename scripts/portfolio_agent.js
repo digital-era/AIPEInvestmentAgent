@@ -655,7 +655,6 @@ async function analyzeStockForAgent(agentId) {
             if (analysisDisplayElement) analysisDisplayElement.value += `警告: 未能从 "${stockToAnalyze}" 中识别股票代码或找到对应股票。将使用 "${stockNameForDisplay}" 作为名称进行分析，但量化数据可能无法获取。\n`;
         }
     }
-
     
     let potScore = "[数据缺失]";
     let totalInflow = "[数据缺失]";
@@ -677,7 +676,7 @@ async function analyzeStockForAgent(agentId) {
     */
 
     let analysisReportText = "";
-    analysisReportText = getLatestReportFromOSS(stockNameForDisplay) ;
+    analysisReportText = await getLatestReportFromOSS(stockNameForDisplay) ;
     //获取历史分析报告，如果获取不到为第一次分析
     if (analysisReportText === "") {	//如果是第一次分析
 	    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
