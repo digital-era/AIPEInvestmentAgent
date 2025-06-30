@@ -1796,7 +1796,7 @@ async function deepSearchReport() {
     const today = new Date();
 	
     //console.log(`deepSearchReport:agent.latestPrompt=${agent.latestPrompt}`)
-    
+    let foundStockCode = null;
     for (const stockCodeForData in allStockData) {
 	if (allStockData[stockCodeForData].name === stockName) {
 		break;
