@@ -170,7 +170,7 @@
             });
     }
 
-    // --- 分时图渲染函数 (与上一版相同，无需修改) ---
+    // --- 分时图渲染函数 ---
     async function renderIntradayChart() {
         if (Object.keys(lastDayMAs).length === 0 || lastDayPrevClose === null) {
             alert("日K数据尚未加载完成，无法切换。");
@@ -199,7 +199,8 @@
         for (const [period, color] of Object.entries(colors)) {
             const maValue = lastDayMAs[`MA_${period}`];
             if (maValue) {
-                intradayPriceSeries.createPriceLine({ price: maValue, color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: `MA${period}` });
+                // ############ 核心修改点在这里 ############
+                intradayPriceSeries.createPriceLine({ price: maValue, color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false, title: `MA${period}` });
                 const span = document.createElement('span');
                 span.className = 'ma-label';
                 span.style.color = color;
@@ -268,17 +269,14 @@
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
                 const pricePoint = param.seriesData.get(intradayPriceSeries);
-                // 核心修正：如果数据点不存在，或其值为null/undefined，则直接返回，不更新tooltip
                 if (!pricePoint || pricePoint.value == null) return;
 
                 const avgPricePoint = avgPriceData.find(d => d.time === pricePoint.time);
                 const volPoint = volumeData.find(d => d.time === pricePoint.time);
                 const vol = volPoint?.value || 0;
 
-                // 此时 pricePoint.value 必定是有效数字
                 let html = `<strong>${formatDate(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
                 
-                // 核心修正：同样检查 avgPricePoint 是否存在且其 value 属性是否为有效数字
                 if(avgPricePoint && avgPricePoint.value != null) {
                     html += `均价: ${avgPricePoint.value.toFixed(decimalPlaces)} | `;
                 }
