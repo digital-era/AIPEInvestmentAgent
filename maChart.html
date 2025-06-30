@@ -125,7 +125,10 @@
 
     // --- 新增：分时图渲染函数 (最终修正版) ---
     async function renderIntradayChart() {
-        if (Object.keys(lastDayMAs).length === 0) { alert("日K数据尚未加载完成，无法切换。"); return; }
+        if (Object.keys(lastDayMAs).length === 0) {
+            alert("日K数据尚未加载完成，无法切换。");
+            return;
+        }
         destroyAllCharts();
         document.getElementById('macdContainer').style.display = 'none';
         document.getElementById('rsiContainer').style.display = 'none';
@@ -149,6 +152,7 @@
         for (const [period, color] of Object.entries(colors)) {
             const maValue = lastDayMAs[`MA_${period}`];
             if (maValue) {
+                // MA线仍然正常创建，它们会被显示，但不会再影响自动缩放
                 intradayPriceSeries.createPriceLine({ price: maValue, color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: `MA${period}` });
                 const span = document.createElement('span');
                 span.className = 'ma-label';
@@ -164,29 +168,69 @@
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) throw new Error('API未返回有效的分时数据');
 
-            // **核心修正：从分时数据自身获取正确的交易日期**
             const tradeDate = data[0].date;
-            
             const intradayData = [], avgPriceData = [], volumeData = [];
+            const closeYest = data[0].close_yest; // 获取昨日收盘价
 
             data.forEach((d, i) => {
                 const time = new Date(`${tradeDate}T${d.time}`).getTime() / 1000;
                 intradayData.push({ time, value: d.price });
                 avgPriceData.push({ time, value: d.avg_price });
-                volumeData.push({ time, value: d.volume, color: d.price >= (avgPriceData[i-1]?.value || d.price) ? '#2ecc71' : '#e74c3c' });
+                volumeData.push({ time, value: d.volume, color: d.price >= (intradayData[i-1]?.value || closeYest) ? '#2ecc71' : '#e74c3c' });
             });
 
             intradayPriceSeries.setData(intradayData);
             intradayAvgPriceSeries.setData(avgPriceData);
             volumeSeries.setData(volumeData);
+
+            // ====================== 核心修正代码开始 ======================
+            // 自定义价格轴的自动缩放行为，使其仅关注可见的K线数据
+            mainChart.priceScale('right').applyOptions({
+                autoscaleInfoProvider: () => {
+                    const logicalRange = mainChart.timeScale().getVisibleLogicalRange();
+                    if (!logicalRange) {
+                        return null;
+                    }
+
+                    // 从分时价格数据中找出在当前可见范围内的点
+                    const visibleData = intradayData.filter(
+                        (d, index) => index >= logicalRange.from && index < logicalRange.to
+                    );
+
+                    if (visibleData.length === 0) {
+                        return null;
+                    }
+                    
+                    // 计算可见点的最高价和最低价
+                    let minPrice = visibleData[0].value;
+                    let maxPrice = visibleData[0].value;
+                    for (let i = 1; i < visibleData.length; i++) {
+                        minPrice = Math.min(minPrice, visibleData[i].value);
+                        maxPrice = Math.max(maxPrice, visibleData[i].value);
+                    }
+                    
+                    // 为上下增加一点边距，避免价格线贴边
+                    const padding = (maxPrice - minPrice) * 0.1;
+
+                    return {
+                        priceRange: {
+                            minValue: minPrice - padding,
+                            maxValue: maxPrice + padding,
+                        },
+                    };
+                },
+            });
+            // ====================== 核心修正代码结束 ======================
             
             mainChart.subscribeCrosshairMove(param => {
                 if (!param.time || !param.seriesData.size) return;
                 const pricePoint = param.seriesData.get(intradayPriceSeries);
                 if (!pricePoint) return;
-                const avgPricePoint = param.seriesData.get(intradayAvgPriceSeries);
-                const idx = intradayData.findIndex(d => d.time === pricePoint.time);
-                const vol = volumeData[idx]?.value || 0;
+                
+                const avgPricePoint = avgPriceData.find(d => d.time === pricePoint.time);
+                const volPoint = volumeData.find(d => d.time === pricePoint.time);
+                const vol = volPoint?.value || 0;
+
                 let html = `<strong>${formatDate(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
                 if(avgPricePoint) html += `均价: ${avgPricePoint.value.toFixed(decimalPlaces)} | `;
                 html += `量: ${(vol / 100).toFixed(2)}手`;
