@@ -1705,27 +1705,71 @@ function closeAnalysisReportModal() {
 }
 
 /** * 新增函数：保存对报告的修改 */
-function saveReportChanges() {
+async function saveReportChanges(button) {
+    // --- 1. 初始检查和获取数据 ---
     if (currentAgentIdForReport === null) {
         alert('保存失败：无法确定当前报告属于哪个智能体。');
         return;
     }
-    
+
     const modalBody = document.getElementById('analysisReportModalBody');
-    // 使用 .innerText 获取内容，可以更好地保留用户输入的换行
-    const updatedReport = modalBody.innerText;
+    const updatedReport = modalBody.innerText; // 使用 .innerText 保留换行
 
-    // 更新 agents 数据对象中对应智能体的报告
-    agents[currentAgentIdForReport].latestReport = updatedReport;
-    // 增强将 "originalReportContent" 更新为当前已保存的版本。
-    // 这确保了在保存后，如果用户继续编辑然后点击“取消”，
-    // 内容会恢复到这次保存的状态，而不是最初打开时的状态。
-    originalReportContent = updatedReport;
+    // --- 2. UI反馈：禁用按钮，显示加载状态 ---
+    const originalButtonHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
 
-    console.log(`Agent ${currentAgentIdForReport} 的报告已更新。`);
-    alert('修改已成功保存！');
+    try {
+        // --- 3. 本地数据更新 (立即执行) ---
+        // 这一步先执行，确保即时上传失败，用户的编辑内容也已在前端“暂存”
+        agents[currentAgentIdForReport].latestReport = updatedReport;
+        originalReportContent = updatedReport;
+        console.log(`Agent ${currentAgentIdForReport} 的报告已在本地更新。`);
 
-    // 【核心修改】移除下面这行代码，这样窗口就不会在保存后关闭
+        // --- 4. 准备OSS上传所需信息 ---
+        // 4.1. 格式化当前日期为 YYYY-MM-DD
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0'); // 月份从0开始，需要+1，并补零
+        const day = String(today.getDate()).padStart(2, '0'); // 补零
+        const formattedDate = `${year}-${month}-${day}`;
+
+        // 4.2. 构建OSS文件路径 (Key)，后缀改为 .md
+        // 假设 currentStockNameForReport 是一个在当前作用域可访问的全局变量
+        const OSS_FILE_KEY = `deepreport/${currentStockNameForReport}_${formattedDate}.md`;
+        
+        console.log(`准备上传到OSS，文件路径为: ${OSS_FILE_KEY}`);
+
+        // --- 5. 创建文件内容 (Blob) ---
+        // 直接从报告文本字符串创建一个 Blob 对象。
+        // 指定类型为 'text/markdown'，并设置编码为 'utf-8' 以正确处理中文字符。
+        const fileBlob = new Blob([updatedReport], { type: 'text/markdown;charset=utf-8' });
+
+        // --- 6. 执行OSS上传 ---
+        console.log("正在获取OSS客户端...");
+        const client = await getOSSClient(); // 调用您提供的函数获取OSS客户端实例
+
+        console.log("开始上传文件到OSS...");
+        // 使用 client.put(name, file) 方法上传
+        const result = await client.put(OSS_FILE_KEY, fileBlob);
+        console.log("文件上传成功!", result);
+
+        // --- 7. 最终成功提示 ---
+        alert('修改已成功保存，并已作为Markdown文件上传至云端！');
+
+    } catch (error) {
+        // --- 错误处理 ---
+        console.error("保存或上传过程中发生错误:", error);
+        // 提供一个更详细的错误提示，告知用户本地保存成功但上传失败
+        alert(`报告内容已在本地成功保存，但上传到云端失败。\n\n错误详情: ${error.message}`);
+    } finally {
+        // --- UI还原：无论成功或失败，都恢复按钮状态 ---
+        button.disabled = false;
+        button.innerHTML = originalButtonHtml;
+    }
+    
+    // 根据原代码要求，保存后不关闭模态框
     // closeAnalysisReportModal();
 }
 
