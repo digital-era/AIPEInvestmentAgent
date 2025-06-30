@@ -33,9 +33,11 @@
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   
   <script>
-    // --- 新增：全局状态管理 (简化后) ---
+    // --- 全局状态管理 (最终优化版) ---
     let currentMode = 'daily';
-    let lastDayMAs = {}; // 只需存储均线值
+    let lastDayMAs = {}; // 存储日K线的最后一天均线值
+    let lastDayPrevClose = null; // 存储昨收价
+    let cachedDailyData = null; // 新增：日K线数据缓存
 
     function destroyAllCharts() {
         document.getElementById('container').innerHTML = '';
@@ -46,21 +48,18 @@
         document.getElementById('tooltip').innerHTML = '鼠标移动查看详情';
     }
 
-    // --- 日K图渲染函数 (100%基于您的原始代码封装) ---
-    function renderDailyChart() {
+    // --- 新增：独立的日K图渲染函数，使用已处理好的数据 ---
+    function displayDailyChart(chartData) {
         destroyAllCharts();
         document.getElementById('macdContainer').style.display = 'block';
         document.getElementById('rsiContainer').style.display = 'block';
 
-        // --- 您的原始代码（原封不动）---
         const params = new URLSearchParams(window.location.search);
         const stockCode = params.get("code") || "600900";
-        const stockName = params.get("name") || "股票";
         const isETF = /^(58|55|51|15)/.test(stockCode);
-        const isUSStock = /^us|^US/.test(stockCode);
         const decimalPlaces = isETF ? 3 : 2;
-        document.title = `均线分析 - ${stockName} (${stockCode})`;
         const formatDate = t => { const d = new Date(t * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+        
         const mainChart = LightweightCharts.createChart(document.getElementById('container'), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: 0, vertLine: { labelVisible: false } }, localization: { dateFormat: 'yyyy-MM-dd' }, timeScale: { tickMarkFormatter: formatDate, borderColor: '#666' }, rightPriceScale: { borderColor: '#666' } });
         function createSubChart(containerId) { return LightweightCharts.createChart(document.getElementById(containerId), { layout: { background: { color: '#181818' }, textColor: '#ccc' }, grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } }, crosshair: { mode: 0 }, localization: { dateFormat: 'yyyy-MM-dd' }, timeScale: { visible: true, tickMarkFormatter: () => '' }, rightPriceScale: { borderColor: '#666' } }); }
         const volumeChart = createSubChart('volumeContainer');
@@ -68,6 +67,7 @@
         const rsiChart = createSubChart('rsiContainer');
         const syncCharts = [volumeChart, macdChart, rsiChart];
         mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => { syncCharts.forEach(c => c.timeScale().setVisibleLogicalRange(range)); });
+
         const candleSeries = mainChart.addCandlestickSeries();
         const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, scaleMargins: { top: 0.1, bottom: 0 } });
         const macdHistogram = macdChart.addHistogramSeries();
@@ -86,14 +86,57 @@
             span.innerText = `MA${period}`;
             document.getElementById('legend').appendChild(span);
         }
+
+        candleSeries.setData(chartData.candleData);
+        volumeSeries.setData(chartData.volumeData);
+        for (const [key, series] of Object.entries(maSeriesMap)) series.setData(chartData.maDataMap[key]);
+        macdHistogram.setData(chartData.macdData);
+        macdDIF.setData(chartData.difData);
+        macdDEA.setData(chartData.deaData);
+        rsiLine.setData(chartData.rsiData);
+
+        mainChart.subscribeCrosshairMove(param => {
+            const p = param.seriesData.get(candleSeries); if (!p) return; const d = p;
+            const idx = chartData.candleData.findIndex(x => x.time === d.time);
+            const prevClose = chartData.candleData[idx - 1]?.close || d.close;
+            const change = d.close - prevClose; const changePct = ((change / prevClose) * 100).toFixed(2);
+            const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2);
+            let html = `<strong>${formatDate(d.time)}</strong> | 开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `;
+            html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | 量:${(chartData.volumeData[idx]?.value || 0).toFixed(2)} 万手`;
+            for (const [key] of Object.entries(maSeriesMap)) {
+                const val = chartData.maDataMap[key].find(x => x.time === d.time)?.value;
+                const span = document.querySelector(`[data-key="${key}"]`);
+                if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`;
+            }
+            document.getElementById('tooltip').innerHTML = html;
+        });
+    }
+
+    // --- 日K图“调度”函数：优先使用缓存，否则请求API ---
+    function renderDailyChart() {
+        // 如果缓存存在，直接用缓存数据重新绘图，跳过API请求
+        if (cachedDailyData) {
+            displayDailyChart(cachedDailyData);
+            return;
+        }
+
+        // 缓存不存在（首次加载），执行API请求
+        const params = new URLSearchParams(window.location.search);
+        const stockCode = params.get("code") || "600900";
+        const stockName = params.get("name") || "股票";
+        document.title = `均线分析 - ${stockName} (${stockCode})`;
+        const isUSStock = /^us|^US/.test(stockCode);
+
         fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=movingaveragedata`)
             .then(res => { if (!res.ok) throw new Error(`API返回错误 ${res.status}`); return res.json(); })
             .then(data => {
                 if (!Array.isArray(data) || data.length === 0) throw new Error("API未返回有效的日K数据");
+                
+                // --- 数据处理逻辑 (与之前相同) ---
                 const adjustTime = utcStr => { const date = new Date(utcStr); return isUSStock ? Math.floor(date.getTime() / 1000) : Math.floor(date.getTime() / 1000) + 8 * 3600; };
                 const candleData = [], volumeData = [], rsiData = [], difData = [], deaData = [], macdData = [];
                 const maDataMap = {};
-                for (const key of Object.keys(maSeriesMap)) maDataMap[key] = [];
+                for (const key of Object.keys({ 5: '', 10: '', 20: '', 30: '', 60: '', 120: '', 250: '' })) maDataMap[`MA_${key}`] = [];
                 const closes = data.map(d => d.Close);
                 const ema = (arr, period) => { const k = 2 / (period + 1); let emaArray = [arr[0]]; for (let i = 1; i < arr.length; i++) emaArray.push(arr[i] * k + emaArray[i - 1] * (1 - k)); return emaArray; };
                 const rsi = (values, period = 14) => { let rsis = []; for (let i = period; i < values.length; i++) { let gains = 0, losses = 0; for (let j = i - period; j < i; j++) { const diff = values[j + 1] - values[j]; if (diff >= 0) gains += diff; else losses -= diff; } const rs = gains / (losses || 1); rsis.push(100 - 100 / (1 + rs)); } return Array(period).fill(null).concat(rsis); };
@@ -102,31 +145,34 @@
                 const dea = ema(dif.slice(1), 9);
                 const macd = dif.map((v, i) => i < dea.length ? v - dea[i - 1] : null);
                 const rsiValues = rsi(closes);
-                data.forEach((d, i) => { const time = adjustTime(d.Date); candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close }); volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' }); for (const key of Object.keys(maSeriesMap)) { maDataMap[key].push({ time, value: d[key] ?? undefined }); } difData.push({ time, value: dif[i] ?? undefined }); deaData.push({ time, value: dea[i - 1] ?? undefined }); macdData.push({ time, value: macd[i] ?? undefined, color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' }); rsiData.push({ time, value: rsiValues[i] ?? undefined }); });
-                candleSeries.setData(candleData);
-                volumeSeries.setData(volumeData);
-                for (const [key, series] of Object.entries(maSeriesMap)) series.setData(maDataMap[key]);
-                macdHistogram.setData(macdData);
-                macdDIF.setData(difData);
-                macdDEA.setData(deaData);
-                rsiLine.setData(rsiData);
-                mainChart.subscribeCrosshairMove(param => { const p = param.seriesData.get(candleSeries); if (!p) return; const d = p; const idx = candleData.findIndex(x => x.time === d.time); const prevClose = candleData[idx - 1]?.close || d.close; const change = d.close - prevClose; const changePct = ((change / prevClose) * 100).toFixed(2); const amplitude = (((d.high - d.low) / prevClose) * 100).toFixed(2); let html = `<strong>${formatDate(d.time)}</strong> | 开:${d.open.toFixed(decimalPlaces)} 高:${d.high.toFixed(decimalPlaces)} 低:${d.low.toFixed(decimalPlaces)} 收:${d.close.toFixed(decimalPlaces)} | `; html += `涨跌:${change.toFixed(decimalPlaces)} (${changePct}%) 振幅:${amplitude}% | 量:${(volumeData[idx]?.value || 0).toFixed(2)} 万手`; for (const [key] of Object.entries(maSeriesMap)) { const val = maDataMap[key].find(x => x.time === d.time)?.value; const span = document.querySelector(`[data-key="${key}"]`); if (val && span) span.innerText = `${key.replace('MA_', 'MA')}:${val.toFixed(decimalPlaces)}`; } document.getElementById('tooltip').innerHTML = html; });
+                data.forEach((d, i) => { const time = adjustTime(d.Date); candleData.push({ time, open: d.Open, high: d.High, low: d.Low, close: d.Close }); volumeData.push({ time, value: d.Volume / 1000000, color: d.Close >= d.Open ? '#2ecc71' : '#e74c3c' }); for (const key of Object.keys(maDataMap)) { maDataMap[key].push({ time, value: d[key] ?? undefined }); } difData.push({ time, value: dif[i] ?? undefined }); deaData.push({ time, value: dea[i - 1] ?? undefined }); macdData.push({ time, value: macd[i] ?? undefined, color: macd[i] >= 0 ? '#2ecc71' : '#e74c3c' }); rsiData.push({ time, value: rsiValues[i] ?? undefined }); });
                 
-                // --- 唯一在原始代码块中新增的逻辑 ---
+                // --- 将处理好的数据存入缓存 ---
+                cachedDailyData = { candleData, volumeData, rsiData, difData, deaData, macdData, maDataMap };
+
+                // --- 设置分时图所需的全局变量 ---
                 const lastDataPoint = data[data.length - 1];
-                for (const key of Object.keys(maSeriesMap)) {
-                    lastDayMAs[key] = lastDataPoint[key];
+                for (const key of Object.keys(maDataMap)) lastDayMAs[key] = lastDataPoint[key];
+                if (data.length > 1) {
+                    lastDayPrevClose = data[data.length - 2].Close;
+                } else if (data.length === 1) {
+                    lastDayPrevClose = data[0].Open;
                 }
+                
                 document.getElementById('intradayBtn').disabled = false;
-                // --- 新增逻辑结束 ---
+                
+                // --- 首次使用数据绘图 ---
+                displayDailyChart(cachedDailyData);
             })
-            .catch(error => { console.error("加载日K数据失败:", error); document.getElementById('tooltip').innerText = "加载日K数据失败，可能是非交易日或代码无效。"; });
+            .catch(error => {
+                console.error("加载日K数据失败:", error);
+                document.getElementById('tooltip').innerText = "加载日K数据失败，可能是非交易日或代码无效。";
+            });
     }
 
-    // --- 新增：分时图渲染函数 (最终修正版) ---
-        // --- 新增：分时图渲染函数 (最终确认版) ---
+    // --- 分时图渲染函数 (与上一版相同，无需修改) ---
     async function renderIntradayChart() {
-        if (Object.keys(lastDayMAs).length === 0) {
+        if (Object.keys(lastDayMAs).length === 0 || lastDayPrevClose === null) {
             alert("日K数据尚未加载完成，无法切换。");
             return;
         }
@@ -166,57 +212,38 @@
             const res = await fetch(`/api/rtStockQueryProxy?code=${encodeURIComponent(stockCode)}&type=intraday`);
             if (!res.ok) throw new Error(`API返回错误 ${res.status}`);
             const data = await res.json();
-            if (!Array.isArray(data) || data.length === 0 || !data[0].close_yest) throw new Error('API未返回有效的分时数据或缺少昨收价');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('API未返回有效的分时数据');
 
             const tradeDate = data[0].date;
-            const closeYest = data[0].close_yest;
+            const closeYest = lastDayPrevClose;
             const intradayData = [], avgPriceData = [], volumeData = [];
 
             data.forEach((d, i) => {
                 const time = new Date(`${tradeDate}T${d.time}`).getTime() / 1000;
                 intradayData.push({ time, value: d.price });
                 avgPriceData.push({ time, value: d.avg_price });
-                volumeData.push({ time, value: d.volume, color: d.price >= (intradayData[i-1]?.value || closeYest) ? '#2ecc71' : '#e74c3c' });
+                volumeData.push({ time, value: d.volume, color: d.price >= (intradayData[i - 1]?.value || closeYest) ? '#2ecc71' : '#e74c3c' });
             });
 
             intradayPriceSeries.setData(intradayData);
             intradayAvgPriceSeries.setData(avgPriceData);
             volumeSeries.setData(volumeData);
             
-            // ====================== 最终解决方案：条件性智能缩放 ======================
             mainChart.priceScale('right').applyOptions({
                 autoscaleInfoProvider: () => {
-                    if (intradayData.length === 0) {
-                        return null; // 没有数据，使用默认行为
-                    }
-            
-                    // 1. 计算当前所有数据点的实际最高价和最低价
+                    if (intradayData.length === 0) return null;
                     let minPrice = intradayData[0].value;
                     let maxPrice = intradayData[0].value;
                     for (let i = 1; i < intradayData.length; i++) {
                         minPrice = Math.min(minPrice, intradayData[i].value);
                         maxPrice = Math.max(maxPrice, intradayData[i].value);
                     }
-                    
                     const priceRange = maxPrice - minPrice;
-            
-                    // 2. 定义一个合理的“最小可视范围”，例如股价的0.5%
                     const minimumDisplayRange = closeYest * 0.005;
-
-                    // 3. 条件判断
                     if (priceRange < minimumDisplayRange) {
-                        // **场景：开盘初期，价格波动太小，是直线**
-                        // 我们人为地撑开Y轴，以昨收价为中心（或当前价中心），展开一个最小范围
                         const midPoint = (maxPrice + minPrice) / 2;
-                        return {
-                            priceRange: {
-                                minValue: midPoint - minimumDisplayRange,
-                                maxValue: midPoint + minimumDisplayRange,
-                            },
-                        };
+                        return { priceRange: { minValue: midPoint - minimumDisplayRange, maxValue: midPoint + minimumDisplayRange } };
                     } else {
-                        // **场景：价格波动已足够大，或查看全天数据**
-                        // 返回null，让图表库恢复它自己的、您认为OK的默认缩放行为
                         return null;
                     }
                 },
@@ -226,30 +253,27 @@
                 if (!param.time || !param.seriesData.size) return;
                 const pricePoint = param.seriesData.get(intradayPriceSeries);
                 if (!pricePoint) return;
-                
                 const avgPricePoint = avgPriceData.find(d => d.time === pricePoint.time);
                 const volPoint = volumeData.find(d => d.time === pricePoint.time);
                 const vol = volPoint?.value || 0;
-
                 let html = `<strong>${formatDate(pricePoint.time)}</strong> | 价格: ${pricePoint.value.toFixed(decimalPlaces)} | `;
                 if(avgPricePoint) html += `均价: ${avgPricePoint.value.toFixed(decimalPlaces)} | `;
                 html += `量: ${(vol / 100).toFixed(2)}手`;
                 document.getElementById('tooltip').innerHTML = html;
             });
-
         } catch (error) {
             console.error("加载分时数据失败:", error);
             document.getElementById('tooltip').innerText = `加载分时数据失败: ${error.message}`;
         }
     }
-    
-    // --- 新增：事件绑定 ---
+
+    // --- 事件绑定 (不变) ---
     const dailyBtn = document.getElementById('dailyBtn');
     const intradayBtn = document.getElementById('intradayBtn');
     dailyBtn.addEventListener('click', () => { if (currentMode !== 'daily') { currentMode = 'daily'; dailyBtn.classList.add('active'); intradayBtn.classList.remove('active'); renderDailyChart(); } });
     intradayBtn.addEventListener('click', () => { if (currentMode !== 'intraday') { currentMode = 'intraday'; intradayBtn.classList.add('active'); dailyBtn.classList.remove('active'); renderIntradayChart(); } });
 
-    // --- 初始加载 ---
+    // --- 初始加载 (不变) ---
     intradayBtn.disabled = true;
     renderDailyChart();
   </script>
