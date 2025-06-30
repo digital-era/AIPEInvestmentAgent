@@ -1802,7 +1802,7 @@ async function deepSearchReport() {
 		break;
 	}
     }
-    console.log(stockCodeForData，stockName); // 输出代码
+    console.log(stockCodeForData, stockName); // 输出代码
     let quantDataMessage = ''
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
 	quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
