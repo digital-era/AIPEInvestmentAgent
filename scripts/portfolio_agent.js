@@ -590,9 +590,10 @@ async function analyzeStockForAgent(agentId) {
         }
     }
 
+    /* 
     let potScore = "[数据缺失]";
     let totalInflow = "[数据缺失]";
-    /* let quantDataMessage = "";
+    let quantDataMessage = "";
 
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
         quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
@@ -611,8 +612,7 @@ async function analyzeStockForAgent(agentId) {
 
     let analysisReportText = "";
 
-    //获取历史分析报告
-
+    //获取历史分析报告，如果获取不到为第一次分析
     if (TRUE) {	//如果是第一次分析
 	    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
 	        if (analysisDisplayElement) {
