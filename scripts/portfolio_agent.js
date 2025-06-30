@@ -536,6 +536,72 @@ function renderStockPoolList(agentId) {
     });
 }
 
+/**
+ * 从阿里云OSS获取指定股票的最新深度报告内容。
+ * 它会自动查找所有符合 'deepreport/{stockName}_YYYY-MM-DD.md' 格式的文件，
+ * 并选择日期最新的一个文件进行读取。
+*/
+async function getLatestReportFromOSS(stockName) {
+    if (!stockName) {
+        console.error("获取报告失败：未提供股票名称。");
+        return ""; // 如果没有传入stockName，直接返回空
+    }
+
+    try {
+        // 1. 获取OSS客户端实例
+        const client = await getOSSClient();
+
+        // 2. 定义要搜索的文件前缀
+        // 例如，如果 stockName 是 "贵州茅台"，前缀就是 "deepreport/贵州茅台_"
+        const prefix = `deepreport/${stockName}_`;
+        console.log(`正在OSS中搜索前缀为 "${prefix}" 的报告...`);
+
+        // 3. 使用 client.list() 列出所有匹配前缀的文件
+        const listResult = await client.list({
+            prefix: prefix,
+            // 'max-keys' 可以限制返回的最大文件数，以防文件过多
+            'max-keys': 1000 
+        });
+
+        // 4. 检查是否找到了任何文件
+        if (!listResult.objects || listResult.objects.length === 0) {
+            console.log(`未找到与 "${prefix}" 匹配的报告文件。`);
+            return ""; // 按要求，如果找不到文件则返回空字符串
+        }
+
+        // 5. 找到最新的文件
+        // 由于文件名格式为 '..._YYYY-MM-DD.md'，日期部分是可按字典顺序比较的。
+        // 因此，我们直接对文件名字符串进行降序排序，第一个就是最新的。
+        listResult.objects.sort((a, b) => {
+            // b.name.localeCompare(a.name) 实现字符串降序排序
+            // 例如 '..._2023-10-27.md' 会排在 '..._2023-10-26.md' 前面
+            return b.name.localeCompare(a.name);
+        });
+
+        const latestFile = listResult.objects[0];
+        const latestFileKey = latestFile.name;
+        
+        console.log(`找到最新报告文件: ${latestFileKey}`);
+
+        // 6. 使用 client.get() 获取最新文件的内容
+        const getResult = await client.get(latestFileKey);
+        
+        // 7. 将返回的 Buffer/Uint8Array 内容解码为UTF-8字符串
+        // 在浏览器环境中，getResult.content 是一个 Uint8Array
+        const fileContent = new TextDecoder('utf-8').decode(getResult.content);
+        
+        // 8. 成功！返回文件内容
+        return fileContent;
+
+    } catch (error) {
+        // 统一处理所有可能的错误：获取客户端失败、列出文件失败、获取文件失败等
+        console.error(`从OSS读取最新报告时发生错误 (股票: ${stockName}):`, error);
+        
+        // 按要求，如果读取失败则返回空字符串
+        return "";
+    }
+}
+
 // Stock Analysis For Agent (MODAL VERSION - Agent Specific Report)
 async function analyzeStockForAgent(agentId) {
     const agent = agents[agentId]; // agent 对象现在包含 latestReport
@@ -611,7 +677,7 @@ async function analyzeStockForAgent(agentId) {
     */
 
     let analysisReportText = "";
-    analysisReportText = getLatestReportFromOSS(stockName) 
+    analysisReportText = getLatestReportFromOSS(stockName) ;
     //获取历史分析报告，如果获取不到为第一次分析
     if (analysisReportText == "") {	//如果是第一次分析
 	    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
@@ -1771,72 +1837,6 @@ async function saveReportChanges(button) {
     
     // 根据原代码要求，保存后不关闭模态框
     // closeAnalysisReportModal();
-}
-
-/**
- * 从阿里云OSS获取指定股票的最新深度报告内容。
- * 它会自动查找所有符合 'deepreport/{stockName}_YYYY-MM-DD.md' 格式的文件，
- * 并选择日期最新的一个文件进行读取。
-*/
-async function getLatestReportFromOSS(stockName) {
-    if (!stockName) {
-        console.error("获取报告失败：未提供股票名称。");
-        return ""; // 如果没有传入stockName，直接返回空
-    }
-
-    try {
-        // 1. 获取OSS客户端实例
-        const client = await getOSSClient();
-
-        // 2. 定义要搜索的文件前缀
-        // 例如，如果 stockName 是 "贵州茅台"，前缀就是 "deepreport/贵州茅台_"
-        const prefix = `deepreport/${stockName}_`;
-        console.log(`正在OSS中搜索前缀为 "${prefix}" 的报告...`);
-
-        // 3. 使用 client.list() 列出所有匹配前缀的文件
-        const listResult = await client.list({
-            prefix: prefix,
-            // 'max-keys' 可以限制返回的最大文件数，以防文件过多
-            'max-keys': 1000 
-        });
-
-        // 4. 检查是否找到了任何文件
-        if (!listResult.objects || listResult.objects.length === 0) {
-            console.log(`未找到与 "${prefix}" 匹配的报告文件。`);
-            return ""; // 按要求，如果找不到文件则返回空字符串
-        }
-
-        // 5. 找到最新的文件
-        // 由于文件名格式为 '..._YYYY-MM-DD.md'，日期部分是可按字典顺序比较的。
-        // 因此，我们直接对文件名字符串进行降序排序，第一个就是最新的。
-        listResult.objects.sort((a, b) => {
-            // b.name.localeCompare(a.name) 实现字符串降序排序
-            // 例如 '..._2023-10-27.md' 会排在 '..._2023-10-26.md' 前面
-            return b.name.localeCompare(a.name);
-        });
-
-        const latestFile = listResult.objects[0];
-        const latestFileKey = latestFile.name;
-        
-        console.log(`找到最新报告文件: ${latestFileKey}`);
-
-        // 6. 使用 client.get() 获取最新文件的内容
-        const getResult = await client.get(latestFileKey);
-        
-        // 7. 将返回的 Buffer/Uint8Array 内容解码为UTF-8字符串
-        // 在浏览器环境中，getResult.content 是一个 Uint8Array
-        const fileContent = new TextDecoder('utf-8').decode(getResult.content);
-        
-        // 8. 成功！返回文件内容
-        return fileContent;
-
-    } catch (error) {
-        // 统一处理所有可能的错误：获取客户端失败、列出文件失败、获取文件失败等
-        console.error(`从OSS读取最新报告时发生错误 (股票: ${stockName}):`, error);
-        
-        // 按要求，如果读取失败则返回空字符串
-        return "";
-    }
 }
 
 /** 新增函数：取消对报告的修改 */
