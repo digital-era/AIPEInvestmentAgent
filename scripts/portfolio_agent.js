@@ -1848,9 +1848,11 @@ async function deepSearchReport() {
 		 }
 	 }
     }
-
-    console.log(foundStockCode, stockName); // 输出代码
+	
+    let potScore = "[数据缺失]";
+    let totalInflow = "[数据缺失]";	
     let quantDataMessage = ''
+    console.log(foundStockCode, stockName); // 输出代码
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
 	quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
     } else if (foundStockCode && allStockData[foundStockCode]) {
