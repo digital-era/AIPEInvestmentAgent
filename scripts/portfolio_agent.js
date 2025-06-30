@@ -1805,8 +1805,8 @@ async function deepSearchReport() {
     }
 
     if (foundStockCode == null)	{
-	for (let stockCodeForData in HKAllStockData) {
-		if (HKAllStockData[stockCodeForData].name === stockName) {
+	for (let stockCodeForData in HKallStockData) {
+		if (HKallStockData[stockCodeForData].name === stockName) {
 			foundStockCode = stockCodeForData;
 			break;
 		 }
@@ -1814,8 +1814,8 @@ async function deepSearchReport() {
     }
 
     if (foundStockCode == null)	{
-	for (let stockCodeForData in ETFAllStockData) {
-		if (ETFAllStockData[stockCodeForData].name === stockName) {
+	for (let stockCodeForData in ETFallStockData) {
+		if (ETFallStockData[stockCodeForData].name === stockName) {
 			foundStockCode = stockCodeForData;
 			break;
 		 }
@@ -1823,8 +1823,8 @@ async function deepSearchReport() {
     }
 
     if (foundStockCode == null)	{
-	for (let stockCodeForData in USAllStockData) {
-		if (USAllStockData[stockCodeForData].name === stockName) {
+	for (let stockCodeForData in USallStockData) {
+		if (USallStockData[stockCodeForData].name === stockName) {
 			foundStockCode = stockCodeForData;
 			break;
 		 }
