@@ -677,7 +677,7 @@ async function analyzeStockForAgent(agentId) {
     */
 
     let analysisReportText = "";
-    analysisReportText = getLatestReportFromOSS(stockName) ;
+    analysisReportText = getLatestReportFromOSS(stockNameForDisplay) ;
     //获取历史分析报告，如果获取不到为第一次分析
     if (analysisReportText == "") {	//如果是第一次分析
 	    if (!apiSettings.endpoint || !apiSettings.key || !apiSettings.model) {
