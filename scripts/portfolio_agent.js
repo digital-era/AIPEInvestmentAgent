@@ -1797,24 +1797,71 @@ async function deepSearchReport() {
 	
     //console.log(`deepSearchReport:agent.latestPrompt=${agent.latestPrompt}`)
     let foundStockCode = null;
-    for (const stockCodeForData in allStockData) {
+    for (let stockCodeForData in allStockData) {
 	if (allStockData[stockCodeForData].name === stockName) {
+		foundStockCode = stockCodeForData;
 		break;
 	}
     }
-    console.log(stockCodeForData, stockName); // 输出代码
+
+    if (foundStockCode == null)	{
+	for (let stockCodeForData in HKAllStockData) {
+		if (HKAllStockData[stockCodeForData].name === stockName) {
+			foundStockCode = stockCodeForData;
+			break;
+		 }
+	 }
+    }
+
+    if (foundStockCode == null)	{
+	for (let stockCodeForData in ETFAllStockData) {
+		if (ETFAllStockData[stockCodeForData].name === stockName) {
+			foundStockCode = stockCodeForData;
+			break;
+		 }
+	 }
+    }
+
+    if (foundStockCode == null)	{
+	for (let stockCodeForData in USAllStockData) {
+		if (USAllStockData[stockCodeForData].name === stockName) {
+			foundStockCode = stockCodeForData;
+			break;
+		 }
+	 }
+    }
+
+    if (foundStockCode == null)	{
+	for (let stockCodeForData in ETFAllStockData) {
+		if (ETFAllStockData[stockCodeForData].name === stockName) {
+			foundStockCode = stockCodeForData;
+			break;
+		 }
+	 }
+    }
+
+     if (foundStockCode == null)	{
+	for (let stockCodeForData in allStockData) {
+		if (HKAllStockData[stockCodeForData].name === stockName) {
+			foundStockCode = stockCodeForData;
+			break;
+		 }
+	 }
+    }
+
+    console.log(foundStockCode, stockName); // 输出代码
     let quantDataMessage = ''
     if (typeof allStockData === 'undefined' || Object.keys(allStockData).length === 0) {
 	quantDataMessage = "注意: 股票基础数据 (allStockData) 未完全加载，无法获取量化指标。\n";
-    } else if (stockCodeForData && allStockData[stockCodeForData]) {
-	const stockData = allStockData[stockCodeForData];
+    } else if (foundStockCode && allStockData[foundStockCode]) {
+	const stockData = allStockData[foundStockCode];
 	potScore = stockData.currentPotScore !== undefined ? String(stockData.currentPotScore) : "[无PotScore数据]";
 	totalInflow = stockData.totalInflow !== undefined ? String(stockData.totalInflow) : "[无主力资金数据]";
-	quantDataMessage = `已获取 ${stockNameForDisplay}(${stockCodeForData}) 的量化数据: PotScore=${potScore}, 主力资金流入=${totalInflow}\n`;
-    } else if (stockCodeForData) {
-	quantDataMessage = `注意: 无法在已加载的股票基础数据中找到代码 ${stockCodeForData} (${stockNameForDisplay}) 的量化信息。\n`;
+	quantDataMessage = `已获取 ${stockName}(${foundStockCode}) 的量化数据: PotScore=${potScore}, 主力资金流入=${totalInflow}\n`;
+    } else if (foundStockCode) {
+	quantDataMessage = `注意: 无法在已加载的股票基础数据中找到代码 ${foundStockCode} (${stockName}) 的量化信息。\n`;
     } else {
-	quantDataMessage = `注意: 由于未能识别股票代码，无法获取 ${stockNameForDisplay} 的量化数据。\n`;
+	quantDataMessage = `注意: 由于未能识别股票代码，无法获取 ${stockName} 的量化数据。\n`;
     }
 
     // --- 2. 构筑 Prompt ---
