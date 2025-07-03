@@ -737,24 +737,6 @@ async function deepSearchReport() {
 	 }
     }
 
-    if (foundStockCode == null)	{
-	for (let stockCodeForData in ETFAllStockData) {
-		if (ETFAllStockData[stockCodeForData].name === stockName) {
-			foundStockCode = stockCodeForData;
-			break;
-		 }
-	 }
-    }
-
-     if (foundStockCode == null)	{
-	for (let stockCodeForData in allStockData) {
-		if (HKAllStockData[stockCodeForData].name === stockName) {
-			foundStockCode = stockCodeForData;
-			break;
-		 }
-	 }
-    }
-	
     let potScore = "[数据缺失]";
     let totalInflow = "[数据缺失]";	
     let quantDataMessage = ''
