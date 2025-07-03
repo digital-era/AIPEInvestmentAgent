@@ -807,28 +807,31 @@
 		    }
 		}
 		
-		// --- 辅助函数 2: 过滤每个组合中每个股票的最新记录 ---
-		function filterLatestEntries(sheetData) {
+		function filterLatestEntries(LatestTimestamp) {
+		    // 验证输入参数
 		    if (!sheetData || sheetData.length === 0) return [];
-		    
+		    if (!LatestTimestamp) return [];
+		
 		    const latestEntriesMap = new Map();
-		    
+		
 		    for (const row of sheetData) {
 		        // 确保关键字段存在
 		        if (!row['组合名称'] || !row['股票代码'] || !row['修改时间']) {
 		            continue;
 		        }
-		        const key = `${row['组合名称']}|${row['股票代码']}`;
-		        const existingEntry = latestEntriesMap.get(key);
 		
-		        //if (!existingEntry || new Date(row['修改时间']) > new Date(existingEntry['修改时间'])) {
-			if (!existingEntry || row['修改时间'] > existingEntry['修改时间']) {
+		        // 使用组合名称和股票代码作为键，确保唯一性
+		        const key = `${row['组合名称']}|${row['股票代码']}`;
+		
+		        // 仅当修改时间与 LatestTimestamp 相等时存储记录
+		        if (row['修改时间'] === LatestTimestamp) {
 		            latestEntriesMap.set(key, row);
 		        }
 		    }
+		
+		    // 返回 Map 中所有值的数组
 		    return Array.from(latestEntriesMap.values());
 		}
-
 
 		async function loadPortfolioFromCloudAndApplyToUI() {
 		    // --- 定义Sheet名称映射关系 ---
@@ -919,9 +922,13 @@
 		                continue;
 		            }
 			    
+			    // --- 步骤1：获得OSS和Local的最新修改时间 ---
+		            const ossLatestTimestamp = getLatestTimestamp(currentOssSheetData);
+		            const localLatestTimestamp = getLatestTimestamp(currentLocalSheetData);
+			    
 			     // 步骤 2: 对每个来源的数据进行过滤，只保留最新条目
-		            const latestOssData = filterLatestEntries(currentOssSheetData);
-		            const latestLocalData = filterLatestEntries(currentLocalSheetData);
+		            const latestOssData = filterLatestEntries(ossLatestTimestamp);
+		            const latestLocalData = filterLatestEntries(localLatestTimestamp);
 		
 		            if (latestOssData.length === 0) {
 		                continue;
@@ -930,10 +937,6 @@
 		                finalSheetsData[ossSheetName] = latestOssData;
 		                continue;
 		            }
-		
-		            // --- 新增：比较OSS和Local的整体修改时间 ---
-		            const ossLatestTimestamp = getLatestTimestamp(latestOssData);
-		            const localLatestTimestamp = getLatestTimestamp(latestLocalData);
 		
 		            console.log(`Sheet "${ossSheetName}": OSS最新时间戳=${ossLatestTimestamp}, Local最新时间戳=${localLatestTimestamp}`);
 		
