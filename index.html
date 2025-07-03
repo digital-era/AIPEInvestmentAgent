@@ -822,7 +822,7 @@
 		        const existingEntry = latestEntriesMap.get(key);
 		
 		        //if (!existingEntry || new Date(row['修改时间']) > new Date(existingEntry['修改时间'])) {
-			if (!existingEntry || row['修改时间'] > existingEntry['修改时间']) {
+			if ( row['修改时间'] > existingEntry['修改时间']) {
 		            latestEntriesMap.set(key, row);
 		        }
 		    }
@@ -918,33 +918,8 @@
 		                console.warn(`跳过处理：OSS的Sheet "${ossSheetName}" 不存在。`);
 		                continue;
 		            }
-		
-		            // --- 新增：比较OSS和Local的整体修改时间 ---
-		            const ossLatestTimestamp = getLatestTimestamp(currentOssSheetData);
-		            const localLatestTimestamp = getLatestTimestamp(currentLocalSheetData);
-		
-		            console.log(`Sheet "${ossSheetName}": OSS最新时间戳=${ossLatestTimestamp}, Local最新时间戳=${localLatestTimestamp}`);
-		
-		            // 条件判断：如果OSS的时间戳明确地大于本地的时间戳，则直接采用OSS数据，不合并
-		            if (ossLatestTimestamp && localLatestTimestamp && ossLatestTimestamp > localLatestTimestamp) {
-		                console.log(`Sheet "${ossSheetName}": OSS版本较新，将直接使用OSS数据。`);
-		                // 同样需要对OSS数据进行过滤，以保证每个股票只保留最新条目
-		                finalSheetsData[ossSheetName] = filterLatestEntries(currentOssSheetData);
-		                continue; // 处理下一个Sheet
-		            }
-		
-		            // --- 如果不满足上述条件，则执行原有的合并或回退逻辑 ---
-		
-		            // 如果本地Sheet不存在，直接用OSS数据
-		            if (!currentLocalSheetData) {
-		                console.warn(`本地对应的Sheet "${localSheetName}" 不存在，将直接使用OSS数据。`);
-		                finalSheetsData[ossSheetName] = filterLatestEntries(currentOssSheetData);
-		                continue;
-		            }
-		            
-		            console.log(`Sheet "${ossSheetName}": OSS版本不新于Local版本或无法比较，执行数据合并逻辑。`);
-		
-		            // 步骤 2: 对每个来源的数据进行过滤，只保留最新条目
+			    
+			     // 步骤 2: 对每个来源的数据进行过滤，只保留最新条目
 		            const latestOssData = filterLatestEntries(currentOssSheetData);
 		            const latestLocalData = filterLatestEntries(currentLocalSheetData);
 		
@@ -955,6 +930,32 @@
 		                finalSheetsData[ossSheetName] = latestOssData;
 		                continue;
 		            }
+		
+		            // --- 新增：比较OSS和Local的整体修改时间 ---
+		            const ossLatestTimestamp = getLatestTimestamp(latestOssData);
+		            const localLatestTimestamp = getLatestTimestamp(latestLocalData);
+		
+		            console.log(`Sheet "${ossSheetName}": OSS最新时间戳=${ossLatestTimestamp}, Local最新时间戳=${localLatestTimestamp}`);
+		
+		            // 条件判断：如果OSS的时间戳明确地大于本地的时间戳，则直接采用OSS数据，不合并
+		            if (ossLatestTimestamp && localLatestTimestamp && ossLatestTimestamp > localLatestTimestamp) {
+		                console.log(`Sheet "${ossSheetName}": OSS版本较新，将直接使用OSS数据。`);
+		                // 同样需要对OSS数据进行过滤，以保证每个股票只保留最新条目
+		                finalSheetsData[ossSheetName] = latestOssData;
+		                continue; // 处理下一个Sheet
+		            }
+		
+		            // --- 如果不满足上述条件，则执行原有的合并或回退逻辑 ---
+		
+		            // 如果本地Sheet不存在，直接用OSS数据
+		            if (!currentLocalSheetData) {
+		                console.warn(`本地对应的Sheet "${localSheetName}" 不存在，将直接使用OSS数据。`);
+		                finalSheetsData[ossSheetName] = latestOssData;
+		                continue;
+		            }
+		            
+		            console.log(`Sheet "${ossSheetName}": OSS版本不新于Local版本或无法比较，执行数据合并逻辑。`);	
+
 		
 		            // 步骤 3: 数据合并
 		            const localDataMap = new Map();
