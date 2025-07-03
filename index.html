@@ -921,9 +921,9 @@
 		                console.warn(`跳过处理：OSS的Sheet "${ossSheetName}" 不存在。`);
 		                continue;
 		            }
-			    console.log(ossSheetName)
-			    console.log(currentOssSheetData)
-			    console.log(currentLocalSheetData)
+			    //console.log(ossSheetName)
+			    //console.log(currentOssSheetData)
+			    //console.log(currentLocalSheetData)
 			    // --- 步骤1：获得OSS和Local的最新修改时间 ---
 		            const ossLatestTimestamp = getLatestTimestamp(currentOssSheetData);
 		            const localLatestTimestamp = getLatestTimestamp(currentLocalSheetData);
